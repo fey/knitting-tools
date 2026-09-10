@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ПРОТОТИП — визуализация мыска</title>
+<!--
+  ПРОТОТИП. Одноразовый код, отвечающий на один вопрос.
+  Тикет: .scratch/toe-calculator/issues/02-toe-visualization.md
+
+  Вопрос: чем должен быть основной вывод калькулятора мыска —
+  таблицей рядов (A), сеткой петель (B) или схематичным силуэтом клина (C).
+
+  Три варианта на одной странице, переключение через #A / #B / #C и стрелки ←/→.
+
+  Допущения прототипа, НЕ решения:
+  - Плоский HTML-файл выбран потому, что это прототип. Тикет
+    «Стек и форма доставки страницы» остаётся открытым и непредрешённым.
+  - Ряды без убавок перед швом НЕ дорисованы: сколько их — вопрос 3
+    тикета «Стандартные ритмы убавок мыска cuff-down», он ещё в работе.
+  - Точные названия типов убавок — вопрос 4 того же тикета. Здесь только наклон.
+  - Пропорции силуэта в варианте C условны: без плотности вязания
+    отношение высоты ряда к ширине петли неизвестно (вне области карты).
+-->
+<style>
+  :root {
+    --bg: #fbfaf8; --fg: #1c1a17; --muted: #6f6a62; --line: #e2ddd5;
+    --accent: #b4472a; --accent-soft: #f4ded6; --plain: #ece8e1;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 0 84px; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 14px 0; }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .protobadge {
+    display: inline-block; background: #1c1a17; color: #fff; font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; padding: 3px 7px;
+    border-radius: 3px; margin-bottom: 10px;
+  }
+
+  /* --- общие ручки прототипа, к дизайну отношения не имеют --- */
+  .knobs {
+    background: #f2efe9; border: 1px dashed var(--line); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 18px;
+  }
+  .knobs-title { font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); margin-bottom: 8px; }
+  .knobs-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .knob { flex: 1 1 108px; }
+  .knob label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .knob input {
+    width: 100%; padding: 7px 8px; font-size: 16px; border: 1px solid var(--line);
+    border-radius: 6px; background: #fff; font-variant-numeric: tabular-nums;
+  }
+  .warn { color: var(--accent); font-size: 12px; margin-top: 8px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  .summary {
+    display: flex; gap: 0; margin-bottom: 16px; overflow: hidden;
+  }
+  .summary div { flex: 1; padding: 10px 8px; text-align: center; border-right: 1px solid var(--line); }
+  .summary div:last-child { border-right: 0; }
+  .summary b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .summary span { font-size: 11px; color: var(--muted); }
+
+  /* --- A: таблица --- */
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  thead th {
+    position: sticky; top: 0; background: var(--bg); text-align: left;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--line);
+  }
+  tbody td { padding: 9px 6px; border-bottom: 1px solid #f0ece5; font-size: 14px; }
+  tr.dec td { background: var(--accent-soft); }
+  tr.dec td:first-child { font-weight: 700; }
+  td.num { text-align: right; width: 54px; color: var(--muted); }
+  tr.dec td.num { color: var(--fg); font-weight: 600; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 10px;
+         background: var(--accent); color: #fff; margin-right: 6px; }
+  .rule { font-size: 13px; line-height: 1.45; color: var(--muted); padding: 12px 6px;
+           border-bottom: 1px solid var(--line); }
+  .rule b { color: var(--fg); }
+  .seam { padding: 12px 6px; font-size: 13px; color: var(--muted); border-top: 2px solid var(--fg); }
+
+  /* --- B: сетка петель --- */
+  .grid { overflow-x: auto; padding: 12px 0; }
+  .grow { display: flex; justify-content: center; gap: 1px; margin-bottom: 1px; }
+  .cell { width: 9px; height: 8px; background: var(--plain); border-radius: 1px; flex: none; }
+  .cell.dec { background: var(--accent); }
+  .cell.edge { background: #d8d2c8; }
+  .rowlabel { font-size: 9px; color: var(--muted); width: 18px; text-align: right;
+              margin-right: 4px; line-height: 8px; font-variant-numeric: tabular-nums; flex: none; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); padding: 10px 4px 0; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 8px; border-radius: 1px; margin-right: 5px; vertical-align: middle; }
+
+  /* --- C: силуэт --- */
+  .silh { padding: 14px 4px 4px; }
+  .note { font-size: 12px; color: var(--muted); padding: 10px 4px 0; }
+
+  .zoombar { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; font-size: 12px; color: var(--muted); }
+  .zoombar button { width: 30px; height: 30px; border: 1px solid var(--line); background: #fff;
+                    border-radius: 7px; font-size: 17px; line-height: 1; cursor: pointer; color: var(--fg); }
+  .zoombar .hint { margin-left: auto; font-size: 11px; }
+  .chart-cap { font-size: 12px; color: var(--muted); padding: 6px 2px; }
+  #chartscroll { cursor: grab; overscroll-behavior-x: contain;
+                 scrollbar-width: auto; scrollbar-color: #b0a89a #e9e5dd; }
+  #chartscroll.dragging { cursor: grabbing; }
+  #chartscroll::-webkit-scrollbar { height: 11px; }
+  #chartscroll::-webkit-scrollbar-track { background: #e9e5dd; border-radius: 6px; }
+  #chartscroll::-webkit-scrollbar-thumb { background: #b0a89a; border-radius: 6px; }
+
+  /* --- переключатель, намеренно не похож на дизайн --- */
+  .switcher {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 2px; background: #14120f; color: #fff;
+    border-radius: 999px; padding: 4px; box-shadow: 0 6px 22px rgba(0,0,0,.28); z-index: 50;
+  }
+  .switcher button {
+    background: none; border: 0; color: #fff; font-size: 18px; cursor: pointer;
+    padding: 6px 13px; border-radius: 999px; line-height: 1;
+  }
+  .switcher button:active { background: #333; }
+  .switcher .name { font-size: 13px; padding: 0 8px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="protobadge">прототип</span>
+  <h1>Мысок носка, cuff-down</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="knobs">
+    <div class="knobs-title">Ручки прототипа — не часть дизайна</div>
+    <div class="knobs-row">
+      <div class="knob"><label>Начальные петли</label><input id="i-init" type="number" value="60" min="8" max="140" step="2"></div>
+      <div class="knob"><label>Конечные петли</label><input id="i-final" type="number" value="16" min="4" max="80" step="2"></div>
+      <div class="knob"><label>Интервал</label><input id="i-int" type="number" value="1" min="0" max="6"></div>
+      <div class="knob"><label>Кромка</label><input id="i-edge" type="number" value="1" min="0" max="3"></div>
+    </div>
+    <div class="warn" id="warn" hidden></div>
+  </div>
+
+  <div class="card summary" id="summary"></div>
+
+  <div id="view"></div>
+</div>
+
+<div class="switcher">
+  <button id="prev" aria-label="Предыдущий вариант">←</button>
+  <span class="name" id="vname"></span>
+  <button id="next" aria-label="Следующий вариант">→</button>
+</div>
+
+<script>
+/* ---------------------------------------------------------------
+   ОБЩИЙ РАСЧЁТ. Один источник чисел на все три варианта, чтобы
+   сравнивать формы подачи, а не расхождения в арифметике.
+   --------------------------------------------------------------- */
+function calcToe(initial, final, interval, edge) {
+  const diff = initial - final;
+  const problems = [];
+  if (initial % 2 !== 0) problems.push('Начальные петли не делятся пополам.');
+  if (diff <= 0) problems.push('Конечных петель должно быть меньше начальных.');
+  if (diff % 4 !== 0) problems.push('Разница ' + diff + ' не кратна 4 — прототип отбрасывает остаток.');
+  const decRounds = Math.floor(Math.max(diff, 0) / 4);
+  const rows = [];
+  let st = initial, n = 0;
+  for (let d = 1; d <= decRounds; d++) {
+    st -= 4; n++;
+    rows.push({ n, type: 'dec', dec: d, stitches: st });
+    if (d < decRounds) {                 // хвоста перед швом НЕ дорисовываем
+      for (let i = 0; i < interval; i++) {
+        n++; rows.push({ n, type: 'plain', stitches: st });
+      }
+    }
+  }
+  const halfStart = initial / 2;
+  if (edge * 2 + 4 > halfStart) problems.push('Кромка не помещается в половину на старте.');
+  const halfEnd = st / 2;
+  if (halfEnd > 0 && edge * 2 + 4 > halfEnd) problems.push('Ближе к кончику кромка ' + edge + ' не помещается: в половине остаётся ' + halfEnd + ' петель.');
+  return { initial, final: st, interval, edge, decRounds, rows, totalRows: rows.length, problems };
+}
+
+/* --- вариант A: таблица рядов --- */
+function renderA(m) {
+  const body = m.rows.map(r => r.type === 'dec'
+    ? `<tr class="dec"><td class="num">${r.n}</td><td><span class="tag">убавка</span>${r.dec} из ${m.decRounds}</td><td class="num">${r.stitches}</td><td class="num">${r.stitches/2}</td></tr>`
+    : `<tr><td class="num">${r.n}</td><td>без убавок</td><td class="num">${r.stitches}</td><td class="num">${r.stitches/2}</td></tr>`
+  ).join('');
+  return `<div class="card" style="padding:0 10px">
+    <div class="rule">
+      <b>Убавочный ряд</b> — в каждой половине по 2 убавки:
+      после ${m.edge === 0 ? 'края' : m.edge + ' кромочн.'} с наклоном влево,
+      перед ${m.edge === 0 ? 'краем' : m.edge + ' кромочн.'} с наклоном вправо.
+    </div>
+    <table>
+      <thead><tr><th style="width:44px;text-align:right">Ряд</th><th>Что делать</th><th style="text-align:right">В круге</th><th style="text-align:right">В половине</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    <div class="seam">Закрыть трикотажным швом ${m.final} петель.<br><span style="color:#b4472a">Сколько рядов без убавок идёт перед швом — открытый вопрос, исследование ещё не закрыто.</span></div>
+  </div>`;
+}
+
+/* --- вариант B: сетка петель, показана одна половина (мысок симметричен) --- */
+function renderB(m) {
+  /* кончик мыска сверху: рисуем от последнего ряда к первому */
+  const rows = m.rows.slice().reverse().map(r => {
+    const half = r.stitches / 2;
+    let cells = '';
+    for (let i = 0; i < half; i++) {
+      let cls = 'cell';
+      if (i < m.edge || i >= half - m.edge) cls += ' edge';
+      else if (r.type === 'dec' && (i === m.edge || i === half - 1 - m.edge)) cls += ' dec';
+      cells += `<span class="${cls}"></span>`;
+    }
+    const lbl = (r.type === 'dec' || r.n === 1) ? r.n : '';
+    return `<div class="grow"><span class="rowlabel">${lbl}</span>${cells}</div>`;
+  }).join('');
+  return `<div class="card">
+    <div class="note" style="padding:12px 12px 0">Кончик мыска сверху, ряд 1 внизу.</div>
+    <div class="grid">${rows}</div>
+    <div class="legend" style="padding:10px 12px 12px">
+      <span><i style="background:#ece8e1"></i>петля</span>
+      <span><i style="background:#b4472a"></i>убавка</span>
+      <span><i style="background:#d8d2c8"></i>кромка</span>
+      <span>показана одна половина из двух</span>
+    </div>
+  </div>`;
+}
+
+/* --- вариант C: силуэт клина, форма выводится из ритма --- */
+function renderC(m) {
+  const W = 320, PAD = 46, ROWH = 9;
+  const maxSt = m.initial;
+  const H = m.totalRows * ROWH + 40;
+  const x = st => PAD + (W - PAD * 2) * (1 - st / maxSt) / 2;
+  const BOTTOM = 20 + m.totalRows * ROWH;          // ряд 1 внизу
+  const flip = y => BOTTOM + 20 - y;               // кончик мыска сверху
+
+  const pts = [];
+  let prevSt = m.initial;
+  pts.push([x(prevSt), 20]);
+  m.rows.forEach((r, i) => {
+    const y = 20 + (i + 1) * ROWH;
+    pts.push([x(prevSt), y]);
+    pts.push([x(r.stitches), y]);
+    prevSt = r.stitches;
+  });
+  const left = pts.map(([px, py]) => [px, flip(py)]);
+  const right = left.map(([px, py]) => [W - px, py]).reverse();
+  const poly = left.concat(right).map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+
+  const decs = m.rows.filter(r => r.type === 'dec');
+  const ticks = decs.map((r, i) => {
+    const y = flip(20 + (m.rows.indexOf(r) + 1) * ROWH);
+    const show = decs.length <= 12 || i % 2 === 0 || i === decs.length - 1;
+    if (!show) return '';
+    return `<g>
+      <line x1="${x(r.stitches).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(W - x(r.stitches)).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#b4472a" stroke-width="1" opacity=".45"/>
+      <text x="6" y="${(y + 3).toFixed(1)}" font-size="9" fill="#6f6a62">${r.n}</text>
+      <text x="${W - 4}" y="${(y + 3).toFixed(1)}" font-size="9" fill="#6f6a62" text-anchor="end">${r.stitches}</text>
+    </g>`;
+  }).join('');
+
+  const ySeam = flip(BOTTOM);
+  return `<div class="card silh">
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block">
+      <polygon points="${poly}" fill="#f4ded6" stroke="#b4472a" stroke-width="1.5" stroke-linejoin="round"/>
+      ${ticks}
+      <line x1="${x(m.final).toFixed(1)}" y1="${ySeam}" x2="${(W - x(m.final)).toFixed(1)}" y2="${ySeam}" stroke="#1c1a17" stroke-width="3"/>
+      <text x="${W/2}" y="${ySeam - 7}" font-size="10" fill="#1c1a17" text-anchor="middle">трикотажный шов, ${m.final} петель</text>
+      <text x="${W/2}" y="${(flip(20) + 14).toFixed(1)}" font-size="10" fill="#6f6a62" text-anchor="middle">начало мыска, ${m.initial} петель</text>
+    </svg>
+    <div class="note">Кончик мыска сверху, ряд 1 внизу. Слева — номер ряда, справа — сколько петель осталось в круге.
+    Форма клина выведена из ритма: поменяй интервал в ручках и посмотри, как меняется силуэт.<br>
+    <span style="color:#b4472a">Пропорции условны: без плотности вязания неизвестно, насколько ряд ниже петли.</span></div>
+  </div>`;
+}
+
+/* --- вариант D: схема с условными обозначениями --- */
+/* Настоящая вязальная схема: клетка = петля, символ = способ провязывания.
+   Ширина сетки постоянна (половина на старте); съеденные убавками петли
+   показаны как «нет петли» — так это делается в печатных схемах.
+   Круговое вязание: все ряды читаются справа налево, номера справа.
+   Ряд 1 сверху, схема сужается вниз — это спорно, см. заметку под схемой. */
+let chartZoom = 22;                       // размер клетки схемы в пикселях
+window.setChartZoom = z => { chartZoom = Math.max(10, Math.min(44, z)); draw(); };
+
+const sw = (fill, inner) =>
+  `<svg width="14" height="14" style="vertical-align:-3px;margin-right:5px"><rect x=".5" y=".5" width="13" height="13" fill="${fill}" stroke="#c9c2b6"/>${inner}</svg>`;
+
+function renderD(m) {
+  const cols = m.initial / 2;
+  const rows = m.rows.length;
+  const LBL = 1.9;                        // место под номера рядов, в клетках
+  const W = cols + LBL, H = rows;
+  const g = [];
+
+  m.rows.slice().reverse().forEach((r, i) => {   // кончик мыска сверху
+    const active = r.stitches / 2;
+    const off = (cols - active) / 2;
+    const y = i;
+    for (let j = 0; j < cols; j++) {
+      const inside = j >= off && j < off + active;
+      if (!inside) {
+        g.push(`<rect x="${j}" y="${y}" width="1" height="1" fill="#e4dfd5" stroke="#d5cec2" stroke-width=".03"/>`);
+        continue;
+      }
+      const p = off + active - 1 - j;            // порядковый номер петли, 0 — начало половины
+      const isEdge = p < m.edge || p >= active - m.edge;
+      const decStart = r.type === 'dec' && p === m.edge;
+      const decEnd   = r.type === 'dec' && p === active - 1 - m.edge;
+      g.push(`<rect x="${j}" y="${y}" width="1" height="1" fill="${isEdge ? '#f7f4ee' : '#fff'}" stroke="#c9c2b6" stroke-width=".04"/>`);
+      if (!decStart && !decEnd)  // лицевая — вертикальный штрих, пустая клетка означала бы изнаночную
+        g.push(`<line x1="${j+.5}" y1="${y+.2}" x2="${j+.5}" y2="${y+.8}" stroke="#4a453d" stroke-width=".09" stroke-linecap="round"/>`);
+      // наклон влево — вертикальный катет слева, гипотенуза «\\»; наклон вправо — зеркально
+      if (decStart) g.push(`<polygon points="${j+.22},${y+.8} ${j+.22},${y+.2} ${j+.78},${y+.8}" fill="#1c1a17"/>`);
+      if (decEnd)   g.push(`<polygon points="${j+.78},${y+.8} ${j+.78},${y+.2} ${j+.22},${y+.8}" fill="#1c1a17"/>`);
+    }
+    g.push(`<text x="${cols + .35}" y="${y + .7}" font-size=".55" fill="${r.type === 'dec' ? '#1c1a17' : '#9a948a'}" font-weight="${r.type === 'dec' ? '600' : '400'}">${r.n}</text>`);
+  });
+
+  for (let j = 5; j < cols; j += 5)       // жирные линии каждые 5 петель для счёта
+    g.push(`<line x1="${j}" y1="0" x2="${j}" y2="${rows}" stroke="#8f887c" stroke-width=".07"/>`);
+  g.push(`<rect x="0" y="0" width="${cols}" height="${rows}" fill="none" stroke="#8f887c" stroke-width=".09"/>`);
+
+  return `<div class="card" style="padding:12px 10px 4px">
+    <div class="zoombar">
+      <span>Клетка ${chartZoom}&nbsp;px</span>
+      <button onclick="setChartZoom(chartZoom - 4)">−</button>
+      <button onclick="setChartZoom(chartZoom + 4)">+</button>
+      <span class="hint">${cols * chartZoom > 330 ? 'схему тяни мышью или shift+колесо' : ''}</span>
+    </div>
+    <div class="chart-cap">↑ ${m.final} петель на трикотажный шов</div>
+    <div id="chartscroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <svg viewBox="0 0 ${W} ${H}" width="${Math.round(W * chartZoom)}" height="${Math.round(H * chartZoom)}" style="display:block">${g.join('')}</svg>
+    </div>
+    <div class="chart-cap">Начало мыска, ${m.initial} петель. Ряды читаются снизу вверх, петли справа налево.</div>
+    <div class="legend" style="padding:12px 4px 0">
+      <span>${sw('#fff', '<line x1="7" y1="3" x2="7" y2="11" stroke="#4a453d" stroke-width="1.4" stroke-linecap="round"/>')}лицевая</span>
+      <span>${sw('#f7f4ee', '<line x1="7" y1="3" x2="7" y2="11" stroke="#4a453d" stroke-width="1.4" stroke-linecap="round"/>')}петля кромки, тоже лицевая</span>
+      <span>${sw('#fff', '<polygon points="3.5,11 3.5,3 10.5,11" fill="#1c1a17"/>')}2 вместе с наклоном влево</span>
+      <span>${sw('#fff', '<polygon points="10.5,11 10.5,3 3.5,11" fill="#1c1a17"/>')}2 вместе с наклоном вправо</span>
+      <span>${sw('#e4dfd5', '')}нет петли</span>
+    </div>
+    <div class="note">Показана одна половина из двух, сетка держит постоянную ширину — съеденные петли отмечены как «нет петли», как в печатных схемах.<br>
+    Ряд 1 внизу, кончик мыска сверху — как принято в вязальных схемах. Лицевая обозначена вертикальным штрихом: пустая клетка в русских схемах читается как изнаночная.<br>
+    Значки убавок взяты из палитры <a href="https://xn--j1aaidckcejcj.xn--80adpjt8fya.xn--p1ai/" style="color:#b4472a">конструктора схем «Вязаный.рф»</a>: залитый треугольник, вертикальный катет со стороны наклона. Пустая клетка там означает «нет петли», поэтому заливать её серым не обязательно — оставил для наглядности.</div>
+  </div>`;
+}
+
+const VARIANTS = [
+  { key: 'A', name: 'Таблица рядов', render: renderA },
+  { key: 'B', name: 'Сетка петель',  render: renderB },
+  { key: 'C', name: 'Силуэт клина',  render: renderC },
+  { key: 'D', name: 'Схема',          render: renderD },
+];
+
+/* Состояние переключателя живёт в памяти: file:// URL — уникальный origin,
+   и запись в location.hash Chrome блокирует. Хэш читаем один раз при старте. */
+let currentVariant = 'A';
+try {
+  const k = (location.hash || '').slice(1).toUpperCase();
+  if (VARIANTS.some(v => v.key === k)) currentVariant = k;
+} catch (e) { /* неважно */ }
+
+function draw() {
+  const initial = +document.getElementById('i-init').value;
+  const final   = +document.getElementById('i-final').value;
+  const interval= +document.getElementById('i-int').value;
+  const edge    = +document.getElementById('i-edge').value;
+  const m = calcToe(initial, final, interval, edge);
+
+  const w = document.getElementById('warn');
+  w.hidden = m.problems.length === 0;
+  w.textContent = m.problems.join(' ');
+
+  document.getElementById('sub').textContent =
+    `${m.initial} петель в круге → ${m.final} на шов, убавки через ${m.interval === 0 ? 'каждый ряд' : m.interval + ' р.'}`;
+
+  document.getElementById('summary').innerHTML = `
+    <div><b>${m.totalRows}</b><span>рядов всего</span></div>
+    <div><b>${m.decRounds}</b><span>убавочных</span></div>
+    <div><b>${m.final}</b><span>петель на шов</span></div>`;
+
+  const v = VARIANTS.find(x => x.key === currentVariant);
+  document.getElementById('view').innerHTML = v.render(m);
+  document.getElementById('vname').textContent = v.key + ' — ' + v.name;
+
+  wireChartScroll();
+}
+
+/* Схему надо уметь таскать: на десктопе полоса прокрутки скрыта, а див мышью
+   сам по себе не тянется. Обработчики вешаем заново — draw() пересоздаёт узел. */
+function wireChartScroll() {
+  const sc = document.getElementById('chartscroll');
+  if (!sc) return;
+  sc.scrollLeft = sc.scrollWidth;      // читаем справа налево — начало ряда справа
+
+  let dragging = false, startX = 0, startLeft = 0;
+  sc.addEventListener('pointerdown', e => {
+    dragging = true; startX = e.clientX; startLeft = sc.scrollLeft;
+    sc.classList.add('dragging');
+    try { sc.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  sc.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    sc.scrollLeft = startLeft - (e.clientX - startX);
+    e.preventDefault();
+  });
+  const stop = () => { dragging = false; sc.classList.remove('dragging'); };
+  sc.addEventListener('pointerup', stop);
+  sc.addEventListener('pointercancel', stop);
+  sc.addEventListener('wheel', e => {          // колесо мыши: вбок по горизонтали
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+    if (!d) return;
+    sc.scrollLeft += d;
+    e.preventDefault();
+  }, { passive: false });
+}
+
+function cycle(step) {
+  const i = VARIANTS.findIndex(v => v.key === currentVariant);
+  currentVariant = VARIANTS[(i + step + VARIANTS.length) % VARIANTS.length].key;
+  draw();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.getElementById('prev').onclick = () => cycle(-1);
+document.getElementById('next').onclick = () => cycle(1);
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (e.key === 'ArrowLeft') cycle(-1);
+  if (e.key === 'ArrowRight') cycle(1);
+});
+['i-init','i-final','i-int','i-edge'].forEach(id =>
+  document.getElementById(id).addEventListener('input', draw));
+
+draw();
+</script>
+</body>
+</html>
