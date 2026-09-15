@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ПРОТОТИП — отметка текущего ряда</title>
+<!--
+  ПРОТОТИП. Одноразовый код, отвечающий на один вопрос.
+  Тикет: .scratch/toe-calculator/issues/08-row-progress.md
+
+  Вопрос: нужна ли на схеме отметка текущего ряда, и если нужна — какая.
+
+  Пять вариантов на одной схеме, переключение через #A … #E и стрелки ←/→:
+    A — без отметки (контроль: может, отметка вообще не нужна)
+    B — липкая плашка внизу + подсветка ряда на схеме
+    C — линейка-шторка, которую тянешь вверх по схеме
+    D — окно схемы, текущий ряд закреплён по центру, схема подъезжает сама
+    E — шторка из C, но едет от кнопки плашки из B: нажимаем, а не тянем
+
+  Вариант E добавлен по ходу разбора: C мешал две оси сразу — КАК отметка
+  выглядит и КАК она двигается. E держит картинку C и управление B, поэтому
+  E против B — спор о картинке, E против C — спор об управлении.
+
+  Главная ось сравнения: на телефон смотрят, НЕ трогая его.
+  Видно ли, на каком она ряду, при том положении прокрутки, в каком страница
+  уже находится (B, D, E) — или только сразу после касания, пока не уехало (C).
+
+  ЧТО ЗДЕСЬ ХОСТ, А НЕ ПРЕДМЕТ ОЦЕНКИ:
+  - Сама схема (сетка, значки, ориентация, размер клетки, прокрутка) перенесена
+    из прототипа toe-visualization.html без изменений. Тикет «Как выглядит
+    визуализация мыска» закрыт, схему не пересматриваем. Оцениваем только отметку.
+
+  ДОПУЩЕНИЯ ПРОТОТИПА, НЕ РЕШЕНИЯ:
+  - Плоский HTML-файл выбран потому, что это прототип. Тикет «Стек и форма
+    доставки страницы» остаётся открытым и непредрешённым.
+  - Механизм хранения (localStorage, адресная строка, никак) — тоже тикет
+    «Стек и форма доставки». Здесь он НЕ решается. Что тикет 08 может решить —
+    это ПОВЕДЕНИЕ ПРИ ВОЗВРАТЕ: молча восстановить ряд, спросить или начать с 1.
+    Поэтому «прошлый ряд» подделан ручкой, а не прочитан из хранилища, —
+    ответ не зависит от того, работает хранилище или нет.
+    Доступность localStorage на file:// проверяется и печатается на странице:
+    это наблюдение в пользу тикета «Стек», а не его решение.
+  - Ряды без убавок перед швом не дорисованы, как и в прототипе визуализации.
+-->
+<style>
+  :root {
+    --bg: #fbfaf8; --fg: #1c1a17; --muted: #6f6a62; --line: #e2ddd5;
+    --accent: #b4472a; --accent-soft: #f4ded6; --plain: #ece8e1;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 0 132px; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 14px 0; }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .protobadge {
+    display: inline-block; background: #1c1a17; color: #fff; font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; padding: 3px 7px;
+    border-radius: 3px; margin-bottom: 10px;
+  }
+
+  /* --- общие ручки прототипа, к дизайну отношения не имеют --- */
+  .knobs {
+    background: #f2efe9; border: 1px dashed var(--line); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 18px;
+  }
+  .knobs-title { font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); margin-bottom: 8px; cursor: pointer; }
+  details.knobs:not([open]) .knobs-title { margin-bottom: 0; }
+  .knobs-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .knob { flex: 1 1 108px; }
+  .knob label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .knob input, .knob select {
+    width: 100%; padding: 7px 8px; font-size: 16px; border: 1px solid var(--line);
+    border-radius: 6px; background: #fff; font-variant-numeric: tabular-nums; color: var(--fg);
+  }
+  .knobs hr { border: 0; border-top: 1px dashed var(--line); margin: 12px 0 10px; }
+  .knob-wide { flex: 1 1 100%; }
+  .reloadbtn {
+    width: 100%; margin-top: 10px; padding: 9px; font-size: 14px; cursor: pointer;
+    border: 1px solid #b8b0a2; background: #fff; border-radius: 7px; color: var(--fg);
+  }
+  .storagenote { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  .warn { color: var(--accent); font-size: 12px; margin-top: 8px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  .summary { display: flex; gap: 0; margin-bottom: 16px; overflow: hidden; }
+  .summary div { flex: 1; padding: 10px 8px; text-align: center; border-right: 1px solid var(--line); }
+  .summary div:last-child { border-right: 0; }
+  .summary b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .summary span { font-size: 11px; color: var(--muted); }
+
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); padding: 10px 4px 0; flex-wrap: wrap; }
+  .note { font-size: 12px; color: var(--muted); padding: 10px 4px 0; }
+  .zoombar { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; font-size: 12px; color: var(--muted); }
+  .zoombar button { width: 30px; height: 30px; border: 1px solid var(--line); background: #fff;
+                    border-radius: 7px; font-size: 17px; line-height: 1; cursor: pointer; color: var(--fg); }
+  .zoombar .hint { margin-left: auto; font-size: 11px; }
+  .chart-cap { font-size: 12px; color: var(--muted); padding: 6px 2px; }
+  .chartscroll { cursor: grab; overscroll-behavior-x: contain;
+                 scrollbar-width: auto; scrollbar-color: #b0a89a #e9e5dd; }
+  .chartscroll.dragging { cursor: grabbing; }
+  .chartscroll::-webkit-scrollbar { height: 11px; width: 11px; }
+  .chartscroll::-webkit-scrollbar-track { background: #e9e5dd; border-radius: 6px; }
+  .chartscroll::-webkit-scrollbar-thumb { background: #b0a89a; border-radius: 6px; }
+
+  .chartbox { position: relative; }
+
+  /* --- B: липкая плашка внизу --- */
+  .dock {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 64px;
+    width: min(532px, calc(100vw - 20px));
+    background: var(--card); border: 1px solid #cdc6ba; border-radius: 12px;
+    box-shadow: 0 -2px 18px rgba(0,0,0,.10); padding: 10px 12px; z-index: 40;
+  }
+  .dock-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .dock-row { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dock-of { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dock-what { font-size: 12px; color: var(--muted); margin-left: auto; text-align: right; line-height: 1.3; }
+  .dock-what.dec { color: var(--accent); font-weight: 600; }
+  .dock-btns { display: flex; gap: 8px; }
+  .btn-done {
+    flex: 1; padding: 15px; font-size: 17px; font-weight: 600; border: 0; border-radius: 10px;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  .btn-done:active { background: #963a22; }
+  .btn-done[disabled] { background: #c8c2b8; }
+  .btn-undo {
+    width: 64px; border: 1px solid #cdc6ba; background: #fff; border-radius: 10px;
+    font-size: 15px; cursor: pointer; color: var(--fg);
+  }
+  .btn-undo[disabled] { color: #bdb7ac; }
+
+  /* --- C: линейка-шторка --- */
+  .shutter { position: absolute; left: 0; right: 0; z-index: 5; pointer-events: none; }
+  .shutter-paper { position: absolute; left: 0; right: 0; background: rgba(28,26,23,.30); }
+  .shutter-edge {
+    position: absolute; left: 0; right: 0; height: 0;
+    border-top: 3px solid var(--accent);
+  }
+  .shutter-grip {
+    position: absolute; right: 10px; transform: translateY(-50%);
+    background: var(--accent); color: #fff; border-radius: 8px;
+    padding: 7px 11px; font-size: 13px; font-weight: 600; white-space: nowrap;
+    pointer-events: auto; cursor: grab; touch-action: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25); font-variant-numeric: tabular-nums;
+  }
+  .shutter-grip:active { cursor: grabbing; }
+  .shutter-grip small { font-weight: 400; opacity: .85; }
+  .shutter-grip.static { cursor: default; pointer-events: none; padding: 5px 9px; font-size: 12px; }
+
+  /* --- D: окно схемы с закреплённым рядом --- */
+  .pinhead {
+    position: sticky; top: 0; z-index: 30; background: var(--bg);
+    padding: 8px 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 10px;
+  }
+  .pin-big { font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .pin-big span { font-size: 14px; font-weight: 400; color: var(--muted); }
+  .pin-what { font-size: 14px; margin-top: 3px; }
+  .pin-what.dec { color: var(--accent); font-weight: 600; }
+  .pin-btns { display: flex; gap: 8px; margin-top: 10px; }
+  .pinwin { border: 1px solid #cdc6ba; border-radius: 10px; overflow: hidden; background: #fff; }
+  .pinwin .chartscroll { overflow: auto; }
+  .pinrail {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    height: 0; border-top: 2px dashed rgba(180,71,42,.55); pointer-events: none; z-index: 6;
+  }
+
+  /* --- баннер возврата --- */
+  .resume {
+    background: #fff5e6; border: 1px solid #e3ca9a; border-radius: 10px;
+    padding: 12px; margin-bottom: 14px; font-size: 14px;
+  }
+  .resume-btns { display: flex; gap: 8px; margin-top: 10px; }
+  .resume-btns button {
+    flex: 1; padding: 10px; font-size: 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid #cdc6ba; background: #fff; color: var(--fg);
+  }
+  .resume-btns button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .toast {
+    background: #eef3ea; border: 1px solid #c3d4b8; border-radius: 8px;
+    padding: 9px 11px; margin-bottom: 14px; font-size: 13px; color: #3c5230;
+  }
+
+  .done-all { padding: 12px; font-size: 14px; color: var(--accent); }
+
+  /* --- переключатель, намеренно не похож на дизайн --- */
+  .switcher {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 2px; background: #14120f; color: #fff;
+    border-radius: 999px; padding: 4px; box-shadow: 0 6px 22px rgba(0,0,0,.28); z-index: 50;
+  }
+  .switcher button {
+    background: none; border: 0; color: #fff; font-size: 18px; cursor: pointer;
+    padding: 6px 13px; border-radius: 999px; line-height: 1;
+  }
+  .switcher button:active { background: #333; }
+  .switcher .name { font-size: 13px; padding: 0 8px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="protobadge">прототип</span>
+  <h1>Мысок носка, cuff-down</h1>
+  <p class="sub" id="sub"></p>
+
+  <details class="knobs">
+    <summary class="knobs-title">Ручки прототипа — расчёт и возврат на страницу. Не часть дизайна</summary>
+    <div class="knobs-row">
+      <div class="knob"><label>Начальные петли</label><input id="i-init" type="number" value="60" min="8" max="140" step="2"></div>
+      <div class="knob"><label>Конечные петли</label><input id="i-final" type="number" value="16" min="4" max="80" step="2"></div>
+      <div class="knob"><label>Интервал</label><input id="i-int" type="number" value="1" min="0" max="6"></div>
+      <div class="knob"><label>Кромка</label><input id="i-edge" type="number" value="1" min="0" max="3"></div>
+    </div>
+    <div class="warn" id="warn" hidden></div>
+
+    <hr>
+    <div class="knobs-title">Возврат на страницу</div>
+    <div class="knobs-row">
+      <div class="knob"><label>Ряд с «прошлого открытия»</label><input id="i-saved" type="number" value="7" min="0" max="60"></div>
+      <div class="knob"><label>Что делает страница</label>
+        <select id="i-resume">
+          <option value="silent">молча восстановить</option>
+          <option value="ask" selected>спросить</option>
+          <option value="fresh">всегда начинать с 1</option>
+        </select>
+      </div>
+    </div>
+    <button class="reloadbtn" id="btn-reload">Смоделировать перезагрузку страницы</button>
+    <div class="storagenote" id="storagenote"></div>
+  </details>
+
+  <div class="card summary" id="summary"></div>
+
+  <div id="view"></div>
+</div>
+
+<div id="dock"></div>
+
+<div class="switcher">
+  <button id="prev" aria-label="Предыдущий вариант">←</button>
+  <span class="name" id="vname"></span>
+  <button id="next" aria-label="Следующий вариант">→</button>
+</div>
+
+<script>
+/* ---------------------------------------------------------------
+   РАСЧЁТ. Перенесён из toe-visualization.html без изменений:
+   схема здесь — хост, а не предмет оценки.
+   --------------------------------------------------------------- */
+function calcToe(initial, final, interval, edge) {
+  const diff = initial - final;
+  const problems = [];
+  if (initial % 2 !== 0) problems.push('Начальные петли не делятся пополам.');
+  if (diff <= 0) problems.push('Конечных петель должно быть меньше начальных.');
+  if (diff % 4 !== 0) problems.push('Разница ' + diff + ' не кратна 4 — прототип отбрасывает остаток.');
+  const decRounds = Math.floor(Math.max(diff, 0) / 4);
+  const rows = [];
+  let st = initial, n = 0;
+  for (let d = 1; d <= decRounds; d++) {
+    st -= 4; n++;
+    rows.push({ n, type: 'dec', dec: d, stitches: st });
+    if (d < decRounds) {                 // хвоста перед швом НЕ дорисовываем
+      for (let i = 0; i < interval; i++) {
+        n++; rows.push({ n, type: 'plain', stitches: st });
+      }
+    }
+  }
+  const halfStart = initial / 2;
+  if (edge * 2 + 4 > halfStart) problems.push('Кромка не помещается в половину на старте.');
+  const halfEnd = st / 2;
+  if (halfEnd > 0 && edge * 2 + 4 > halfEnd) problems.push('Ближе к кончику кромка ' + edge + ' не помещается: в половине остаётся ' + halfEnd + ' петель.');
+  return { initial, final: st, interval, edge, decRounds, rows, totalRows: rows.length, problems };
+}
+
+/* ---------------------------------------------------------------
+   СХЕМА. Клеточная часть перенесена из renderD прототипа визуализации
+   без изменений. Добавлен только слой отметки: затемнение связанных
+   рядов и полоса текущего ряда. Это и есть предмет оценки.
+   --------------------------------------------------------------- */
+let chartZoom = 22;                       // размер клетки схемы в пикселях
+window.setChartZoom = z => { chartZoom = Math.max(10, Math.min(44, z)); draw(); };
+
+const sw = (fill, inner) =>
+  `<svg width="14" height="14" style="vertical-align:-3px;margin-right:5px"><rect x=".5" y=".5" width="13" height="13" fill="${fill}" stroke="#c9c2b6"/>${inner}</svg>`;
+
+/* opts: { mark: 'none'|'band', done: <сколько рядов связано>, boxStyle: '' } */
+function chartCard(m, opts) {
+  const cols = m.initial / 2;
+  const rows = m.rows.length;
+  const LBL = 1.9;                        // место под номера рядов, в клетках
+  const W = cols + LBL, H = rows;
+  const g = [];
+
+  m.rows.slice().reverse().forEach((r, i) => {   // кончик мыска сверху
+    const active = r.stitches / 2;
+    const off = (cols - active) / 2;
+    const y = i;
+    for (let j = 0; j < cols; j++) {
+      const inside = j >= off && j < off + active;
+      if (!inside) {
+        g.push(`<rect x="${j}" y="${y}" width="1" height="1" fill="#e4dfd5" stroke="#d5cec2" stroke-width=".03"/>`);
+        continue;
+      }
+      const p = off + active - 1 - j;            // порядковый номер петли, 0 — начало половины
+      const isEdge = p < m.edge || p >= active - m.edge;
+      const decStart = r.type === 'dec' && p === m.edge;
+      const decEnd   = r.type === 'dec' && p === active - 1 - m.edge;
+      g.push(`<rect x="${j}" y="${y}" width="1" height="1" fill="${isEdge ? '#f7f4ee' : '#fff'}" stroke="#c9c2b6" stroke-width=".04"/>`);
+      if (!decStart && !decEnd)  // лицевая — вертикальный штрих, пустая клетка означала бы изнаночную
+        g.push(`<line x1="${j+.5}" y1="${y+.2}" x2="${j+.5}" y2="${y+.8}" stroke="#4a453d" stroke-width=".09" stroke-linecap="round"/>`);
+      // наклон влево — вертикальный катет слева, гипотенуза «\\»; наклон вправо — зеркально
+      if (decStart) g.push(`<polygon points="${j+.22},${y+.8} ${j+.22},${y+.2} ${j+.78},${y+.8}" fill="#1c1a17"/>`);
+      if (decEnd)   g.push(`<polygon points="${j+.78},${y+.8} ${j+.78},${y+.2} ${j+.22},${y+.8}" fill="#1c1a17"/>`);
+    }
+    g.push(`<text x="${cols + .35}" y="${y + .7}" font-size=".55" fill="${r.type === 'dec' ? '#1c1a17' : '#9a948a'}" font-weight="${r.type === 'dec' ? '600' : '400'}">${r.n}</text>`);
+  });
+
+  for (let j = 5; j < cols; j += 5)       // жирные линии каждые 5 петель для счёта
+    g.push(`<line x1="${j}" y1="0" x2="${j}" y2="${rows}" stroke="#8f887c" stroke-width=".07"/>`);
+  g.push(`<rect x="0" y="0" width="${cols}" height="${rows}" fill="none" stroke="#8f887c" stroke-width=".09"/>`);
+
+  /* --- слой отметки --- */
+  let legendExtra = '';
+  if (opts.mark === 'band') {
+    const done = Math.max(0, Math.min(opts.done, rows));
+    if (done > 0)                          // связанные ряды притушены
+      g.push(`<rect x="0" y="${rows - done}" width="${cols}" height="${done}" fill="#1c1a17" opacity=".22"/>`);
+    if (done < rows) {                     // текущий ряд — полоса во всю ширину схемы
+      const y = rows - done - 1;
+      g.push(`<rect x="0" y="${y}" width="${cols}" height="1" fill="#b4472a" opacity=".16"/>`);
+      g.push(`<rect x="0" y="${y}" width="${cols}" height="1" fill="none" stroke="#b4472a" stroke-width=".12"/>`);
+    }
+    legendExtra = `<span>${sw('#cfcac1', '')}связано</span>
+      <span>${sw('#f7e2da', '<rect x=".5" y=".5" width="13" height="13" fill="none" stroke="#b4472a" stroke-width="1.4"/>')}текущий ряд</span>`;
+  }
+  /* только контур текущего ряда: «связано» в этом варианте показывает шторка, а не заливка */
+  if (opts.mark === 'current') {
+    const done = Math.max(0, Math.min(opts.done, rows));
+    if (done < rows) {
+      const y = rows - done - 1;
+      g.push(`<rect x="0" y="${y}" width="${cols}" height="1" fill="none" stroke="#b4472a" stroke-width=".12"/>`);
+    }
+    legendExtra = `<span>${sw('#f7e2da', '<rect x=".5" y=".5" width="13" height="13" fill="none" stroke="#b4472a" stroke-width="1.4"/>')}текущий ряд</span>
+      <span>${sw('#b9b4ab', '')}под шторкой — связано</span>`;
+  }
+
+  const wide = cols * chartZoom > 330;
+  return `<div class="card" style="padding:12px 10px 4px">
+    <div class="zoombar">
+      <span>Клетка ${chartZoom}&nbsp;px</span>
+      <button onclick="setChartZoom(chartZoom - 4)">−</button>
+      <button onclick="setChartZoom(chartZoom + 4)">+</button>
+      <span class="hint">${wide ? 'схему тяни мышью или shift+колесо' : ''}</span>
+    </div>
+    <div class="chart-cap">↑ ${m.final} петель на трикотажный шов</div>
+    <div class="chartbox" id="chartbox">
+      <div class="chartscroll" id="chartscroll" style="${opts.boxStyle || 'overflow-x:auto'};-webkit-overflow-scrolling:touch">
+        <svg viewBox="0 0 ${W} ${H}" width="${Math.round(W * chartZoom)}" height="${Math.round(H * chartZoom)}" style="display:block">${g.join('')}</svg>
+      </div>
+      ${opts.overlay || ''}
+    </div>
+    <div class="chart-cap">Начало мыска, ${m.initial} петель. Ряды читаются снизу вверх, петли справа налево.</div>
+    <div class="legend" style="padding:12px 4px 0">
+      <span>${sw('#fff', '<line x1="7" y1="3" x2="7" y2="11" stroke="#4a453d" stroke-width="1.4" stroke-linecap="round"/>')}лицевая</span>
+      <span>${sw('#f7f4ee', '<line x1="7" y1="3" x2="7" y2="11" stroke="#4a453d" stroke-width="1.4" stroke-linecap="round"/>')}петля кромки, тоже лицевая</span>
+      <span>${sw('#fff', '<polygon points="3.5,11 3.5,3 10.5,11" fill="#1c1a17"/>')}2 вместе с наклоном влево</span>
+      <span>${sw('#fff', '<polygon points="10.5,11 10.5,3 3.5,11" fill="#1c1a17"/>')}2 вместе с наклоном вправо</span>
+      <span>${sw('#e4dfd5', '')}нет петли</span>
+      ${legendExtra}
+    </div>
+  </div>`;
+}
+
+/* --- что делать в ряду, одним предложением --- */
+function rowText(m, n) {
+  const r = m.rows[n - 1];
+  if (!r) return '';
+  if (r.type === 'dec')
+    return `убавочный ${r.dec} из ${m.decRounds} · в круге станет ${r.stitches}`;
+  return `без убавок · в круге ${r.stitches}`;
+}
+function rowLong(m, n) {
+  const r = m.rows[n - 1];
+  if (!r) return '';
+  if (r.type === 'dec')
+    return `Убавочный ряд ${r.dec} из ${m.decRounds}. В каждой половине: 2 вместе с наклоном влево после ${m.edge} кромочн., 2 вместе с наклоном вправо перед ${m.edge} кромочн. Останется ${r.stitches}.`;
+  return `Ряд без убавок, все петли лицевые. В круге ${r.stitches}.`;
+}
+
+/* ---------------------------------------------------------------
+   СОСТОЯНИЕ ОТМЕТКИ. В памяти: прототип не хранит ничего между
+   открытиями, «прошлый ряд» подделан ручкой. См. шапку файла.
+   --------------------------------------------------------------- */
+let done = 0;                // сколько рядов связано; текущий ряд = done + 1
+let askResume = false;       // показан ли баннер «продолжить с ряда N»
+let toast = '';              // разовое сообщение после «перезагрузки»
+
+function setDone(v, max) {
+  done = Math.max(0, Math.min(v, max));
+  draw();
+}
+
+/* --- A: без отметки, контроль --- */
+function renderA(m) {
+  return chartCard(m, { mark: 'none' }) + `
+    <div class="note">Схема ровно такая, какой её закрыл тикет «Как выглядит визуализация мыска».
+    Отметки нет вовсе: ряд считают по-своему — счётчиком, маркером, бумажкой.<br>
+    Это контроль. Если на схеме и так понятно, где ты, остальные три варианта — лишняя работа.</div>`;
+}
+
+/* Плашка снизу и шторка вынесены в отдельные куски: вариант E собирает
+   их вместе, и сравнивать надо один и тот же элемент, а не две его копии. */
+function dockHtml(m) {
+  const cur = done + 1;
+  const all = done >= m.totalRows;
+  const what = all ? 'мысок связан, закрывай трикотажным швом' : rowText(m, cur);
+  const isDec = !all && m.rows[cur - 1].type === 'dec';
+  return `<div class="dock">
+    <div class="dock-top">
+      <span class="dock-row">${all ? 'Готово' : 'Ряд ' + cur}</span>
+      <span class="dock-of">${all ? '' : 'из ' + m.totalRows}</span>
+      <span class="dock-what ${isDec ? 'dec' : ''}">${what}</span>
+    </div>
+    <div class="dock-btns">
+      <button class="btn-undo" onclick="setDone(${done - 1}, ${m.totalRows})" ${done === 0 ? 'disabled' : ''}>−1</button>
+      <button class="btn-done" onclick="setDone(${done + 1}, ${m.totalRows})" ${all ? 'disabled' : ''}>${all ? 'всё' : 'Ряд ' + cur + ' готов'}</button>
+    </div>
+  </div>`;
+}
+
+/* draggable: ручка, за которую тянут (C). Иначе — бирка, которую не трогают (E). */
+function shutterHtml(m, draggable) {
+  const cur = done + 1;
+  const all = done >= m.totalRows;
+  const rows = m.totalRows;
+  const topPx = (rows - done) * chartZoom;   // нижняя граница несвязанного
+  return `
+    <div class="shutter" style="top:0;height:${rows * chartZoom}px">
+      <div class="shutter-paper" style="top:${topPx}px;bottom:0"></div>
+      <div class="shutter-edge" style="top:${topPx}px"></div>
+      <div class="shutter-grip${draggable ? '' : ' static'}" id="grip" style="top:${topPx}px">
+        ${all ? 'готово' : 'ряд ' + cur}${draggable ? ' <small>· тяни</small>' : ''}
+      </div>
+    </div>`;
+}
+
+/* --- B: липкая плашка внизу + подсветка ряда --- */
+function renderB(m) {
+  window.__dock = () => dockHtml(m);
+  return chartCard(m, { mark: 'band', done }) + `
+    <div class="note">Плашка приклеена к низу экрана и видна всегда, где бы ни стояла прокрутка —
+    и вертикальная, и горизонтальная. Схема сама никуда не едет: нажатие — и полоса переехала на ряд выше, всё.
+    Исправление ошибки счёта — кнопка «−1» рядом.<br>
+    <span style="color:#b4472a">Цена отказа от автопрокрутки: первые ряды стоят у самого низа схемы и прячутся за плашкой — полосу видно только в плашке, пока не прокрутишь.
+    К концу мыска ряд уезжает вверх за край экрана. Нажми «ряд готов» несколько раз, чтобы это увидеть.</span><br>
+    Плашка приподнята над переключателем вариантов — в настоящей странице переключателя не будет.</div>`;
+}
+
+/* --- C: линейка-шторка, физическая метафора --- */
+function renderC(m) {
+  return chartCard(m, { mark: 'none', overlay: shutterHtml(m, true) }) + `
+    <div class="note">Бумажная линейка, какой пользуются по печатной схеме: тянешь вверх, под ней — связанное.
+    Кнопки нет вовсе, отмена — потянуть обратно вниз. Тянется только за ручку, чтобы не сработало от прокрутки схемы.<br>
+    <span style="color:#b4472a">Что здесь надо проверить специально: прокрути страницу вниз к легенде и посмотри, видно ли, на каком ты ряду.
+    Линейка живёт на схеме и вместе со схемой уезжает за верх экрана — постоянного места, куда можно глянуть не трогая телефон, тут нет.
+    Поперёк схемы линейка идёт во всю ширину и горизонтальную прокрутку переживает, а вот номера рядов стоят справа за краем: уехала влево — номер не виден, только «где-то здесь».</span></div>`;
+}
+
+/* --- D: окно схемы, текущий ряд закреплён по центру --- */
+function renderD(m) {
+  const cur = done + 1;
+  const all = done >= m.totalRows;
+  const isDec = !all && m.rows[cur - 1].type === 'dec';
+  const head = `<div class="pinhead">
+      <div class="pin-big">${all ? 'Мысок связан' : 'Ряд ' + cur} <span>${all ? '' : 'из ' + m.totalRows}</span></div>
+      <div class="pin-what ${isDec ? 'dec' : ''}">${all ? 'Закрывай ' + m.final + ' петель трикотажным швом.' : rowLong(m, cur)}</div>
+      <div class="pin-btns">
+        <button class="btn-undo" onclick="setDone(${done - 1}, ${m.totalRows})" ${done === 0 ? 'disabled' : ''}>−1</button>
+        <button class="btn-done" onclick="setDone(${done + 1}, ${m.totalRows})" ${all ? 'disabled' : ''}>${all ? 'всё' : 'Ряд готов'}</button>
+      </div>
+    </div>`;
+  const box = `<div class="pinwin">` +
+    chartCard(m, {
+      mark: 'band', done,
+      boxStyle: 'overflow:auto;max-height:min(44vh, 320px);touch-action:pan-y',
+      overlay: '<div class="pinrail"></div>',
+    }) + `</div>`;
+  return head + box + `
+    <div class="note">Иерархия перевёрнута: сначала крупно то, что надо делать прямо сейчас, схема — контекст под ним.
+    Шапка приклеена к верху, а схема живёт в окне и подъезжает сама, держа текущий ряд на пунктире.<br>
+    <span style="color:#b4472a">Цена: шапка на телефоне занимает около 195&nbsp;px, а схема живёт в окне высотой 320&nbsp;px вместо всей своей высоты —
+    это уже другая геометрия, чем закрыл тикет визуализации, и схему целиком одним взглядом больше не охватить.</span></div>`;
+}
+
+/* --- E: шторка + плашка снизу. Тянуть не надо, надо нажимать --- */
+function renderE(m) {
+  window.__dock = () => dockHtml(m);
+  return chartCard(m, { mark: 'current', done, overlay: shutterHtml(m, false) }) + `
+    <div class="note">Из C взята картинка — бумажная шторка ползёт вверх по схеме, под ней связанное.
+    Из B взято управление — кнопка «ряд готов» в приклеенной снизу плашке, отмена «−1» рядом. Шторка ничего не ждёт от рук: её не тянут, она едет сама.<br>
+    Бирка с номером ряда осталась на краю шторки, но стала просто подписью: номер видно и на схеме, где смотришь, и в плашке, куда можно глянуть не прокручивая.<br>
+    <span style="color:#b4472a">Та же цена, что у B: на первых рядах шторка целиком за плашкой, её просто не видно. Нажми «ряд готов» раз пять — шторка выедет.
+    Автопрокрутки здесь нет намеренно, ей занят вариант D.</span><br>
+    <span style="color:#b4472a">Ради чего вариант существует: C мешал две вещи сразу — как отметка <b>выглядит</b> (шторка против полосы) и как она <b>двигается</b> (тянуть против нажать).
+    E против B — спор только о картинке при одинаковом управлении. E против C — спор только об управлении при одинаковой картинке.</span></div>`;
+}
+
+const VARIANTS = [
+  { key: 'A', name: 'Без отметки',        render: renderA },
+  { key: 'B', name: 'Плашка снизу',       render: renderB },
+  { key: 'C', name: 'Линейка-шторка',     render: renderC },
+  { key: 'D', name: 'Ряд закреплён',      render: renderD },
+  { key: 'E', name: 'Шторка + плашка',    render: renderE },
+];
+
+/* Состояние переключателя живёт в памяти: file:// URL — уникальный origin,
+   и запись в location.hash Chrome блокирует. Хэш читаем один раз при старте. */
+let currentVariant = 'B';
+try {
+  const k = (location.hash || '').slice(1).toUpperCase();
+  if (VARIANTS.some(v => v.key === k)) currentVariant = k;
+} catch (e) { /* неважно */ }
+
+/* Проверка, а не допущение: работает ли localStorage на file://.
+   Наблюдение для тикета «Стек и форма доставки», а не его решение. */
+function probeStorage() {
+  let verdict;
+  try {
+    localStorage.setItem('__probe', '1');
+    localStorage.removeItem('__probe');
+    verdict = 'localStorage в этом окне <b>работает</b>.';
+  } catch (e) {
+    verdict = 'localStorage в этом окне <b>заблокирован</b> (' + (e.name || 'ошибка') + ').';
+  }
+  document.getElementById('storagenote').innerHTML =
+    verdict + ' Прототип им всё равно не пользуется: «прошлый ряд» подделан ручкой выше, ' +
+    'потому что тикет решает поведение при возврате, а не механизм хранения. ' +
+    'Сам механизм — тикет «Стек и форма доставки страницы».';
+}
+
+function draw() {
+  const initial = +document.getElementById('i-init').value;
+  const final   = +document.getElementById('i-final').value;
+  const interval= +document.getElementById('i-int').value;
+  const edge    = +document.getElementById('i-edge').value;
+  const m = calcToe(initial, final, interval, edge);
+
+  if (done > m.totalRows) done = m.totalRows;
+
+  const w = document.getElementById('warn');
+  w.hidden = m.problems.length === 0;
+  w.textContent = m.problems.join(' ');
+
+  document.getElementById('sub').textContent =
+    `${m.initial} петель в круге → ${m.final} на шов, убавки через ${m.interval === 0 ? 'каждый ряд' : m.interval + ' р.'}`;
+
+  document.getElementById('summary').innerHTML = `
+    <div><b>${m.totalRows}</b><span>рядов всего</span></div>
+    <div><b>${m.decRounds}</b><span>убавочных</span></div>
+    <div><b>${m.final}</b><span>петель на шов</span></div>`;
+
+  const old = document.getElementById('chartscroll');   // запоминаем прокрутку схемы
+  if (old) { keepLeft = old.scrollLeft; keepTop = old.scrollTop; }
+
+  window.__dock = null;
+  const v = VARIANTS.find(x => x.key === currentVariant);
+
+  let head = '';
+  if (toast) head += `<div class="toast">${toast}</div>`;
+  if (askResume) {
+    const saved = Math.min(+document.getElementById('i-saved').value, m.totalRows);
+    head += `<div class="resume">
+      Последний отмеченный ряд — <b>${saved}</b> из ${m.totalRows}.
+      <div class="resume-btns">
+        <button class="primary" onclick="acceptResume(${saved})">Продолжить с ${saved}</button>
+        <button onclick="declineResume()">Начать заново</button>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('view').innerHTML = head + v.render(m);
+  document.getElementById('dock').innerHTML = window.__dock ? window.__dock() : '';
+  document.getElementById('vname').textContent = v.key + ' — ' + v.name;
+
+  wireChart(m);
+  if (currentVariant === 'C') wireShutter(m);
+}
+
+/* Схему надо уметь таскать: на десктопе полоса прокрутки скрыта, а див мышью
+   сам по себе не тянется. Обработчики вешаем заново — draw() пересоздаёт узел.
+
+   Прокрутка схемы переживает отметку ряда: к правому краю схема встаёт только
+   при смене расчёта, варианта или масштаба. Иначе каждое «ряд готов» дёргало бы
+   схему обратно вправо — и это читалось бы как свойство отметки, хотя это
+   артефакт того, что draw() перерисовывает всё. */
+let lastLayout = '', keepLeft = 0, keepTop = 0;
+
+function wireChart(m) {
+  const sc = document.getElementById('chartscroll');
+  if (!sc) return;
+  const layout = [currentVariant, chartZoom, m.initial, m.final, m.interval, m.edge].join('|');
+  if (layout !== lastLayout) {
+    lastLayout = layout;
+    sc.scrollLeft = sc.scrollWidth;    // читаем справа налево — начало ряда справа
+  } else {
+    sc.scrollLeft = keepLeft;
+    sc.scrollTop = keepTop;
+  }
+
+  /* D: схема подъезжает сама, держа текущий ряд на пунктире по центру окна */
+  if (currentVariant === 'D') {
+    const yCenter = (m.totalRows - done - 0.5) * chartZoom;
+    sc.scrollTop = Math.max(0, yCenter - sc.clientHeight / 2);
+  }
+
+  let dragging = false, startX = 0, startLeft = 0;
+  sc.addEventListener('pointerdown', e => {
+    dragging = true; startX = e.clientX; startLeft = sc.scrollLeft;
+    sc.classList.add('dragging');
+    try { sc.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  sc.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    sc.scrollLeft = startLeft - (e.clientX - startX);
+    e.preventDefault();
+  });
+  const stop = () => { dragging = false; sc.classList.remove('dragging'); };
+  sc.addEventListener('pointerup', stop);
+  sc.addEventListener('pointercancel', stop);
+  sc.addEventListener('wheel', e => {          // колесо мыши: вбок по горизонтали
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+    if (!d) return;
+    sc.scrollLeft += d;
+    e.preventDefault();
+  }, { passive: false });
+}
+
+/* C: линейка тянется ТОЛЬКО за ручку — иначе жест прокрутки схемы
+   будет всё время сбивать счёт рядов.
+
+   Во время тяги НЕ зовём draw(): он перерисовывает #view целиком, узел ручки
+   пропадает вместе с захватом указателя, и жест обрывается после первого же
+   ряда. Двигаем шторку на месте, а draw() — один раз, когда отпустили. */
+function wireShutter(m) {
+  const grip  = document.getElementById('grip');
+  const paper = document.querySelector('.shutter-paper');
+  const edge  = document.querySelector('.shutter-edge');
+  if (!grip) return;
+  let dragging = false, startY = 0, startDone = 0;
+
+  const move = to => {
+    done = to;
+    const topPx = (m.totalRows - done) * chartZoom;
+    paper.style.top = topPx + 'px';
+    edge.style.top  = topPx + 'px';
+    grip.style.top  = topPx + 'px';
+    const all = done >= m.totalRows;
+    grip.innerHTML = (all ? 'готово' : 'ряд ' + (done + 1)) +
+                     ' <small>' + (all ? '' : '· тяни') + '</small>';
+  };
+
+  grip.addEventListener('pointerdown', e => {
+    dragging = true; startY = e.clientY; startDone = done;
+    try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+    e.preventDefault(); e.stopPropagation();
+  });
+  grip.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const shift = Math.round((startY - e.clientY) / chartZoom);   // вверх = связано
+    const next = Math.max(0, Math.min(startDone + shift, m.totalRows));
+    if (next !== done) move(next);
+    e.preventDefault();
+  });
+  const stop = () => { if (dragging) { dragging = false; draw(); } };
+  grip.addEventListener('pointerup', stop);
+  grip.addEventListener('pointercancel', stop);
+}
+
+/* --- возврат на страницу --- */
+window.acceptResume = saved => { askResume = false; done = saved; toast = ''; draw(); };
+window.declineResume = () => { askResume = false; done = 0; toast = ''; draw(); };
+
+document.getElementById('btn-reload').onclick = () => {
+  const mode = document.getElementById('i-resume').value;
+  const saved = +document.getElementById('i-saved').value;
+  askResume = false; toast = '';
+  if (mode === 'silent') { done = saved; toast = 'Страница «перезагружена»: ряд ' + saved + ' восстановлен молча, ничего не спросили.'; }
+  if (mode === 'ask')    { done = 0; askResume = true; }
+  if (mode === 'fresh')  { done = 0; toast = 'Страница «перезагружена»: отметка сброшена, счёт с ряда 1.'; }
+  draw();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+function cycle(step) {
+  const i = VARIANTS.findIndex(v => v.key === currentVariant);
+  currentVariant = VARIANTS[(i + step + VARIANTS.length) % VARIANTS.length].key;
+  draw();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.getElementById('prev').onclick = () => cycle(-1);
+document.getElementById('next').onclick = () => cycle(1);
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  if (e.key === 'ArrowLeft') cycle(-1);
+  if (e.key === 'ArrowRight') cycle(1);
+});
+['i-init','i-final','i-int','i-edge'].forEach(id =>
+  document.getElementById(id).addEventListener('input', draw));
+
+probeStorage();
+draw();
+</script>
+</body>
+</html>
