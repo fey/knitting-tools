@@ -221,6 +221,13 @@
     <div class="knobs-title">Возврат на страницу</div>
     <div class="knobs-row">
       <div class="knob"><label>Ряд с «прошлого открытия»</label><input id="i-saved" type="number" value="7" min="0" max="60"></div>
+      <div class="knob knob-wide"><label>Тап по ряду на схеме означает</label>
+        <select id="i-tap">
+          <option value="off" selected>тап выключен — так решено в разборе</option>
+          <option value="stand">«стою на этом ряду» — он ещё не связан</option>
+          <option value="done">«этот ряд связан» — шторка встаёт над ним</option>
+        </select>
+      </div>
       <div class="knob"><label>Что делает страница</label>
         <select id="i-resume">
           <option value="silent">молча восстановить</option>
@@ -396,6 +403,7 @@ function rowLong(m, n) {
    открытиями, «прошлый ряд» подделан ручкой. См. шапку файла.
    --------------------------------------------------------------- */
 let done = 0;                // сколько рядов связано; текущий ряд = done + 1
+let tapMeans = 'off';        // тап по ряду: off | stand | done. Решено в разборе — off.
 let askResume = false;       // показан ли баннер «продолжить с ряда N»
 let toast = '';              // разовое сообщение после «перезагрузки»
 
@@ -503,6 +511,9 @@ function renderE(m) {
     <div class="note">Из C взята картинка — бумажная шторка ползёт вверх по схеме, под ней связанное.
     Из B взято управление — кнопка «ряд готов» в приклеенной снизу плашке, отмена «−1» рядом. Шторка ничего не ждёт от рук: её не тянут, она едет сама.<br>
     Бирка с номером ряда осталась на краю шторки, но стала просто подписью: номер видно и на схеме, где смотришь, и в плашке, куда можно глянуть не прокручивая.<br>
+    <span style="color:#b4472a">Тап по ряду схемы предлагался как второй путь исправить счёт и <b>отклонён в разборе</b>: «давай без тапа пока».
+    Единственная отмена — «−1», то есть отмотать на десять рядов стоит десять нажатий. Код оставлен под ручкой «Тап по ряду на схеме означает»
+    как улика: там же оба прочтения, между которыми выбирали.</span><br>
     <span style="color:#b4472a">Та же цена, что у B: на первых рядах шторка целиком за плашкой, её просто не видно. Нажми «ряд готов» раз пять — шторка выедет.
     Автопрокрутки здесь нет намеренно, ей занят вариант D.</span><br>
     <span style="color:#b4472a">Ради чего вариант существует: C мешал две вещи сразу — как отметка <b>выглядит</b> (шторка против полосы) и как она <b>двигается</b> (тянуть против нажать).
@@ -548,6 +559,7 @@ function draw() {
   const interval= +document.getElementById('i-int').value;
   const edge    = +document.getElementById('i-edge').value;
   const m = calcToe(initial, final, interval, edge);
+  tapMeans = document.getElementById('i-tap').value;
 
   if (done > m.totalRows) done = m.totalRows;
 
@@ -617,17 +629,40 @@ function wireChart(m) {
     sc.scrollTop = Math.max(0, yCenter - sc.clientHeight / 2);
   }
 
-  let dragging = false, startX = 0, startLeft = 0;
+  let dragging = false, startX = 0, startLeft = 0, startY = 0, moved = 0;
   sc.addEventListener('pointerdown', e => {
     dragging = true; startX = e.clientX; startLeft = sc.scrollLeft;
+    startY = e.clientY; moved = 0;
     sc.classList.add('dragging');
     try { sc.setPointerCapture(e.pointerId); } catch (err) {}
   });
   sc.addEventListener('pointermove', e => {
     if (!dragging) return;
+    moved = Math.max(moved, Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY));
     sc.scrollLeft = startLeft - (e.clientX - startX);
     e.preventDefault();
   });
+
+  /* Тап по ряду — второй путь исправить счёт (вопрос Q8 разбора).
+     Тап отличается от протяжки порогом сдвига: схему таскают вбок тем же
+     жестом, и без порога каждая прокрутка сбивала бы ряд. TAP_SLOP — то самое
+     число, которое спека обязана задать. */
+  const TAP_SLOP = 6;
+  sc.addEventListener('pointerup', e => {
+    if (tapMeans === 'off') return;               // решено в разборе: тапа по ряду нет
+    if (moved > TAP_SLOP) return;                 // это была протяжка, не тап
+    if (currentVariant === 'A' || currentVariant === 'C') return;   // там тапа нет по устройству
+    const svg = sc.querySelector('svg');
+    if (!svg) return;
+    const box = svg.getBoundingClientRect();
+    const idx = Math.floor((e.clientY - box.top) / chartZoom);       // 0 — верхний ряд
+    if (idx < 0 || idx >= m.totalRows) return;
+    const rowNum = m.totalRows - idx;                                // номер ряда снизу
+    /* Два прочтения тапа, переключаются ручкой: «стою на этом ряду» или
+       «этот ряд связан». Разница ровно в единице — её и надо пощупать. */
+    setDone(tapMeans === 'stand' ? rowNum - 1 : rowNum, m.totalRows);
+  });
+
   const stop = () => { dragging = false; sc.classList.remove('dragging'); };
   sc.addEventListener('pointerup', stop);
   sc.addEventListener('pointercancel', stop);
