@@ -338,8 +338,8 @@
     <div class="knobs-row">
       <div class="knob knob-wide"><label>Схема мыска на экране</label>
         <select id="i-chart">
-          <option value="under" selected>под блоком ритма — как читается страница</option>
-          <option value="dock">приклеена к низу экрана — видно, пока тыкаешь</option>
+          <option value="dock" selected>приклеена к низу экрана — видно, пока тыкаешь</option>
+          <option value="under">под блоком ритма — как читается страница</option>
         </select>
       </div>
       <div class="knob knob-wide"><label>Свой ритм, совпавший с пресетом</label>
@@ -823,7 +823,7 @@ function popFor(i) {
    --------------------------------------------------------------- */
 let chartZoom = 22;                       // размер клетки схемы в пикселях
 window.setChartZoom = z => { chartZoom = Math.max(6, Math.min(44, z)); draw(); };
-let chartWhere = 'under';                 // under | dock
+let chartWhere = 'dock';                  // dock | under
 
 const sw = (fill, inner) =>
   `<svg width="14" height="14" style="vertical-align:-3px;margin-right:5px"><rect x=".5" y=".5" width="13" height="13" fill="${fill}" stroke="#c9c2b6"/>${inner}</svg>`;
@@ -900,7 +900,12 @@ function chartCard(m) {
 
 /* Схема, приклеенная к низу экрана. Клетка ужимается так, чтобы мысок
    поместился целиком: пока ритм крутят, важен силуэт, а не значки.
-   Сколько при этом остаётся от клетки — прототип печатает честно. */
+
+   ВНИМАНИЕ: это размещение держится на том, что клетка перестаёт быть
+   фиксированной, — а её фиксация в пикселях с боковой прокруткой решена
+   в тикете «Как выглядит визуализация мыска». То есть плашка работает,
+   только пока закрытое решение подвешено. Сколько остаётся от клетки,
+   прототип печатает прямо в подписи. */
 const DOCK_H = 260;
 function chartDock(m) {
   if (!m.rows.length) return '';
