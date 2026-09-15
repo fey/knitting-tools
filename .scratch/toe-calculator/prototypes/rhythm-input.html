@@ -463,7 +463,7 @@ function resyncPreset() {
   if (N < p.min) {                       // пресет перестал собираться — уходим на ближайший живой
     const alt = PRESETS.filter(q => N >= q.min).pop() || PRESETS[0];
     st.preset = N >= alt.min ? alt.code : 'custom';
-    if (st.preset === 'custom') { st.segs = [{ k: 1, m: Math.max(N, 1) }]; return; }
+    if (st.preset === 'custom') { st.segs = [{ k: 1, m: Math.max(N, 0) }]; return; }
     st.segs = presetByCode(st.preset).segs(N);
     return;
   }
@@ -522,12 +522,12 @@ function presetsBlock(m) {
   }).join('');
 
   const custom = st.preset === 'custom'
-    ? '<button class="preset custom on" onclick="void 0">'
+    ? '<div class="preset custom on">'
       + '<span class="dot"></span>'
       + '<span class="body"><span class="name">Свой ритм</span>'
       + '<span class="how">' + st.segs.map(s => intervalPhrase(s.k) + ' × ' + s.m).join(', ') + '</span></span>'
       + '<span class="rows">' + rowsWord(m.totalRows) + '</span>'
-      + '</button>'
+      + '</div>'
     : '';
 
   return '<div class="presets">' + items + custom + '</div>';
@@ -847,7 +847,7 @@ function normalizeForVariant() {
   const N = decRoundsOf(st.initial, st.final);
   if (st.preset !== 'custom') return;     // пресет уже покрывает ровно N
   if (st.variant === 'C') {
-    if (N < 1) { st.segs = [{ k: 1, m: 1 }]; return; }
+    if (N < 1) { st.segs = [{ k: 1, m: 0 }]; return; }
     const segs = st.segs.map(s => ({ k: s.k, m: s.m }));
     while (segs.length > 1 && segs.slice(0, -1).reduce((a, s) => a + s.m, 0) >= N) segs.pop();
     const others = segs.slice(0, -1).reduce((a, s) => a + s.m, 0);
