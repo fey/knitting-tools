@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ПРОТОТИП — как задаётся ритм</title>
+<!--
+  ПРОТОТИП. Одноразовый код, отвечающий на один вопрос.
+  Тикет: .scratch/toe-calculator/issues/03-rhythm-input.md
+
+  Вопрос: какая форма ввода держит сразу два режима — «ритм один и простой»
+  и «ритм из нескольких сегментов», — и годится ли она на телефоне.
+
+  Четыре варианта на одном расчёте, переключение через #A … #D и стрелки ←/→:
+    A — только пресеты (контроль: может, конструктор сегментов не нужен вовсе)
+    B — пресеты + раскрывающийся список сегментов со степперами
+    C — лента убавочных рядов, поделённая на фазы; границы двигают пальцем
+    D — ритм читается фразой, числа — крупные мишени; хвост считается сам
+
+  Главная ось сравнения: что происходит на переходе от одного сегмента
+  к нескольким, и как на экране видно, что сегменты покрыли все убавочные ряды.
+  Варианты отвечают на это по-разному и намеренно несовместимо:
+    A — перехода нет вовсе;
+    B — счётчик покрытия, недобор и перебор возможны и показаны;
+    C — покрытие структурное, нарушить его нечем;
+    D — последний сегмент забирает остаток сам, недобора не бывает.
+
+  ЧТО ЗДЕСЬ ХОСТ, А НЕ ПРЕДМЕТ ОЦЕНКИ:
+  - Расчёт рядов. Правило перенесено из calcToe прототипа row-progress.html:
+    убавочный ряд убавляет 4 петли, после него идёт K промежуточных, хвост
+    промежуточных перед швом не дорисовывается. Расширено на список сегментов.
+  - Поля петель и кромки, шаг кнопок ±4, живая подсказка у конечных петель,
+    порядок «сперва ритм, потом петли». Всё решено в тикете «Дефолты полей
+    и пресеты ритма», здесь не пересматривается — здесь это рисуется.
+  - Состав и формулы четырёх пресетов, правило остатка (лишний убавочный ряд
+    ближе к концу мыска) — оттуда же.
+  - Запись ритма в hash. Показана живьём внизу как проверка того, что форма
+    ввода и принятая запись сходятся; сама запись решена в тикетах 05 и 07.
+
+  ДОПУЩЕНИЯ ПРОТОТИПА, НЕ РЕШЕНИЯ:
+  - Что делать при недоборе и переборе сегментов — жёсткий запрет, предупреждение
+    или молчаливая правка — НЕ решается здесь. Это тикет «Краевые случаи
+    и валидация ввода». Варианты B, C и D расходятся в том, КАК показывают
+    покрытие, и это разница форм, а не выбранная политика.
+  - Тексты ругани на недостижимые числа петель — туда же. Здесь поля просто
+    принимают чётные числа.
+  - Схема мыска не рисуется: тикет «Как выглядит визуализация мыска» закрыт,
+    а сравнение силуэтов пресетов рядом отвергнуто в тикете 07. Живая обратная
+    связь — число рядов, как там и решено. Лента рядов для проверки лежит
+    в ручках прототипа, а не в дизайне.
+  - Ни один текст не привязывается к полу. Требование проекта, не этого файла.
+-->
+<style>
+  :root {
+    --bg: #fbfaf8; --fg: #1c1a17; --muted: #6f6a62; --line: #e2ddd5;
+    --accent: #b4472a; --accent-soft: #f4ded6; --plain: #ece8e1;
+    --card: #ffffff; --ok: #3c5230; --ok-soft: #eef3ea; --ok-line: #c3d4b8;
+    --warn: #8a6a1f; --warn-soft: #fff5e6; --warn-line: #e3ca9a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 0 86px; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 14px 0; }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .protobadge {
+    display: inline-block; background: #1c1a17; color: #fff; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .08em; padding: 2px 7px;
+    border-radius: 4px; margin-bottom: 8px;
+  }
+
+  /* --- ручки прототипа: намеренно похожи на отладку, не на дизайн --- */
+  .knobs {
+    background: #f1eee8; border: 1px dashed #c7c0b4; border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 16px; font-size: 13px;
+  }
+  .knobs summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+  .knobs-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .knob { flex: 1 1 130px; }
+  .knob-wide { flex: 1 1 100%; }
+  .knob label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .knob input, .knob select {
+    width: 100%; padding: 6px 8px; font-size: 14px; border: 1px solid #c7c0b4;
+    border-radius: 6px; background: #fff; font-family: inherit;
+  }
+  .knobs hr { border: 0; border-top: 1px dashed #c7c0b4; margin: 12px 0 10px; }
+  .knobs-title { font-weight: 600; color: var(--muted); font-size: 12px; }
+  .ribbon { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 8px; }
+  .ribbon i {
+    width: 13px; height: 13px; border-radius: 3px; display: block;
+    background: var(--plain); border: 1px solid #d5cec2;
+  }
+  .ribbon i.dec { background: var(--accent); border-color: var(--accent); }
+  .ribbon-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* --- общие карточки --- */
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px; margin-bottom: 14px;
+  }
+  .card > h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 0 0 10px; font-weight: 600;
+  }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* --- пресеты --- */
+  .presets { display: flex; flex-direction: column; gap: 8px; }
+  .preset {
+    display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 11px 12px; font: inherit; color: inherit; cursor: pointer;
+    min-height: 56px;
+  }
+  .preset:active { background: #f7f4ee; }
+  .preset .dot {
+    flex: none; width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid #c7c0b4; background: #fff; position: relative;
+  }
+  .preset.on { border-color: var(--accent); background: var(--accent-soft); }
+  .preset.on .dot { border-color: var(--accent); }
+  .preset.on .dot::after {
+    content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--accent);
+  }
+  .preset .body { flex: 1; min-width: 0; }
+  .preset .name { display: block; font-weight: 600; }
+  .preset .how { display: block; font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .preset .rows {
+    flex: none; font-variant-numeric: tabular-nums; font-size: 13px;
+    color: var(--muted); text-align: right; white-space: nowrap;
+  }
+  .preset.on .rows { color: var(--accent); font-weight: 600; }
+  .preset[disabled] { opacity: .55; cursor: default; background: #f7f6f3; }
+  .preset[disabled] .rows { color: var(--warn); font-size: 12px; white-space: normal; max-width: 44%; }
+  .preset.custom .name { font-style: italic; }
+
+  /* --- степперы: мишень не меньше 44 px, мелких стрелочек нет --- */
+  .step { display: inline-flex; align-items: center; gap: 0; }
+  .step button {
+    width: 44px; height: 44px; font-size: 21px; line-height: 1; cursor: pointer;
+    border: 1px solid #c7c0b4; background: #fff; color: var(--fg);
+  }
+  .step button:first-child { border-radius: 9px 0 0 9px; }
+  .step button:last-child { border-radius: 0 9px 9px 0; }
+  .step button:active { background: #efeae1; }
+  .step button[disabled] { opacity: .35; cursor: default; }
+  .step .val {
+    min-width: 46px; height: 44px; display: flex; align-items: center; justify-content: center;
+    border-top: 1px solid #c7c0b4; border-bottom: 1px solid #c7c0b4;
+    font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 600; background: #fff;
+  }
+
+  /* --- поля петель --- */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field .lab { font-weight: 600; margin-bottom: 2px; }
+  .field .why { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .field .line { display: flex; align-items: center; gap: 8px; }
+  .field input.num {
+    width: 92px; height: 44px; text-align: center; font-size: 19px; font-weight: 600;
+    border: 1px solid #c7c0b4; border-radius: 9px; background: #fff; font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .edge-row { display: flex; gap: 8px; }
+  .edge-row button {
+    flex: 1; min-height: 52px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; font: inherit; color: inherit; cursor: pointer; padding: 6px 4px;
+  }
+  .edge-row button.on { border-color: var(--accent); background: var(--accent-soft); }
+  .edge-row button b { display: block; font-size: 18px; }
+  .edge-row button span { font-size: 11px; color: var(--muted); }
+
+  /* --- итог --- */
+  .total { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .total .big { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .total .side { color: var(--muted); font-size: 14px; }
+  .hashline {
+    margin-top: 10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--muted); word-break: break-all;
+  }
+
+  /* --- B: список сегментов --- */
+  .segopen {
+    width: 100%; min-height: 48px; margin-top: 10px; border: 1px solid #c7c0b4;
+    border-radius: 10px; background: #fff; font: inherit; color: inherit; cursor: pointer;
+  }
+  .seg {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px;
+    margin-bottom: 8px; background: #fff;
+  }
+  .seg-head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--muted); margin-bottom: 8px;
+  }
+  .seg-del {
+    border: 0; background: none; color: var(--accent); font: inherit; font-size: 13px;
+    cursor: pointer; padding: 4px 6px; min-height: 32px;
+  }
+  .seg-del[disabled] { opacity: .35; }
+  .seg-part { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; flex-wrap: wrap; }
+  .seg-part:last-child { margin-bottom: 0; }
+  .seg-part .txt { font-size: 14px; }
+  .seg-add {
+    width: 100%; min-height: 48px; border: 1px dashed #c7c0b4; border-radius: 10px;
+    background: none; font: inherit; color: var(--muted); cursor: pointer;
+  }
+  .cover {
+    margin-top: 10px; border-radius: 9px; padding: 9px 11px; font-size: 13px;
+    background: var(--ok-soft); border: 1px solid var(--ok-line); color: var(--ok);
+  }
+  .cover.bad { background: var(--warn-soft); border-color: var(--warn-line); color: var(--warn); }
+
+  /* --- C: лента фаз --- */
+  .strip {
+    position: relative; display: flex; gap: 2px; padding: 30px 0 6px;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .strip .cell {
+    flex: 1 1 0; min-width: 0; height: 40px; border-radius: 4px;
+    background: var(--plain); border: 1px solid #d5cec2; position: relative; cursor: pointer;
+  }
+  .strip .cell.p0, .phase .chip.p0 { background: #f4ded6; border-color: #e0b5a5; }
+  .strip .cell.p1, .phase .chip.p1 { background: #e6ded0; border-color: #cdc0a9; }
+  .strip .cell.p2, .phase .chip.p2 { background: #dde5da; border-color: #b9ccb4; }
+  .strip .cell.p3, .phase .chip.p3 { background: #dcdee8; border-color: #b4b8cd; }
+  .strip .cell.p4, .phase .chip.p4 { background: #eadfe8; border-color: #ccb4c8; }
+  .strip .grip {
+    position: absolute; top: 8px; bottom: 0; width: 34px; margin-left: -17px;
+    cursor: grab; z-index: 4; touch-action: none;
+  }
+  .strip .grip::before {
+    content: ''; position: absolute; left: 15px; top: 0; bottom: 0; width: 4px;
+    border-radius: 2px; background: var(--fg);
+  }
+  .strip .grip::after {
+    content: ''; position: absolute; left: 6px; top: -10px; width: 22px; height: 22px;
+    border-radius: 50%; background: var(--fg);
+  }
+  .strip .grip:active { cursor: grabbing; }
+  .phase {
+    display: flex; align-items: center; gap: 10px; padding: 9px 0;
+    border-top: 1px solid var(--line); flex-wrap: wrap;
+  }
+  .phase .chip {
+    flex: none; width: 13px; height: 34px; border-radius: 4px; border: 1px solid #d5cec2;
+  }
+  .phase .txt { flex: 1 1 130px; font-size: 14px; }
+  .phase .txt b { font-variant-numeric: tabular-nums; }
+
+  /* --- D: фраза --- */
+  .phrase { font-size: 17px; line-height: 2.1; }
+  .phrase .slot {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 48px; height: 44px; padding: 0 10px; margin: 0 2px;
+    border: 1px solid #c7c0b4; border-radius: 9px; background: #fff;
+    font: inherit; font-weight: 700; font-variant-numeric: tabular-nums;
+    color: var(--accent); cursor: pointer; vertical-align: middle;
+  }
+  .phrase .slot.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .phrase .slot.fixed {
+    border-style: dashed; color: var(--muted); cursor: default; font-weight: 600; background: none;
+  }
+  .pop {
+    margin: 4px 0 10px; padding: 10px; border: 1px solid var(--accent);
+    border-radius: 10px; background: var(--accent-soft);
+  }
+  .pop .cap { font-size: 12px; color: var(--muted); margin-bottom: 7px; }
+  .phrase-line { margin-bottom: 4px; }
+  .phrase-del {
+    border: 0; background: none; color: var(--accent); font: inherit; font-size: 13px;
+    cursor: pointer; padding: 6px; min-height: 40px;
+  }
+  .phrase-add {
+    width: 100%; min-height: 48px; margin-top: 8px; border: 1px dashed #c7c0b4;
+    border-radius: 10px; background: none; font: inherit; color: var(--muted); cursor: pointer;
+  }
+
+  .note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.55; }
+  .note b { color: var(--fg); }
+
+  /* --- переключатель, намеренно не похож на дизайн --- */
+  .switcher {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 2px; background: #14120f; color: #fff;
+    border-radius: 999px; padding: 4px; box-shadow: 0 6px 22px rgba(0,0,0,.28); z-index: 50;
+  }
+  .switcher button {
+    background: none; border: 0; color: #fff; font-size: 18px; cursor: pointer;
+    padding: 6px 13px; border-radius: 999px; line-height: 1;
+  }
+  .switcher button:active { background: #333; }
+  .switcher .name { font-size: 13px; padding: 0 8px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="protobadge">прототип</span>
+  <h1>Мысок носка, cuff-down</h1>
+  <p class="sub" id="sub"></p>
+
+  <details class="knobs">
+    <summary>Ручки прототипа — не часть дизайна</summary>
+    <div class="knobs-row">
+      <div class="knob"><label>Начальные петли</label><input id="i-init" type="number" value="60" min="8" max="140" step="2"></div>
+      <div class="knob"><label>Конечные петли</label><input id="i-final" type="number" value="20" min="4" max="80" step="2"></div>
+    </div>
+    <div class="knobs-row">
+      <div class="knob"><label>Кромка</label><input id="i-edge" type="number" value="1" min="0" max="2"></div>
+      <div class="knob"><label>Ширина экрана, px (0 — по окну)</label><input id="i-width" type="number" value="0" min="0" max="900" step="10"></div>
+    </div>
+    <div class="knobs-row">
+      <div class="knob knob-wide"><label>Свой ритм, совпавший с пресетом</label>
+        <select id="i-snap">
+          <option value="stay" selected>остаётся «своим» — в hash идут сегменты</option>
+          <option value="snap">возвращается к имени пресета — в hash идёт имя</option>
+        </select>
+      </div>
+    </div>
+    <hr>
+    <div class="knobs-title">Лента рядов — проверка, что ритм собрался</div>
+    <div class="ribbon" id="ribbon"></div>
+    <div class="ribbon-note" id="ribbon-note"></div>
+    <div class="ribbon-note">Ряд 1 слева. Залитая клетка — убавочный ряд, пустая — промежуточный.
+      Это отладка, а не элемент интерфейса: живая обратная связь в дизайне — число рядов.</div>
+  </details>
+
+  <div id="view"></div>
+</div>
+
+<div class="switcher">
+  <button id="prev" aria-label="Предыдущий вариант">←</button>
+  <span class="name" id="vname"></span>
+  <button id="next" aria-label="Следующий вариант">→</button>
+</div>
+
+<script>
+/* ---------------------------------------------------------------
+   РАСЧЁТ — хост, а не предмет оценки.
+   Правило перенесено из calcToe прототипа row-progress.html и расширено
+   со «одного интервала» на список сегментов: убавочный ряд снимает
+   4 петли, после него идут K промежуточных, хвост промежуточных перед
+   швом не дорисовывается.
+
+   Сегмент — { k: промежуточных после убавочного, m: сколько раз повторить }.
+   Словарь карты: K — интервал, весь список — ритм.
+   --------------------------------------------------------------- */
+
+function decRoundsOf(initial, final) {          // сколько убавочных рядов нужно
+  const diff = initial - final;
+  return diff > 0 ? Math.floor(diff / 4) : 0;
+}
+
+function buildRows(initial, segs) {
+  const rows = [];
+  let st = initial, d = 0;
+  segs.forEach(s => {
+    for (let r = 0; r < s.m; r++) {
+      st -= 4; d++;
+      rows.push({ type: 'dec', dec: d, stitches: st });
+      for (let i = 0; i < s.k; i++) rows.push({ type: 'plain', stitches: st });
+    }
+  });
+  while (rows.length && rows[rows.length - 1].type === 'plain') rows.pop();  // хвоста перед швом нет
+  rows.forEach((r, i) => { r.n = i + 1; });
+  return rows;
+}
+
+function calc(initial, final, edge, segs) {
+  const need = decRoundsOf(initial, final);
+  const covered = segs.reduce((a, s) => a + s.m, 0);
+  const rows = buildRows(initial, segs);
+  return {
+    initial, final, edge, segs, need, covered,
+    rows, totalRows: rows.length,
+    lack: need - covered,                       // >0 недобор, <0 перебор
+    finalReal: initial - covered * 4,           // сколько петель останется на самом деле
+  };
+}
+
+/* ---------------------------------------------------------------
+   ПРЕСЕТЫ — тоже хост. Состав, коды и правило остатка («лишний убавочный
+   ряд уходит ближе к концу мыска») решены в тикете «Дефолты полей
+   и пресеты ритма», таблица в пункте 4 его Answer.
+   --------------------------------------------------------------- */
+const PRESETS = [
+  {
+    code: 'even', name: 'Через ряд', min: 1,
+    how: 'убавочный, потом один промежуточный — и так до конца',
+    segs: N => [{ k: 1, m: N }],
+  },
+  {
+    code: 'accel', name: 'С ускорением', min: 2,
+    how: 'сперва через ряд, вторая половина — каждый ряд',
+    segs: N => [{ k: 1, m: Math.ceil(N / 2) }, { k: 0, m: Math.floor(N / 2) }],
+  },
+  {
+    code: 'thirds', name: 'По третям', min: 3,
+    how: 'три фазы: через два ряда, через ряд, каждый ряд',
+    segs: N => { const t = Math.floor(N / 3); return [{ k: 2, m: t }, { k: 1, m: t }, { k: 0, m: N - 2 * t }]; },
+  },
+  {
+    code: 'ramp', name: 'С разгоном', min: 5,
+    how: 'первые убавки редкие, дальше подряд каждый ряд',
+    segs: N => [{ k: 4, m: 1 }, { k: 3, m: 1 }, { k: 2, m: 1 }, { k: 1, m: 1 }, { k: 0, m: N - 4 }],
+  },
+];
+
+const presetByCode = c => PRESETS.find(p => p.code === c);
+
+function presetRows(p, N, initial) {            // живое число рядов для подписи
+  if (N < p.min) return null;
+  return buildRows(initial, p.segs(N)).length;
+}
+
+function presetWhyOff(p, N) {
+  return 'нужно ' + p.min + ' убавочных ' + plural(p.min, 'ряд', 'ряда', 'рядов')
+       + ', сейчас ' + N;
+}
+
+function plural(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
+function segsEqual(a, b) {
+  return a.length === b.length && a.every((s, i) => s.k === b[i].k && s.m === b[i].m);
+}
+
+/* Запись ритма в hash — тикет 07, пункт 7: имя пресета либо сегменты
+   через запятую. Показана внизу живьём как проверка, что форма ввода
+   и принятая запись сходятся. */
+function hashOf(st) {
+  const r = st.preset === 'custom'
+    ? st.segs.map(s => s.k + 'x' + s.m).join(',')
+    : st.preset;
+  return '#s=' + st.initial + '&e=' + st.final + '&k=' + st.edge + '&r=' + r;
+}
+
+/* ---------------------------------------------------------------
+   СОСТОЯНИЕ. Дефолты — тикет 07: 60 → 20, кромка 1, ритм «через ряд».
+   --------------------------------------------------------------- */
+const st = {
+  variant: 'A',
+  initial: 60, final: 20, edge: 1,
+  preset: 'even',            // код пресета или 'custom'
+  segs: [{ k: 1, m: 10 }],
+  segsOpen: false,           // B: раскрыт ли список сегментов
+  slot: null,                // D: какое число сейчас крутится
+};
+
+/* Пресет живой (тикет 07, пункт 6): меняются петли — сегменты
+   пересчитываются сами. Ручная правка переводит ритм в «свой». */
+function resyncPreset() {
+  if (st.preset === 'custom') return;
+  const p = presetByCode(st.preset);
+  const N = decRoundsOf(st.initial, st.final);
+  if (N < p.min) {                       // пресет перестал собираться — уходим на ближайший живой
+    const alt = PRESETS.filter(q => N >= q.min).pop() || PRESETS[0];
+    st.preset = N >= alt.min ? alt.code : 'custom';
+    if (st.preset === 'custom') { st.segs = [{ k: 1, m: Math.max(N, 1) }]; return; }
+    st.segs = presetByCode(st.preset).segs(N);
+    return;
+  }
+  st.segs = p.segs(N);
+}
+
+function goCustom() {
+  st.preset = 'custom';
+}
+
+/* Развилка, найденная на прототипе: свой ритм может совпасть с пресетом
+   до сегмента («через ряд × 5, каждый ряд × 5» — это и есть «с ускорением»
+   при N = 10). Тогда одна и та же форма мыска получает две записи в hash.
+   Что правильно — решается не здесь; ручка показывает оба поведения. */
+let snapBack = false;
+function maybeSnapBack() {
+  if (!snapBack || st.preset !== 'custom') return;
+  const N = decRoundsOf(st.initial, st.final);
+  const hit = PRESETS.find(p => N >= p.min && segsEqual(st.segs, p.segs(N)));
+  if (hit) st.preset = hit.code;
+}
+
+function setPreset(code) {
+  st.preset = code;
+  resyncPreset();
+  draw();
+}
+
+/* ---------------------------------------------------------------
+   ОБЩИЕ КУСКИ ЭКРАНА. Одинаковы во всех вариантах, чтобы ось сравнения
+   осталась одна: как задаётся ритм вручную. Порядок «сперва ритм, потом
+   петли» — решение тикета 07, пункт 10.
+   --------------------------------------------------------------- */
+
+function intervalPhrase(k) {
+  if (k === 0) return 'каждый ряд';
+  if (k === 1) return 'через ряд';
+  return 'через ' + k + ' ' + plural(k, 'ряд', 'ряда', 'рядов');
+}
+
+function rowsWord(n) { return n + ' ' + plural(n, 'ряд', 'ряда', 'рядов'); }
+
+function presetsBlock(m) {
+  const N = m.need;
+  const items = PRESETS.map(p => {
+    const rows = presetRows(p, N, st.initial);
+    const off = rows === null;
+    const on = st.preset === p.code;
+    return '<button class="preset' + (on ? ' on' : '') + '"' + (off ? ' disabled' : '')
+      + ' onclick="setPreset(\'' + p.code + '\')">'
+      + '<span class="dot"></span>'
+      + '<span class="body"><span class="name">' + p.name + '</span>'
+      + '<span class="how">' + p.how + '</span></span>'
+      + '<span class="rows">' + (off ? presetWhyOff(p, N) : rowsWord(rows)) + '</span>'
+      + '</button>';
+  }).join('');
+
+  const custom = st.preset === 'custom'
+    ? '<button class="preset custom on" onclick="void 0">'
+      + '<span class="dot"></span>'
+      + '<span class="body"><span class="name">Свой ритм</span>'
+      + '<span class="how">' + st.segs.map(s => intervalPhrase(s.k) + ' × ' + s.m).join(', ') + '</span></span>'
+      + '<span class="rows">' + rowsWord(m.totalRows) + '</span>'
+      + '</button>'
+    : '';
+
+  return '<div class="presets">' + items + custom + '</div>';
+}
+
+function stitchesBlock(m) {
+  const near = [st.final - 4, st.final, st.final + 4]
+    .filter(v => v >= 4 && v < st.initial);
+  return '<div class="card">'
+    + '<h2>Петли</h2>'
+    + '<div class="field">'
+    +   '<div class="lab">Начальные петли</div>'
+    +   '<div class="why">Сколько петель в круге на момент начала мыска. Чётное.</div>'
+    +   '<div class="line">'
+    +     '<div class="step"><button onclick="bumpStitch(\'initial\',-4)">−</button></div>'
+    +     '<input class="num" id="f-init" type="number" inputmode="numeric" value="' + st.initial + '">'
+    +     '<div class="step"><button onclick="bumpStitch(\'initial\',4)">+</button></div>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="field">'
+    +   '<div class="lab">Конечные петли</div>'
+    +   '<div class="why">Сколько остаётся на трикотажный шов: обычно 16–24. '
+    +     'Привычное стягивание с 8 петлями — другой мысок.</div>'
+    +   '<div class="line">'
+    +     '<div class="step"><button onclick="bumpStitch(\'final\',-4)">−</button></div>'
+    +     '<input class="num" id="f-final" type="number" inputmode="numeric" value="' + st.final + '">'
+    +     '<div class="step"><button onclick="bumpStitch(\'final\',4)">+</button></div>'
+    +   '</div>'
+    +   '<div class="hint">' + st.final + ' (шаг 4: ' + near.join(', ') + ')</div>'
+    + '</div>'
+    + '<div class="field">'
+    +   '<div class="lab">Кромка</div>'
+    +   '<div class="why">Сколько петель с краю половины остаётся до места убавки.</div>'
+    +   '<div class="edge-row">'
+    +     [0, 1, 2].map(e =>
+            '<button class="' + (st.edge === e ? 'on' : '') + '" onclick="setEdge(' + e + ')">'
+            + '<b>' + e + '</b><span>' + (e === 2 ? 'широкий мысок' : '&nbsp;') + '</span></button>'
+          ).join('')
+    +   '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function totalBlock(m) {
+  return '<div class="card">'
+    + '<h2>Итог</h2>'
+    + '<div class="total">'
+    +   '<span class="big">' + m.totalRows + '</span>'
+    +   '<span class="side">' + plural(m.totalRows, 'ряд', 'ряда', 'рядов') + ' в мыске · '
+    +     m.covered + ' ' + plural(m.covered, 'убавочный', 'убавочных', 'убавочных') + ' · '
+    +     'останется ' + m.finalReal + ' ' + plural(m.finalReal, 'петля', 'петли', 'петель') + '</span>'
+    + '</div>'
+    + '<div class="hashline">' + hashOf(st) + '</div>'
+    + '</div>';
+}
+
+function coverLine(m) {
+  if (m.lack === 0) return '<div class="cover">Сегменты покрывают все ' + m.need
+    + ' ' + plural(m.need, 'убавочный ряд', 'убавочных ряда', 'убавочных рядов') + '.</div>';
+  if (m.lack > 0) return '<div class="cover bad">Не хватает ' + m.lack + ' '
+    + plural(m.lack, 'убавочного ряда', 'убавочных рядов', 'убавочных рядов')
+    + ': останется ' + m.finalReal + ' петель вместо ' + st.final + '.</div>';
+  return '<div class="cover bad">Убавочных рядов на ' + (-m.lack) + ' больше, чем нужно'
+    + ': останется ' + m.finalReal + ' петель вместо ' + st.final + '.</div>';
+}
+
+/* ---------------------------------------------------------------
+   ВАРИАНТ A — только пресеты. Контроль.
+   Проверяет, нужен ли конструктор сегментов вообще: может, четырёх
+   готовых ритмов хватает, а ручной режим — это то, чего никто не трогает.
+   --------------------------------------------------------------- */
+function renderA(m) {
+  return '<div class="card">'
+    + '<h2>Ритм убавок</h2>'
+    + presetsBlock(m)
+    + '<div class="note"><b>Контроль.</b> Ручного ритма здесь нет вовсе. '
+    + 'Модель карты («убавочный ряд + K промежуточных, повторить M раз») в интерфейс не выходит — '
+    + 'её видно только через четыре готовых ритма. Спорить с этим вариантом должны B, C и D: '
+    + 'если ни один не выигрывает заметно, конструктор в v1 не нужен.</div>'
+    + '</div>';
+}
+
+/* ---------------------------------------------------------------
+   ВАРИАНТ B — пресеты плюс раскрывающийся список сегментов.
+   Прямая форма модели карты: строка на сегмент, два степпера в строке.
+   Покрытие показано счётчиком; недобор и перебор возможны и видны.
+   --------------------------------------------------------------- */
+function renderB(m) {
+  let body = '';
+  if (!st.segsOpen) {
+    body = '<button class="segopen" onclick="toggleSegs()">Настроить ритм по шагам ▾</button>';
+  } else {
+    const rows = st.segs.map((s, i) =>
+      '<div class="seg">'
+      + '<div class="seg-head"><span>Шаг ' + (i + 1) + ' из ' + st.segs.length + '</span>'
+      +   '<button class="seg-del" onclick="delSeg(' + i + ')"'
+      +   (st.segs.length < 2 ? ' disabled' : '') + '>Убрать</button></div>'
+      + '<div class="seg-part">'
+      +   '<span class="txt">убавочный ряд, потом</span>'
+      +   stepper('seg-k-' + i, s.k, 'bumpSeg(' + i + ',\'k\',-1)', 'bumpSeg(' + i + ',\'k\',1)', s.k <= 0, s.k >= 6)
+      +   '<span class="txt">' + plural(s.k, 'промежуточный', 'промежуточных', 'промежуточных') + '</span>'
+      + '</div>'
+      + '<div class="seg-part">'
+      +   '<span class="txt">повторить</span>'
+      +   stepper('seg-m-' + i, s.m, 'bumpSeg(' + i + ',\'m\',-1)', 'bumpSeg(' + i + ',\'m\',1)', s.m <= 1, false)
+      +   '<span class="txt">' + plural(s.m, 'раз', 'раза', 'раз') + '</span>'
+      + '</div>'
+      + '</div>'
+    ).join('');
+    body = rows
+      + '<button class="seg-add" onclick="addSeg()">+ ещё шаг</button>'
+      + coverLine(m)
+      + '<button class="segopen" onclick="toggleSegs()">Свернуть ▴</button>';
+  }
+  return '<div class="card">'
+    + '<h2>Ритм убавок</h2>'
+    + presetsBlock(m)
+    + body
+    + '<div class="note">Список — прямой перевод модели карты на экран. '
+    + 'Переход к нескольким сегментам стоит одного нажатия «+ ещё шаг», но покрытие '
+    + 'приходится сторожить счётчиком: ни недобор, ни перебор конструкцией не запрещены.</div>'
+    + '</div>';
+}
+
+function stepper(id, val, onMinus, onPlus, offMinus, offPlus) {
+  return '<span class="step">'
+    + '<button onclick="' + onMinus + '"' + (offMinus ? ' disabled' : '') + '>−</button>'
+    + '<span class="val">' + val + '</span>'
+    + '<button onclick="' + onPlus + '"' + (offPlus ? ' disabled' : '') + '>+</button>'
+    + '</span>';
+}
+
+/* ---------------------------------------------------------------
+   ВАРИАНТ C — лента убавочных рядов, поделённая на фазы.
+   Лента длиной ровно в нужное число убавочных рядов; границы двигают
+   пальцем, тап по клетке ставит или убирает границу. Покрытие
+   структурное: сумма фаз всегда равна ленте, нарушить нечем.
+   --------------------------------------------------------------- */
+function renderC(m) {
+  const N = m.need;
+  let strip = '';
+  if (N < 1) {
+    strip = '<div class="cover bad">Убавочных рядов нет: разница петель меньше четырёх.</div>';
+  } else {
+    const phaseOf = [];
+    st.segs.forEach((s, pi) => { for (let r = 0; r < s.m; r++) phaseOf.push(pi); });
+    while (phaseOf.length < N) phaseOf.push(st.segs.length - 1);
+    const cells = [];
+    for (let i = 0; i < N; i++)
+      cells.push('<span class="cell p' + (phaseOf[i] % 5) + '" data-i="' + i + '"></span>');
+    const grips = [];
+    let cum = 0;
+    st.segs.forEach((s, i) => {
+      cum += s.m;
+      if (i < st.segs.length - 1 && cum < N)
+        grips.push('<span class="grip" data-b="' + i + '" style="left:' + (cum / N * 100) + '%"></span>');
+    });
+    const phases = st.segs.map((s, i) =>
+      '<div class="phase">'
+      + '<span class="chip p' + (i % 5) + '"></span>'
+      + '<span class="txt"><b>' + s.m + '</b> ' + plural(s.m, 'убавочный ряд', 'убавочных ряда', 'убавочных рядов')
+      +   ' — <b>' + intervalPhrase(s.k) + '</b></span>'
+      + stepper('ph-' + i, s.k, 'bumpSeg(' + i + ',\'k\',-1)', 'bumpSeg(' + i + ',\'k\',1)', s.k <= 0, s.k >= 6)
+      + '</div>'
+    ).join('');
+    strip = '<div class="strip" id="strip">' + cells.join('') + grips.join('') + '</div>'
+      + '<div class="hint">Лента — это ' + N + ' ' + plural(N, 'убавочный ряд', 'убавочных ряда', 'убавочных рядов')
+      + ', все до единого. Потяни кружок, чтобы сдвинуть границу фазы; тапни по клетке, чтобы поставить или убрать границу.</div>'
+      + phases;
+  }
+  return '<div class="card">'
+    + '<h2>Ритм убавок</h2>'
+    + presetsBlock(m)
+    + strip
+    + '<div class="note">Лента показывает то, что в B приходится складывать в уме: '
+    + '<b>сколько убавочных рядов нужно и как они разошлись по фазам</b>. '
+    + 'Недобора и перебора здесь не бывает — их нечем сделать. Цена: число повторов '
+    + 'задаётся только пальцем по ленте, точного ввода «ровно 6 раз» нет.</div>'
+    + '</div>';
+}
+
+/* ---------------------------------------------------------------
+   ВАРИАНТ D — ритм читается фразой, числа крупные и нажимаются.
+   Последняя строка забирает остаток сама и не редактируется:
+   недобора не бывает, перебор предыдущих строк — бывает и назван.
+   --------------------------------------------------------------- */
+function renderD(m) {
+  const N = m.need;
+  const last = st.segs.length - 1;
+  let prev = 0;
+  const lines = st.segs.map((s, i) => {
+    const isLast = i === last;
+    const rest = N - prev;
+    prev += s.m;
+    const head = st.segs.length === 1 ? 'Убавлять'
+               : i === 0 ? 'Сначала'
+               : isLast ? 'потом' : 'затем';
+    const kSlot = '<button class="slot' + (isSlot(i, 'k') ? ' on' : '') + '" onclick="tapSlot(' + i + ',\'k\')">'
+                + intervalPhrase(s.k) + '</button>';
+    const mSlot = isLast
+      ? '<span class="slot fixed">' + (rest > 0 ? rest : 0) + '</span>'
+      : '<button class="slot' + (isSlot(i, 'm') ? ' on' : '') + '" onclick="tapSlot(' + i + ',\'m\')">' + s.m + '</button>';
+    const only = st.segs.length === 1;     // единственная строка забирает все убавочные ряды
+    const tail = isLast
+      ? (rest > 0
+          ? ' — ' + mSlot + ' ' + (only ? plural(rest, 'раз', 'раза', 'раз')
+                                        : plural(rest, 'оставшийся раз', 'оставшихся раза', 'оставшихся раз'))
+          : ' — <span class="slot fixed">0</span> раз')
+      : ' — ' + mSlot + ' ' + plural(s.m, 'раз', 'раза', 'раз');
+    const del = st.segs.length > 1 && isLast
+      ? '<button class="phrase-del" onclick="delSeg(' + i + ')">убрать</button>' : '';
+    return '<div class="phrase-line">' + head + ' ' + kSlot + tail + (isLast ? '.' : ',') + ' ' + del + '</div>'
+      + popFor(i);
+  }).join('');
+
+  const over = m.lack < 0
+    ? '<div class="cover bad">Строки выше забрали на ' + (-m.lack) + ' '
+      + plural(-m.lack, 'убавочный ряд', 'убавочных ряда', 'убавочных рядов') + ' больше, чем есть. '
+      + 'Последней строке не осталось ничего.</div>'
+    : '';
+
+  return '<div class="card">'
+    + '<h2>Ритм убавок</h2>'
+    + presetsBlock(m)
+    + '<div class="phrase">' + lines + '</div>'
+    + over
+    + '<button class="phrase-add" onclick="addSeg()">…а дальше по-другому</button>'
+    + '<div class="note">Ритм читается вслух, а не собирается из полей. '
+    + 'Последняя строка <b>считается сама</b> — остаток убавочных рядов уходит ей, '
+    + 'поэтому «не покрыли всё» здесь не случается. Цена: этим числом нельзя управлять напрямую, '
+    + 'а строк больше трёх фраза не держит — читаться перестаёт.</div>'
+    + '</div>';
+}
+
+function isSlot(i, f) { return st.slot && st.slot.i === i && st.slot.f === f; }
+
+function popFor(i) {
+  if (!st.slot || st.slot.i !== i) return '';
+  const s = st.segs[i], f = st.slot.f;
+  const cap = f === 'k'
+    ? 'Сколько промежуточных рядов идёт после убавочного'
+    : 'Сколько раз повторить';
+  return '<div class="pop"><div class="cap">' + cap + '</div>'
+    + stepper('pop', f === 'k' ? s.k : s.m,
+        'bumpSeg(' + i + ',\'' + f + '\',-1)', 'bumpSeg(' + i + ',\'' + f + '\',1)',
+        f === 'k' ? s.k <= 0 : s.m <= 1, f === 'k' && s.k >= 6)
+    + ' <button class="phrase-del" onclick="closeSlot()">готово</button></div>';
+}
+
+/* ---------------------------------------------------------------
+   ДЕЙСТВИЯ.
+   --------------------------------------------------------------- */
+function bumpStitch(which, d) {
+  const v = st[which] + d;
+  if (which === 'initial' && (v < 8 || v > 200)) return;
+  if (which === 'final' && (v < 4 || v >= st.initial)) return;
+  st[which] = v;
+  resyncPreset();
+  draw();
+}
+
+function setStitch(which, raw) {
+  const v = parseInt(raw, 10);
+  if (!isFinite(v)) return;
+  st[which] = v;
+  resyncPreset();
+  draw();
+}
+
+function setEdge(e) { st.edge = e; draw(); }
+
+function toggleSegs() { st.segsOpen = !st.segsOpen; draw(); }
+
+function addSeg() {
+  goCustom();
+  const last = st.segs[st.segs.length - 1];
+  if (last.m > 1) {                       // делим последний пополам, остаток — ближе к концу
+    const head = Math.floor(last.m / 2);
+    last.m -= head;
+    st.segs.splice(st.segs.length - 1, 0, { k: last.k, m: head });
+    last.k = Math.max(last.k - 1, 0);
+  } else {
+    st.segs.push({ k: Math.max(last.k - 1, 0), m: 1 });
+  }
+  st.segsOpen = true;
+  draw();
+}
+
+function delSeg(i) {
+  if (st.segs.length < 2) return;
+  goCustom();
+  st.segs.splice(i, 1);
+  if (st.slot && st.slot.i >= st.segs.length) st.slot = null;
+  draw();
+}
+
+function bumpSeg(i, f, d) {
+  goCustom();
+  const s = st.segs[i];
+  if (f === 'k') s.k = Math.max(0, Math.min(6, s.k + d));
+  else s.m = Math.max(1, s.m + d);
+  draw();
+}
+
+function tapSlot(i, f) {
+  st.slot = isSlot(i, f) ? null : { i, f };
+  draw();
+}
+function closeSlot() { st.slot = null; draw(); }
+
+/* Инварианты вариантов. C держит сумму фаз равной ленте — в этом весь его
+   смысл. D считает хвост сам. B и A ничего не правят: там покрытие
+   показывается, а не чинится. Что из этого правильно — тикет о краевых
+   случаях, здесь это разные формы, а не выбранная политика. */
+function normalizeForVariant() {
+  maybeSnapBack();
+  const N = decRoundsOf(st.initial, st.final);
+  if (st.preset !== 'custom') return;     // пресет уже покрывает ровно N
+  if (st.variant === 'C') {
+    if (N < 1) { st.segs = [{ k: 1, m: 1 }]; return; }
+    const segs = st.segs.map(s => ({ k: s.k, m: s.m }));
+    while (segs.length > 1 && segs.slice(0, -1).reduce((a, s) => a + s.m, 0) >= N) segs.pop();
+    const others = segs.slice(0, -1).reduce((a, s) => a + s.m, 0);
+    segs[segs.length - 1].m = N - others;
+    st.segs = segs;
+  } else if (st.variant === 'D') {
+    const others = st.segs.slice(0, -1).reduce((a, s) => a + s.m, 0);
+    st.segs[st.segs.length - 1].m = Math.max(N - others, 0);
+  }
+}
+
+/* ---------------------------------------------------------------
+   ЛЕНТА ФАЗ: перетаскивание границ и тап по клетке. Только для C.
+   --------------------------------------------------------------- */
+function wireStrip() {
+  const strip = document.getElementById('strip');
+  if (!strip) return;
+  const N = decRoundsOf(st.initial, st.final);
+
+  const indexAt = clientX => {
+    const r = strip.getBoundingClientRect();
+    return Math.round((clientX - r.left) / r.width * N);
+  };
+
+  strip.querySelectorAll('.grip').forEach(g => {
+    let live = false;
+    g.addEventListener('pointerdown', e => {
+      live = true; e.preventDefault();
+      try { g.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    g.addEventListener('pointermove', e => {
+      if (!live) return;
+      const b = +g.dataset.b;                       // граница между сегментами b и b+1
+      const before = st.segs.slice(0, b).reduce((a, s) => a + s.m, 0);
+      const pair = st.segs[b].m + st.segs[b + 1].m;
+      let head = indexAt(e.clientX) - before;
+      head = Math.max(1, Math.min(pair - 1, head));
+      if (head === st.segs[b].m) return;
+      goCustom();
+      st.segs[b].m = head;
+      st.segs[b + 1].m = pair - head;
+      draw();
+    });
+    const stop = () => { live = false; };
+    g.addEventListener('pointerup', stop);
+    g.addEventListener('pointercancel', stop);
+  });
+
+  strip.querySelectorAll('.cell').forEach(c => {
+    c.addEventListener('click', () => {
+      const i = +c.dataset.i;                       // граница ставится ПЕРЕД этой клеткой
+      if (i === 0) return;
+      goCustom();
+      let cum = 0, hit = -1;
+      st.segs.forEach((s, si) => { cum += s.m; if (cum === i && si < st.segs.length - 1) hit = si; });
+      if (hit >= 0) {                               // граница уже есть — убираем, фазы сливаются
+        st.segs[hit].m += st.segs[hit + 1].m;
+        st.segs.splice(hit + 1, 1);
+      } else {
+        cum = 0;
+        for (let si = 0; si < st.segs.length; si++) {
+          const next = cum + st.segs[si].m;
+          if (i > cum && i < next) {
+            const head = i - cum, tail = next - i;
+            st.segs[si].m = head;
+            st.segs.splice(si + 1, 0, { k: Math.max(st.segs[si].k - 1, 0), m: tail });
+            break;
+          }
+          cum = next;
+        }
+      }
+      draw();
+    });
+  });
+}
+
+/* ---------------------------------------------------------------
+   СБОРКА ЭКРАНА.
+   --------------------------------------------------------------- */
+const VARIANTS = {
+  A: { name: 'A — только пресеты', render: renderA },
+  B: { name: 'B — список сегментов', render: renderB },
+  C: { name: 'C — лента фаз', render: renderC },
+  D: { name: 'D — ритм фразой', render: renderD },
+};
+const ORDER = ['A', 'B', 'C', 'D'];
+
+function draw() {
+  normalizeForVariant();
+  const m = calc(st.initial, st.final, st.edge, st.segs);
+
+  const focused = document.activeElement;
+  const keepId = focused && focused.id ? focused.id : null;
+  const keepPos = focused && focused.selectionStart != null ? focused.selectionStart : null;
+
+  document.getElementById('view').innerHTML =
+    VARIANTS[st.variant].render(m) + stitchesBlock(m) + totalBlock(m);
+
+  const back = keepId && document.getElementById(keepId);
+  if (back && back.focus) {
+    back.focus();
+    if (keepPos != null && back.setSelectionRange) {
+      try { back.setSelectionRange(keepPos, keepPos); } catch (e) {}
+    }
+  }
+
+  document.getElementById('f-init').addEventListener('input', e => setStitch('initial', e.target.value));
+  document.getElementById('f-final').addEventListener('input', e => setStitch('final', e.target.value));
+  wireStrip();
+
+  document.getElementById('vname').textContent = st.variant;
+  document.getElementById('sub').textContent =
+    VARIANTS[st.variant].name + ' · ' + st.initial + ' → ' + st.final + ' петель, кромка ' + st.edge;
+
+  document.getElementById('i-init').value = st.initial;
+  document.getElementById('i-final').value = st.final;
+  document.getElementById('i-edge').value = st.edge;
+
+  const rib = document.getElementById('ribbon');
+  rib.innerHTML = m.rows.map(r => '<i class="' + (r.type === 'dec' ? 'dec' : '') + '"></i>').join('');
+  document.getElementById('ribbon-note').textContent =
+    'Нужно убавочных: ' + m.need + ' · в ритме: ' + m.covered
+    + ' · рядов всего: ' + m.totalRows
+    + (m.lack ? ' · РАСХОЖДЕНИЕ: ' + m.lack : '');
+}
+
+function setVariant(v) {
+  if (!VARIANTS[v]) return;
+  st.variant = v;
+  st.slot = null;
+  if (v === 'A' && st.preset === 'custom') st.preset = 'even';   // в A своего ритма нет
+  if (st.preset !== 'custom') resyncPreset();
+  try { history.replaceState(null, '', '#' + v); } catch (e) {}   // file:// ругается, прототипу всё равно
+  draw();
+}
+
+document.getElementById('prev').onclick = () =>
+  setVariant(ORDER[(ORDER.indexOf(st.variant) + ORDER.length - 1) % ORDER.length]);
+document.getElementById('next').onclick = () =>
+  setVariant(ORDER[(ORDER.indexOf(st.variant) + 1) % ORDER.length]);
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') document.getElementById('prev').click();
+  if (e.key === 'ArrowRight') document.getElementById('next').click();
+});
+
+['i-init', 'i-final', 'i-edge'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    const v = parseInt(e.target.value, 10);
+    if (!isFinite(v)) return;
+    if (id === 'i-init') st.initial = v;
+    if (id === 'i-final') st.final = v;
+    if (id === 'i-edge') st.edge = Math.max(0, Math.min(2, v));
+    resyncPreset();
+    draw();
+  });
+});
+
+document.getElementById('i-snap').addEventListener('change', e => {
+  snapBack = e.target.value === 'snap';
+  draw();
+});
+
+document.getElementById('i-width').addEventListener('input', e => {
+  const v = parseInt(e.target.value, 10) || 0;
+  document.querySelector('.wrap').style.maxWidth = v > 0 ? v + 'px' : '560px';
+});
+
+const start = (location.hash || '#A').slice(1).toUpperCase();
+st.variant = VARIANTS[start] ? start : 'A';
+setVariant(st.variant);
+</script>
+</body>
+</html>

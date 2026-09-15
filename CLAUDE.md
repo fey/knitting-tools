@@ -8,9 +8,9 @@
 начальные и конечные петли, кромка и ритм убавок, на выходе — схема и число рядов.
 
 **Кода ещё нет.** Идёт планирование по карте `wayfinder`, и она заканчивается спекой, а не сборкой:
-пока в репозитории только `.scratch/toe-calculator/`. Стек и адрес сайта ниже — принятые решения,
-а не работающая инфраструктура. По `https://fey.github.io/knitting-tools/` сейчас 404: Pages не
-включён, workflow не написан.
+пока в репозитории только `.scratch/toe-calculator/`. Стек и адрес сайта — принятые решения, а не
+работающая инфраструктура: по `https://fey.github.io/knitting-tools/` сейчас 404, Pages не включён,
+workflow не написан.
 
 Куда смотреть:
 
@@ -27,15 +27,12 @@
 
 ## Стек и доставка
 
-Решено в тикете `issues/05-stack-and-delivery.md`, там же причины и отвергнутые варианты.
-
-Vite + Vue 3 (Composition API, SFC) + TypeScript + Tailwind 4. Роутера и Pinia нет: страница одна,
-состояние — один composable. Тесты — Vitest и только на расчётном ядре. Хостинг — GitHub Pages,
-project site `https://fey.github.io/knitting-tools/`, `base: '/knitting-tools/'`, деплой Actions-workflow
-по push в `main`. Когда появится `package.json`, точные версии смотреть там, а не здесь.
+Vite + Vue 3 + TypeScript + Tailwind 4, статика на GitHub Pages. Версии, хостинг, деплой, причины и
+отвергнутые варианты — `issues/05-stack-and-delivery.md`; когда появится `package.json`, версии
+смотреть там.
 
 Раскладка: `src/calculators/toe/` (ядро и компоненты), общее — `src/shared/`. Каталоги разведены под
-будущие калькуляторы, но роутер, витрина разделов и общие layout-компоненты не строятся, пока
+будущие калькуляторы, но роутер, витрину разделов и общие layout-компоненты не строим, пока
 калькулятор один.
 
 **Ядро — чистый TypeScript без единого импорта из Vue.** Оно же держит ограничение карты: число рядов
@@ -45,14 +42,6 @@ project site `https://fey.github.io/knitting-tools/`, `base: '/knitting-tools/'`
 `history.replaceState`. Прогресс ряда — в `localStorage`, одной записью `{ paramsKey, row }`; параметры
 на экране не совпали с `paramsKey` — прогресса нет. Приоритет при загрузке: hash → `localStorage` →
 дефолты. Прогресс в ссылку не попадает никогда.
-
-## Трекер
-
-Карта и тикеты — **markdown** в `.scratch/toe-calculator/`, блокировки строкой `Blocked by:` в теле.
-
-Переезд на **beads** решён, но ещё не выполнен: `.beads/` здесь нет, `bd` в этом репозитории запускать
-не на чем. Эталонный `docs/agents/issue-tracker.md` с разделом «Wayfinding operations» — в
-`~/projects/top-down-shooter`, копировать оттуда.
 
 ## Язык
 
