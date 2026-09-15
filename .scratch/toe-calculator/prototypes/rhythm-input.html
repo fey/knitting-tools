@@ -281,6 +281,30 @@
   .note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.55; }
   .note b { color: var(--fg); }
 
+  /* --- схема мыска: перенесена из row-progress.html, тикет 02 --- */
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); padding: 10px 4px 0; flex-wrap: wrap; }
+  .zoombar { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; font-size: 12px; color: var(--muted); }
+  .zoombar button { width: 30px; height: 30px; border: 1px solid var(--line); background: #fff;
+                    border-radius: 7px; font-size: 17px; line-height: 1; cursor: pointer; color: var(--fg); }
+  .zoombar .hint { margin-left: auto; font-size: 11px; }
+  .chart-cap { font-size: 12px; color: var(--muted); padding: 6px 2px; }
+  .chartscroll { cursor: grab; overscroll-behavior-x: contain;
+                 scrollbar-width: auto; scrollbar-color: #b0a89a #e9e5dd; }
+  .chartscroll.dragging { cursor: grabbing; }
+  .chartscroll::-webkit-scrollbar { height: 11px; width: 11px; }
+  .chartscroll::-webkit-scrollbar-track { background: #e9e5dd; border-radius: 6px; }
+  .chartscroll::-webkit-scrollbar-thumb { background: #b0a89a; border-radius: 6px; }
+  .chartbox { position: relative; }
+
+  /* --- схема, приклеенная к низу экрана: второе размещение под ручкой --- */
+  .chartdock {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 64px;
+    width: min(532px, calc(100vw - 20px));
+    background: var(--card); border: 1px solid #cdc6ba; border-radius: 12px;
+    box-shadow: 0 -2px 18px rgba(0,0,0,.10); padding: 8px 10px 6px; z-index: 40;
+  }
+  .chartdock .chart-cap { padding: 4px 2px 0; }
+
   /* --- переключатель, намеренно не похож на дизайн --- */
   .switcher {
     position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
@@ -312,6 +336,12 @@
       <div class="knob"><label>Ширина экрана, px (0 — по окну)</label><input id="i-width" type="number" value="0" min="0" max="900" step="10"></div>
     </div>
     <div class="knobs-row">
+      <div class="knob knob-wide"><label>Схема мыска на экране</label>
+        <select id="i-chart">
+          <option value="under" selected>под блоком ритма — как читается страница</option>
+          <option value="dock">приклеена к низу экрана — видно, пока тыкаешь</option>
+        </select>
+      </div>
       <div class="knob knob-wide"><label>Свой ритм, совпавший с пресетом</label>
         <select id="i-snap">
           <option value="stay" selected>остаётся «своим» — в hash идут сегменты</option>
@@ -329,6 +359,8 @@
 
   <div id="view"></div>
 </div>
+
+<div id="dock"></div>
 
 <div class="switcher">
   <button id="prev" aria-label="Предыдущий вариант">←</button>
@@ -778,6 +810,114 @@ function popFor(i) {
 }
 
 /* ---------------------------------------------------------------
+   СХЕМА МЫСКА — хост, а не предмет оценки. Перенесена из
+   row-progress.html (а туда — из toe-visualization.html) без правок
+   обозначений: тикет «Как выглядит визуализация мыска» закрыт.
+   Клетка 22 px, ряд 1 внизу, кончик мыска сверху, чтение снизу вверх
+   и справа налево, лицевая — вертикальный штрих, убавки — залитые
+   треугольники катетом со стороны наклона, горизонтальная прокрутка.
+
+   Здесь схема нужна затем, чтобы ритм крутили не вслепую: число рядов
+   говорит, сколько вязать, а схема — что получится. Слой отметки
+   текущего ряда снят, он к этому тикету не относится.
+   --------------------------------------------------------------- */
+let chartZoom = 22;                       // размер клетки схемы в пикселях
+window.setChartZoom = z => { chartZoom = Math.max(6, Math.min(44, z)); draw(); };
+let chartWhere = 'under';                 // under | dock
+
+const sw = (fill, inner) =>
+  `<svg width="14" height="14" style="vertical-align:-3px;margin-right:5px"><rect x=".5" y=".5" width="13" height="13" fill="${fill}" stroke="#c9c2b6"/>${inner}</svg>`;
+
+function chartSvg(m, cell) {
+  const cols = m.initial / 2;
+  const rows = m.rows.length;
+  const LBL = 1.9;                        // место под номера рядов, в клетках
+  const W = cols + LBL, H = rows;
+  const g = [];
+
+  m.rows.slice().reverse().forEach((r, i) => {   // кончик мыска сверху
+    const active = r.stitches / 2;
+    const off = (cols - active) / 2;
+    const y = i;
+    for (let j = 0; j < cols; j++) {
+      const inside = j >= off && j < off + active;
+      if (!inside) {
+        g.push(`<rect x="${j}" y="${y}" width="1" height="1" fill="#e4dfd5" stroke="#d5cec2" stroke-width=".03"/>`);
+        continue;
+      }
+      const p = off + active - 1 - j;            // порядковый номер петли, 0 — начало половины
+      const isEdge = p < m.edge || p >= active - m.edge;
+      const decStart = r.type === 'dec' && p === m.edge;
+      const decEnd   = r.type === 'dec' && p === active - 1 - m.edge;
+      g.push(`<rect x="${j}" y="${y}" width="1" height="1" fill="${isEdge ? '#f7f4ee' : '#fff'}" stroke="#c9c2b6" stroke-width=".04"/>`);
+      if (!decStart && !decEnd)  // лицевая — вертикальный штрих, пустая клетка означала бы изнаночную
+        g.push(`<line x1="${j+.5}" y1="${y+.2}" x2="${j+.5}" y2="${y+.8}" stroke="#4a453d" stroke-width=".09" stroke-linecap="round"/>`);
+      if (decStart) g.push(`<polygon points="${j+.22},${y+.8} ${j+.22},${y+.2} ${j+.78},${y+.8}" fill="#1c1a17"/>`);
+      if (decEnd)   g.push(`<polygon points="${j+.78},${y+.8} ${j+.78},${y+.2} ${j+.22},${y+.8}" fill="#1c1a17"/>`);
+    }
+    g.push(`<text x="${cols + .35}" y="${y + .7}" font-size=".55" fill="${r.type === 'dec' ? '#1c1a17' : '#9a948a'}" font-weight="${r.type === 'dec' ? '600' : '400'}">${r.n}</text>`);
+  });
+
+  for (let j = 5; j < cols; j += 5)       // жирные линии каждые 5 петель для счёта
+    g.push(`<line x1="${j}" y1="0" x2="${j}" y2="${rows}" stroke="#8f887c" stroke-width=".07"/>`);
+  g.push(`<rect x="0" y="0" width="${cols}" height="${rows}" fill="none" stroke="#8f887c" stroke-width=".09"/>`);
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="${Math.round(W * cell)}" height="${Math.round(H * cell)}" style="display:block">${g.join('')}</svg>`;
+}
+
+const chartLegend = () => `<div class="legend">
+  <span>${sw('#fff', '<line x1="7" y1="3" x2="7" y2="11" stroke="#4a453d" stroke-width="1.4" stroke-linecap="round"/>')}лицевая</span>
+  <span>${sw('#f7f4ee', '<line x1="7" y1="3" x2="7" y2="11" stroke="#4a453d" stroke-width="1.4" stroke-linecap="round"/>')}петля кромки, тоже лицевая</span>
+  <span>${sw('#fff', '<polygon points="3.5,11 3.5,3 10.5,11" fill="#1c1a17"/>')}2 вместе с наклоном влево</span>
+  <span>${sw('#fff', '<polygon points="10.5,11 10.5,3 3.5,11" fill="#1c1a17"/>')}2 вместе с наклоном вправо</span>
+  <span>${sw('#e4dfd5', '')}нет петли</span>
+</div>`;
+
+function chartEmpty(text) {
+  return '<div class="card"><h2>Схема</h2><div class="hint">' + text + '</div></div>';
+}
+
+/* Схема под блоком ритма — как страница читается сверху вниз. */
+function chartCard(m) {
+  if (!m.rows.length) return chartEmpty('Рядов пока нет: убавлять нечего.');
+  const wide = (m.initial / 2) * chartZoom > 330;
+  return '<div class="card" style="padding:12px 10px 4px">'
+    + '<div class="zoombar">'
+    +   '<span>Клетка ' + chartZoom + '&nbsp;px</span>'
+    +   '<button onclick="setChartZoom(chartZoom - 4)">−</button>'
+    +   '<button onclick="setChartZoom(chartZoom + 4)">+</button>'
+    +   '<span class="hint">' + (wide ? 'схему тяни вбок' : '') + '</span>'
+    + '</div>'
+    + '<div class="chart-cap">↑ ' + m.finalReal + ' петель на трикотажный шов</div>'
+    + '<div class="chartbox"><div class="chartscroll" id="chartscroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
+    +   chartSvg(m, chartZoom)
+    + '</div></div>'
+    + '<div class="chart-cap">Начало мыска, ' + m.initial + ' петель. '
+    +   'Ряды читаются снизу вверх, петли справа налево.</div>'
+    + chartLegend()
+    + '</div>';
+}
+
+/* Схема, приклеенная к низу экрана. Клетка ужимается так, чтобы мысок
+   поместился целиком: пока ритм крутят, важен силуэт, а не значки.
+   Сколько при этом остаётся от клетки — прототип печатает честно. */
+const DOCK_H = 260;
+function chartDock(m) {
+  if (!m.rows.length) return '';
+  const fit = Math.max(3, Math.min(chartZoom, Math.floor(DOCK_H / m.rows.length)));
+  const readable = fit >= 14;
+  return '<div class="chartdock">'
+    + '<div class="chartbox"><div class="chartscroll" id="chartscroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
+    +   chartSvg(m, fit)
+    + '</div></div>'
+    + '<div class="chart-cap">' + m.totalRows + ' ' + plural(m.totalRows, 'ряд', 'ряда', 'рядов')
+    +   ' · ' + m.initial + ' → ' + m.finalReal + ' петель · клетка ' + fit + ' px'
+    +   (readable ? '' : ' — значки на этом размере не читаются, видно только силуэт')
+    + '</div>'
+    + '</div>';
+}
+
+/* ---------------------------------------------------------------
    ДЕЙСТВИЯ.
    --------------------------------------------------------------- */
 function bumpStitch(which, d) {
@@ -924,6 +1064,23 @@ function wireStrip() {
   });
 }
 
+/* Схему тянут вбок мышью — перенос из row-progress.html. */
+function wireChartDrag(sc) {
+  let dragging = false, startX = 0, startLeft = 0;
+  sc.addEventListener('pointerdown', e => {
+    dragging = true; startX = e.clientX; startLeft = sc.scrollLeft;
+    sc.classList.add('dragging');
+    try { sc.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  sc.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    sc.scrollLeft = startLeft - (e.clientX - startX);
+  });
+  const stop = () => { dragging = false; sc.classList.remove('dragging'); };
+  sc.addEventListener('pointerup', stop);
+  sc.addEventListener('pointercancel', stop);
+}
+
 /* ---------------------------------------------------------------
    СБОРКА ЭКРАНА.
    --------------------------------------------------------------- */
@@ -943,8 +1100,21 @@ function draw() {
   const keepId = focused && focused.id ? focused.id : null;
   const keepPos = focused && focused.selectionStart != null ? focused.selectionStart : null;
 
+  const oldScroll = document.getElementById('chartscroll');   // схему на каждое нажатие не перематываем
+  const keepScroll = oldScroll ? oldScroll.scrollLeft : null;
+
   document.getElementById('view').innerHTML =
-    VARIANTS[st.variant].render(m) + stitchesBlock(m) + totalBlock(m);
+    VARIANTS[st.variant].render(m)
+    + (chartWhere === 'under' ? chartCard(m) : '')
+    + stitchesBlock(m) + totalBlock(m);
+  document.getElementById('dock').innerHTML = chartWhere === 'dock' ? chartDock(m) : '';
+
+  const sc = document.getElementById('chartscroll');
+  if (sc) {
+    sc.scrollLeft = keepScroll != null ? keepScroll : sc.scrollWidth;   // круг читается справа налево
+    wireChartDrag(sc);
+  }
+  document.body.style.paddingBottom = chartWhere === 'dock' ? (DOCK_H + 150) + 'px' : '86px';
 
   const back = keepId && document.getElementById(keepId);
   if (back && back.focus) {
@@ -1003,6 +1173,11 @@ document.addEventListener('keydown', e => {
     resyncPreset();
     draw();
   });
+});
+
+document.getElementById('i-chart').addEventListener('change', e => {
+  chartWhere = e.target.value;
+  draw();
 });
 
 document.getElementById('i-snap').addEventListener('change', e => {
