@@ -195,6 +195,31 @@ test('смена расчёта на ходу: рядов стало меньш�
   await expect(page.getByTestId('row-progress-mark')).toBeDisabled()
 })
 
+test('правка петель чинит пару целиком — ряд подтягивается, а не обнуляется', async ({ page }) => {
+  await page.addInitScript(
+    ({ key, value }) => localStorage.setItem(key, value),
+    { key: PROGRESS_KEY, value: JSON.stringify({ paramsKey: 's=100&e=60&k=1&r=even', row: 15 }) },
+  )
+
+  await page.goto('./#s=100&e=60&k=1&r=even')
+  await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 16 из 19')
+
+  // Начальные 40 при конечных 60 не сходятся: починка приносит пару целиком, 40 → 36.
+  // Это один ряд всего, и отмеченные 15 обязаны подтянуться к нему, а не пропасть.
+  // Пара меняется одной сменой расчёта — промежуточное состояние 40 → 60 (ни одного
+  // ряда) зажим видеть не должен.
+  const initial = page.getByTestId('initial-stitches')
+  await initial.click()
+  await initial.fill('40')
+  await page.getByTestId('final-stitches').click()
+
+  await expect(page.getByTestId('final-stitches')).toHaveValue('36')
+  await expect(page.getByTestId('row-progress-current')).toHaveText('Готово')
+
+  const stored = await page.evaluate((key) => localStorage.getItem(key), PROGRESS_KEY)
+  expect(JSON.parse(stored ?? 'null')).toEqual({ paramsKey: 's=40&e=36&k=1&r=even', row: 1 })
+})
+
 test('на дефолте мысок помещается в окно целиком — прокрутка при открытии не нужна', async ({ page }) => {
   await page.goto('./')
   const scrollTop = await page.getByTestId('toe-chart-scroll').evaluate((el) => el.scrollTop)

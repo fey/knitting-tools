@@ -140,22 +140,60 @@ function resetProgress(): void {
   persistProgress(0)
 }
 
-// Смена расчёта на ходу номер ряда сохраняет, а если рядов стало меньше — подтягивает
-// к последнему (§8); автоматическая правка ввода (§9) идёт тем же путём — она меняет
-// `params`, а `calculation` пересчитывается сама. Пока не было ни одной отметки, `row`
-// остаётся 0, и `persistProgress` при каждой правке лишь холостит `removeItem` —
-// мусора это не создаёт (§10.2). `flush: 'sync'` — зажим случается тем же тиком, что
-// и правка `params`: `ToeChart.vue` не вправе на кадр увидеть `progressRow`, отставший
-// от уже усечённого расчёта.
+/**
+ * Зажим прогресса по текущему расчёту (§8): номер ряда сохраняется, а если рядов
+ * стало меньше — подтягивается к последнему.
+ */
+function clampProgress(): void {
+  const total = calculation.value.totalRows
+  if (progressRow.value > total) progressRow.value = total
+  persistProgress(progressRow.value)
+}
+
+/**
+ * Идёт ли прямо сейчас правка пары полей (см. `setStitches`). Зажим на промежуточное
+ * состояние не срабатывает: пара — одна смена расчёта, а не две.
+ */
+let applyingFields = false
+
+// Смена расчёта на ходу (§8); автоматическая правка ввода (§9) идёт тем же путём —
+// она меняет `params`, а `calculation` пересчитывается сама. Пока не было ни одной
+// отметки, `row` остаётся 0, и `persistProgress` при каждой правке лишь холостит
+// `removeItem` — мусора это не создаёт (§10.2). `flush: 'sync'` — зажим случается тем же
+// тиком, что и правка `params`: `ToeChart.vue` не вправе на кадр увидеть `progressRow`,
+// отставший от уже усечённого расчёта. Синхронность и делает флаг нужным: при
+// отложенном `flush` промежуточное состояние пары схлопнулось бы само.
 watch(
   calculation,
-  (next) => {
-    if (progressRow.value > next.totalRows) progressRow.value = next.totalRows
-    persistProgress(progressRow.value)
+  () => {
+    if (applyingFields) return
+    clampProgress()
   },
   { flush: 'sync' },
 )
 
+/**
+ * Правит петли одной сменой расчёта (§8). Присвоить `initial` и `final` двумя
+ * шагами нельзя: между ними стоит пара, которая сама с собой не сходится
+ * (60 → 20 и правка начальных на 40 проходит через 40 → 20), синхронный зажим
+ * видит её как расчёт в один ряд и обнуляет отмеченный ряд. Прогресс при правке
+ * обоих полей сразу обязан подтягиваться к последнему ряду, а не пропадать.
+ *
+ * Кромка правится здесь же: она меняет минимум конечных петель, то есть входит
+ * в ту же пару.
+ */
+function setStitches(next: { initial: number; final: number; edge?: number }): void {
+  applyingFields = true
+  try {
+    params.initial = next.initial
+    params.final = next.final
+    if (next.edge !== undefined) params.edge = next.edge
+  } finally {
+    applyingFields = false
+  }
+  clampProgress()
+}
+
 export function useToeCalculator() {
-  return { params, calculation, progressRow, markRow, undoRow, resetProgress }
+  return { params, calculation, progressRow, markRow, undoRow, resetProgress, setStitches }
 }
