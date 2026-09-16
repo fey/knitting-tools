@@ -3,3 +3,7 @@ dist/
 *.local
 .DS_Store
 .claude/settings.local.json
+
+playwright-report/
+test-results/
+blob-report/

@@ -1,0 +1,65 @@
+# Сборка, тесты и деплой страницы на GitHub Pages.
+# По push в main прогон доезжает до деплоя, по pull_request — останавливается на сборке.
+name: Сборка и деплой
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Деплои не гоняются параллельно, но и не отменяют друг друга на полпути.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Браузер для прогона страницы
+        run: npx playwright install --with-deps chromium
+
+      - name: Тесты ядра
+        run: npm run test:unit
+
+      # Гоняется только функциональный проект. Скриншотный (test:screens) в CI
+      # не запускается намеренно: базлайны сняты на машине мастера, на раннере
+      # рендер другой, и первый же push положил бы прогон вместе с деплоем.
+      - name: Тесты страницы
+        run: npm run test:e2e
+
+      - name: Сборка
+        run: npm run build
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

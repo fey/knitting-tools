@@ -1,0 +1,109 @@
+import { describe, expect, it } from 'vitest'
+import { PRESETS, presetByCode, presetRowCount, presetWhyOff, rhythmName } from './presets'
+import { calculateToe, DEFAULT_PARAMS } from './calc'
+import type { PresetName } from './types'
+
+const rowsOf = (name: PresetName, initial: number, final: number) =>
+  calculateToe({ ...DEFAULT_PARAMS, initial, final, rhythm: { kind: 'preset', name } }).totalRows
+
+describe('четыре готовых ритма', () => {
+  it('состав и порядок закреплены', () => {
+    expect(PRESETS.map((p) => p.code)).toEqual(['even', 'accel', 'thirds', 'ramp'])
+    expect(PRESETS.map((p) => p.min)).toEqual([1, 2, 3, 5])
+  })
+
+  // §12.1, случай 3: 60 → 16 даёт N = 11.
+  it('при 11 убавочных рядах дают 21 / 17 / 20 / 21 ряд', () => {
+    expect(PRESETS.map((p) => rowsOf(p.code, 60, 16))).toEqual([21, 17, 20, 21])
+  })
+})
+
+describe('правило остатка: лишний убавочный ряд уходит ближе к концу мыска', () => {
+  // §12.1, случай 4.
+  it('«с ускорением» при 11 убавочных рядах делится 6 + 5', () => {
+    expect(presetByCode('accel').segments(11)).toEqual([
+      { interval: 1, repeats: 6 },
+      { interval: 0, repeats: 5 },
+    ])
+  })
+
+  it('«по третям» при 11 убавочных рядах делится 3 / 3 / 5', () => {
+    expect(presetByCode('thirds').segments(11).map((s) => s.repeats)).toEqual([3, 3, 5])
+  })
+})
+
+describe('формулы числа рядов на диапазоне', () => {
+  // §12.1, случай 5.
+  const range = Array.from({ length: 21 }, (_, i) => i + 5)
+
+  it.each(range)('«через ряд» при N = %i даёт 2N − 1', (n) => {
+    expect(rowsOf('even', 200, 200 - 4 * n)).toBe(2 * n - 1)
+  })
+
+  it.each(range)('«с разгоном» при N = %i даёт N + 10', (n) => {
+    expect(rowsOf('ramp', 200, 200 - 4 * n)).toBe(n + 10)
+  })
+})
+
+describe('живой пресет покрывает ровно N убавочных рядов', () => {
+  // §12.1, случай 6: на N = 1…40 и без пустых фаз.
+  const range = Array.from({ length: 40 }, (_, i) => i + 1)
+
+  it.each(range)('N = %i', (n) => {
+    for (const preset of PRESETS) {
+      if (n < preset.min) continue
+      const segments = preset.segments(n)
+      expect(segments.reduce((sum, s) => sum + s.repeats, 0)).toBe(n)
+      expect(segments.every((s) => s.repeats >= 1)).toBe(true)
+      expect(calculateToe({
+        ...DEFAULT_PARAMS,
+        initial: 200,
+        final: 200 - 4 * n,
+        rhythm: { kind: 'preset', name: preset.code },
+      }).lack).toBe(0)
+    }
+  })
+})
+
+describe('ритм, который не собирается', () => {
+  it('живого числа рядов не даёт', () => {
+    expect(presetRowCount(presetByCode('ramp'), 4, 60)).toBeNull()
+    expect(presetRowCount(presetByCode('ramp'), 5, 60)).toBe(15)
+  })
+
+  it('объясняет причину числом убавочных рядов', () => {
+    expect(presetWhyOff(presetByCode('thirds'), 2)).toBe('нужно 3 убавочных ряда, сейчас 2')
+    expect(presetWhyOff(presetByCode('ramp'), 4)).toBe('нужно 5 убавочных рядов, сейчас 4')
+    expect(presetWhyOff(presetByCode('even'), 0)).toBe('нужно 1 убавочный ряд, сейчас 0')
+  })
+
+  // «С разгоном» несёт фиксированный хвост в 4 ряда, который сам по себе превышает N
+  // ниже min = 5. Карточка на экране гасится и не выбирается (RhythmPresets.vue), но
+  // сегменты остаются достижимы напрямую — например когда ритм выбрали при N = 10,
+  // а петли потом сузили до N = 2. `decRowsCovered` обязан быть плоской суммой повторов:
+  // иначе «перебора нет» соврёт при фактическом перекрытии. А `finalReal` обязан совпадать
+  // с тем, что реально рисует схема, — при переборе это конечные петли (§9.5).
+  it('«с разгоном» ниже min не врёт числом: перебор честно виден, а не спрятан нулевым lack', () => {
+    const calc = calculateToe({ ...DEFAULT_PARAMS, initial: 60, final: 52, rhythm: { kind: 'preset', name: 'ramp' } })
+    expect(calc.decRowsNeeded).toBe(2)
+    // Сегменты остаются набранными целиком: усечение живёт только на пути построения рядов.
+    expect(calc.segments.map((s) => s.repeats)).toEqual([1, 1, 1, 1, 0])
+    expect(calc.decRowsCovered).toBe(4)
+    expect(calc.lack).toBe(-2)
+    expect(calc.finalReal).toBe(52)
+    expect(calc.rows[calc.rows.length - 1].stitches).toBe(calc.finalReal)
+    expect(calc.finalReal).toBe(calc.final)
+  })
+})
+
+describe('имя ритма — одно на весь калькулятор (§5.5)', () => {
+  it('пресет называется своим именем со строчной буквы: ритм стоит внутри фразы', () => {
+    expect(rhythmName({ kind: 'preset', name: 'even' })).toBe('через ряд')
+    expect(rhythmName({ kind: 'preset', name: 'ramp' })).toBe('с разгоном')
+  })
+
+  it('набранные руками сегменты — «свой ритм», сравнения с пресетами нет', () => {
+    // Сегменты в точности как у «через ряд» на дефолте — имя всё равно своё.
+    expect(rhythmName({ kind: 'custom', segments: [{ interval: 1, repeats: 10 }] })).toBe('свой ритм')
+  })
+})

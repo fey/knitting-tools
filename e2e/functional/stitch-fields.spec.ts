@@ -1,0 +1,83 @@
+import { expect, test } from '@playwright/test'
+
+test('порядок на экране: схема, потом ритм, потом петли (§6, AC 8)', async ({ page }) => {
+  await page.goto('./')
+
+  const chartBox = await page.getByTestId('toe-chart').boundingBox()
+  const rhythmBox = await page.getByTestId('rhythm-presets').boundingBox()
+  const fieldsBox = await page.getByTestId('stitch-fields').boundingBox()
+
+  expect(chartBox).not.toBeNull()
+  expect(rhythmBox).not.toBeNull()
+  expect(fieldsBox).not.toBeNull()
+
+  // Схема выше ритма, ритм выше полей петель — сверху вниз, как требует §6.
+  expect(chartBox!.y).toBeLessThan(rhythmBox!.y)
+  expect(rhythmBox!.y).toBeLessThan(fieldsBox!.y)
+})
+
+test('кнопка + у начальных петель двигает число рядов на экране', async ({ page }) => {
+  await page.goto('./')
+
+  const summary = page.getByTestId('summary-panel')
+  await expect(summary.getByTestId('summary-total-rows')).toHaveText('19 рядов всего')
+
+  // 60 → 64, конечные и ритм («через ряд») не тронуты: N = 11, рядов 2×11−1 = 21.
+  await page.getByTestId('initial-plus').click()
+
+  await expect(summary.getByTestId('summary-total-rows')).toHaveText('21 ряд всего')
+  await expect(summary.getByTestId('summary-dec-rows')).toHaveText('11 убавочных рядов')
+  await expect(summary.getByTestId('summary-params')).toContainText('64 → 20 петель')
+})
+
+test('кнопка − у конечных петель двигает число рядов на экране', async ({ page }) => {
+  await page.goto('./')
+
+  const summary = page.getByTestId('summary-panel')
+
+  // 20 → 16, начальные не тронуты: N = 11, рядов 2×11−1 = 21.
+  await page.getByTestId('final-minus').click()
+
+  await expect(summary.getByTestId('summary-total-rows')).toHaveText('21 ряд всего')
+  await expect(summary.getByTestId('summary-params')).toContainText('60 → 16 петель')
+})
+
+test('несходящийся набор не трогает схему, сходящийся — пересчитывает живьём', async ({ page }) => {
+  await page.goto('./')
+
+  const summary = page.getByTestId('summary-panel')
+  const initialInput = page.getByTestId('initial-stitches')
+
+  await initialInput.fill('')
+  // «6» на пути к «64» не сходится с конечными 20 (6 < 20) — расчёт остаётся дефолтным.
+  await initialInput.pressSequentially('6', { delay: 30 })
+  await expect(summary.getByTestId('summary-total-rows')).toHaveText('19 рядов всего')
+
+  // Дописанное «4» даёт сходящиеся 64 — расчёт пересчитывается живьём, без ухода фокуса.
+  await initialInput.pressSequentially('4', { delay: 30 })
+  await expect(summary.getByTestId('summary-total-rows')).toHaveText('21 ряд всего')
+})
+
+test('кромка выбирается из 0 / 1 / 2, дефолт — 1, у двойки подпись «широкий мысок»', async ({ page }) => {
+  await page.goto('./')
+
+  const summary = page.getByTestId('summary-panel')
+  await expect(page.getByTestId('edge-1')).toHaveAttribute('aria-pressed', 'true')
+
+  const edgeTwo = page.getByTestId('edge-2')
+  await expect(edgeTwo).toContainText('широкий мысок')
+
+  await edgeTwo.click()
+  await expect(edgeTwo).toHaveAttribute('aria-pressed', 'true')
+  await expect(summary.getByTestId('summary-params')).toContainText('кромка 2')
+})
+
+test('поля петель несут подсказки словарём спеки', async ({ page }) => {
+  await page.goto('./')
+
+  await expect(page.getByTestId('initial-hint')).toHaveText('чётное')
+  await expect(page.getByTestId('final-hint')).toContainText('20 (шаг 4: 16, 20, 24)')
+  await expect(page.getByTestId('final-hint')).toContainText('обычно 16–24')
+  await expect(page.getByTestId('final-explainer')).toContainText('трикотажный шов')
+  await expect(page.getByTestId('final-explainer')).toContainText('8 петлями')
+})
