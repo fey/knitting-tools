@@ -1,22 +1,32 @@
 <script setup lang="ts">
 /**
- * Поля петель и кромки (тикет #4). Три ручки, которые двигают схему и число
+ * Поля петель и кромки (тикеты #4 и #7). Три ручки, которые двигают схему и число
  * рядов живьём: начальные и конечные петли, кромка.
  *
- * Починка несходящегося ввода — тикет #7, здесь её нет: поля принимают любое
- * чётное число с клавиатуры, и, пока значение не сходится само с собой
- * (§9.4), схема остаётся на последнем сходящемся расчёте (§9.3) — набранное
- * просто не коммитится в состояние. Ни подтягивания к ближайшему значению,
- * ни текстов вида «18 не сходится», ни гашения кромки 2 — здесь.
+ * **Момент правки — уход фокуса и `Enter`, без таймера (§9.3).** Пока поле в фокусе,
+ * набранное сходящееся значение коммитится живьём, а несходящееся не трогает схему
+ * вовсе: на экране остаётся последний сходящийся расчёт, и «6» по дороге к «60»
+ * не превращается в «8». Кнопки `−`/`+` и кромка коммитят сразу — они шагают
+ * по сходящимся значениям по построению.
  *
- * Кнопки `−`/`+` и кромка коммитят сразу: шаг 4 и границы степперов устроены
- * так, что они «шагают по сходящимся значениям по построению» (§9.3) — им
- * незачем ждать проверки.
+ * **Числа чинятся подтягиванием с подписью, выборы — гашением с причиной (§9.2).**
+ * Оба поля петель чинит нормализатор ядра, кромка чинится не подменой значения,
+ * а неактивной кнопкой с причиной. Вторая ветка того же конфликта — конечные,
+ * набранные при уже выбранной кромке 2, — идёт через нормализатор и подтягивается.
  */
 import { computed, ref, watch } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import { minFinalStitches } from '../core/calc'
-import { converges, finalCandidates, MAX_STITCHES } from '../core/fieldRules'
+import {
+  converges,
+  edgeWhyOff,
+  finalCandidates,
+  MAX_STITCHES,
+  normalizeStitchFields,
+  type EdgeValue,
+  type Fix,
+  type NormalizedFields,
+} from '../core/fieldRules'
 
 const STEP = 4
 
@@ -40,6 +50,10 @@ watch(
   },
 )
 
+/** Подпись починки — по одной на поле: две подписи под одним полем показывать негде. */
+const initialFix = ref<Fix | null>(null)
+const finalFix = ref<Fix | null>(null)
+
 function commitIfConverges(patch: Partial<{ initial: number; final: number }>): void {
   const next = { initial: params.initial, final: params.final, edge: params.edge, ...patch }
   if (!converges(next)) return
@@ -47,27 +61,95 @@ function commitIfConverges(patch: Partial<{ initial: number; final: number }>): 
   params.final = next.final
 }
 
+function parseDraft(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  const n = Number(trimmed)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Применяет отчёт нормализатора к полям.
+ *
+ * Черновики выставляются явно, а не через `watch` за `params`: пустое поле
+ * возвращает прошлое значение, `params` при этом не меняются, watcher не срабатывает —
+ * и поле осталось бы пустым на экране.
+ *
+ * Подписи только ставятся и не гасятся: `Enter` и следующий за ним уход фокуса
+ * приходят парой, второй проход видит уже починенное значение и стёр бы подпись,
+ * поставленную первым.
+ */
+function apply(result: NormalizedFields): void {
+  params.initial = result.initial
+  params.final = result.final
+  initialDraft.value = String(result.initial)
+  finalDraft.value = String(result.final)
+
+  const nextInitial = result.fixes.find((fix) => fix.field === 'initial')
+  const nextFinal = result.fixes.find((fix) => fix.field === 'final')
+  if (nextInitial) initialFix.value = nextInitial
+  if (nextFinal) finalFix.value = nextFinal
+}
+
+/**
+ * Починка поля: уход фокуса или `Enter`. Поле, которого не трогали, идёт в нормализатор
+ * своим сходящимся значением из `params`, а не черновиком — правится набранное,
+ * а не то, что человек уже отпустил.
+ */
+function repair(field: 'initial' | 'final'): void {
+  apply(
+    normalizeStitchFields(
+      {
+        initial: field === 'initial' ? parseDraft(initialDraft.value) : params.initial,
+        final: field === 'final' ? parseDraft(finalDraft.value) : params.final,
+        edge: params.edge,
+      },
+      params,
+    ),
+  )
+}
+
+/** Сосед из подписи — касаемая кнопка: тот же путь починки, но с выбранным значением. */
+function pickNeighbour(field: 'initial' | 'final', value: number): void {
+  if (field === 'initial') {
+    initialDraft.value = String(value)
+    initialFix.value = null
+  } else {
+    finalDraft.value = String(value)
+    finalFix.value = null
+  }
+  repair(field)
+}
+
+/** Подпись держится до следующего касания поля — дальше она говорит о прошлом. */
+function clearFixes(): void {
+  initialFix.value = null
+  finalFix.value = null
+}
+
 function onInitialInput(event: Event): void {
   const raw = (event.target as HTMLInputElement).value
   initialDraft.value = raw
-  if (raw.trim() === '') return
-  const n = Number(raw)
-  if (Number.isFinite(n)) commitIfConverges({ initial: n })
+  initialFix.value = null
+  const n = parseDraft(raw)
+  if (n !== null) commitIfConverges({ initial: n })
 }
 
 function onFinalInput(event: Event): void {
   const raw = (event.target as HTMLInputElement).value
   finalDraft.value = raw
-  if (raw.trim() === '') return
-  const n = Number(raw)
-  if (Number.isFinite(n)) commitIfConverges({ final: n })
+  finalFix.value = null
+  const n = parseDraft(raw)
+  if (n !== null) commitIfConverges({ final: n })
 }
 
 function stepInitial(delta: number): void {
+  clearFixes()
   params.initial += delta
 }
 
 function stepFinal(delta: number): void {
+  clearFixes()
   params.final += delta
 }
 
@@ -84,7 +166,18 @@ const edgeOptions = [
   { value: 2 as const, label: '2 · широкий мысок' },
 ]
 
-function setEdge(value: 0 | 1 | 2): void {
+/**
+ * Почему кромка недоступна, или `null`. Выбор гасится с причиной, а конечные петли
+ * при этом не трогаются вовсе (§9.5): подтягивание — ветка обратного конфликта,
+ * когда кромка уже выбрана, а конечные набирают заново.
+ */
+function whyOff(value: EdgeValue): string | null {
+  return edgeWhyOff(value, params.final)
+}
+
+function setEdge(value: EdgeValue): void {
+  if (whyOff(value)) return
+  clearFixes()
   params.edge = value
 }
 </script>
@@ -113,6 +206,8 @@ function setEdge(value: 0 | 1 | 2): void {
           data-testid="initial-stitches"
           :value="initialDraft"
           @input="onInitialInput"
+          @blur="repair('initial')"
+          @keyup.enter="repair('initial')"
         />
         <button
           type="button"
@@ -125,6 +220,19 @@ function setEdge(value: 0 | 1 | 2): void {
         </button>
       </div>
       <p class="mt-1 text-sm text-slate-500" data-testid="initial-hint">чётное</p>
+      <p v-if="initialFix" class="mt-1 text-sm text-amber-700" data-testid="initial-fix">
+        {{ initialFix.message }}<template v-if="initialFix.neighbour !== null">
+          ·
+          <button
+            type="button"
+            class="rounded border border-amber-700 px-2 py-1 text-sm leading-none"
+            data-testid="initial-fix-alt"
+            @click="pickNeighbour('initial', initialFix.neighbour)"
+          >
+            {{ initialFix.neighbour }}
+          </button></template
+        >
+      </p>
     </div>
 
     <div class="mt-4">
@@ -147,6 +255,8 @@ function setEdge(value: 0 | 1 | 2): void {
           data-testid="final-stitches"
           :value="finalDraft"
           @input="onFinalInput"
+          @blur="repair('final')"
+          @keyup.enter="repair('final')"
         />
         <button
           type="button"
@@ -167,6 +277,19 @@ function setEdge(value: 0 | 1 | 2): void {
       <p class="mt-1 text-sm text-slate-500" data-testid="final-explainer">
         Под трикотажный шов оставляют 16–24 петли. Привычное стягивание с 8 петлями — другой мысок.
       </p>
+      <p v-if="finalFix" class="mt-1 text-sm text-amber-700" data-testid="final-fix">
+        {{ finalFix.message }}<template v-if="finalFix.neighbour !== null">
+          ·
+          <button
+            type="button"
+            class="rounded border border-amber-700 px-2 py-1 text-sm leading-none"
+            data-testid="final-fix-alt"
+            @click="pickNeighbour('final', finalFix.neighbour)"
+          >
+            {{ finalFix.neighbour }}
+          </button></template
+        >
+      </p>
     </div>
 
     <div class="mt-4">
@@ -176,17 +299,25 @@ function setEdge(value: 0 | 1 | 2): void {
           v-for="option in edgeOptions"
           :key="option.value"
           type="button"
-          class="rounded border px-3 py-2 text-sm"
-          :class="
+          class="rounded border px-3 py-2 text-left text-sm"
+          :class="[
             params.edge === option.value
               ? 'border-slate-900 bg-slate-900 text-white'
-              : 'border-slate-300 text-slate-700'
-          "
+              : 'border-slate-300 text-slate-700',
+            whyOff(option.value) ? 'opacity-40' : '',
+          ]"
           :data-testid="`edge-${option.value}`"
           :aria-pressed="params.edge === option.value"
+          :disabled="whyOff(option.value) !== null"
           @click="setEdge(option.value)"
         >
-          {{ option.label }}
+          <span class="block">{{ option.label }}</span>
+          <span
+            v-if="whyOff(option.value)"
+            class="mt-1 block text-xs text-slate-500"
+            :data-testid="`edge-${option.value}-why-off`"
+            >{{ whyOff(option.value) }}</span
+          >
         </button>
       </div>
     </div>

@@ -33,3 +33,22 @@ export function plainRowsWord(n: number): string {
 export function timesWord(n: number): string {
   return `${n} ${plural(n, 'раз', 'раза', 'раз')}`
 }
+
+/** «20 петель», «22 петли», «21 петля». */
+export function stitchesWord(n: number): string {
+  return `${n} ${plural(n, 'петля', 'петли', 'петель')}`
+}
+
+/** «1 шаг», «2 шага», «5 шагов» — шаг конструктора ритма (§6.1). */
+export function stepsWord(n: number): string {
+  return `${n} ${plural(n, 'шаг', 'шага', 'шагов')}`
+}
+
+/**
+ * Родительный падеж убавочных рядов: «не хватает 1 убавочного ряда»,
+ * «не хватает 4 убавочных рядов». Именительный `decRowsWord` после «не хватает»
+ * даёт «не хватает 4 убавочных ряда» — форма, которой спека не писала.
+ */
+export function decRowsWordGen(n: number): string {
+  return `${n} ${plural(n, 'убавочного ряда', 'убавочных рядов', 'убавочных рядов')}`
+}

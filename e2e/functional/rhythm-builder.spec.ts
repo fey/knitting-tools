@@ -74,7 +74,9 @@ test('свой ритм при смене петель не пересчитыв
   await expect(customCard).toContainText('повторить 10 раз')
 
   // Разошёлся с N — сработает счётчик покрытия: сегмент по-прежнему кроет 10, а не 9.
-  await expect(page.getByTestId('rhythm-builder-coverage')).toBeHidden()
+  await expect(page.getByTestId('rhythm-builder-coverage')).toHaveText(
+    'Лишний 1 шаг: мысок кончится раньше, до них не дойдёт',
+  )
 })
 
 test('«+ ещё шаг» и «Убрать» правят состав сегментов и тоже переводят ритм в «свой»', async ({ page }) => {
@@ -88,9 +90,9 @@ test('«+ ещё шаг» и «Убрать» правят состав сегм
   await expect(page.getByTestId('rhythm-builder-step-1')).toContainText('Шаг 2 из 2')
 
   // Добавленный шаг {0, 1} поверх {1, 10} — перебор: 11 покрыто вместо 10 нужных.
-  // Счётчик покрытия несёт только сходящийся текст (тикет #6) — при переборе он
-  // пуст, текст про лишние шаги добавит тикет #7.
-  await expect(page.getByTestId('rhythm-builder-coverage')).toBeHidden()
+  await expect(page.getByTestId('rhythm-builder-coverage')).toHaveText(
+    'Лишний 1 шаг: мысок кончится раньше, до них не дойдёт',
+  )
 
   await page.getByTestId('rhythm-builder-step-1-remove').click()
   await expect(page.getByTestId('rhythm-builder-step-1')).toBeHidden()
