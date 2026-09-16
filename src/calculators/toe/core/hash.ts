@@ -13,7 +13,7 @@
  */
 import type { PresetName, Rhythm, Segment, ToeParams } from './types'
 import { DEFAULT_PARAMS } from './calc'
-import { normalizeStitchFields } from './fieldRules'
+import { fieldsFromLink } from './fieldRules'
 import { PRESETS } from './presets'
 
 /** Значение ключа `r=`: имя пресета либо сегменты своего ритма. */
@@ -83,11 +83,16 @@ function parseRhythm(raw: string | null): Rhythm {
 }
 
 /**
- * Разбирает hash в сходящиеся параметры (§10.4). Несходящаяся пара петель и кромка
- * чинится нормализатором ядра **молча** — правки просто не читаются, это и есть
- * «вызвать нормализатор и выбросить `fixes`» вместо второго разбора. Порядок правок
- * §9.2 (начальные → конечные → кромка) зашит в самом нормализаторе; ритм идёт
- * последним и своим путём — недобор и перебор сегментов нормализатор не чинит (§9.5),
+ * Разбирает hash в сходящиеся параметры (§10.4). Разбор идёт **по параметру**,
+ * в порядке правок §9.2 (начальные → конечные → кромка → ритм): не прошедшее
+ * заменяется дефолтом, остальное из ссылки живёт — и всё это **молча**, отдельного
+ * текста и места на экране случай не получает.
+ *
+ * Подтягивания к ближайшему сходящемуся здесь нет: это правило набранного в поле,
+ * а не пришедшего в ссылке (§9.5 — «дефолт уместен только там, где прошлого значения
+ * нет вообще, — при разборе ссылки»). Петли и кромку разбирает `fieldsFromLink`,
+ * там же записано, почему кромка в этом порядке не уступает конечным. Ритм идёт
+ * последним и своим путём — недобор и перебор сегментов не чинятся вовсе (§9.5),
  * это второй ярус, а не первый.
  *
  * Принимает hash и с решёткой, и без — `paramsKey` из `localStorage` несёт то же
@@ -100,7 +105,7 @@ export function parseHash(hash: string): ToeParams {
     final: parseIntParam(query.get('e')),
     edge: parseIntParam(query.get('k')),
   }
-  const { initial, final, edge } = normalizeStitchFields(draft, DEFAULT_PARAMS)
+  const { initial, final, edge } = fieldsFromLink(draft, DEFAULT_PARAMS)
   const rhythm = parseRhythm(query.get('r'))
 
   return { initial, final, edge, rhythm }
