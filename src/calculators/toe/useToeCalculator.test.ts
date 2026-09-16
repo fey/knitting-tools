@@ -114,6 +114,12 @@ describe('счёт ряда (тикет #9)', () => {
     expect(calculation.value.totalRows).toBe(1)
     expect(progressRow.value).toBe(1)
 
+    // Обратная сторона того же зажима: расчёт вырос — номер не поднимается сам,
+    // а остаётся там, где остановился (§8, клина вверх нет).
+    setStitches({ initial: 100, final: 20 })
+    expect(calculation.value.totalRows).toBe(39)
+    expect(progressRow.value).toBe(1)
+
     resetProgress()
     setStitches({ initial: 60, final: 20, edge: 1 })
   })
