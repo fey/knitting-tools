@@ -6,40 +6,44 @@
  * Здесь проходит граница: этот файл про Vue (и про браузер — `location`,
  * `history`, `localStorage`), `core/` — про арифметику и чистый разбор строк.
  */
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { calculateToe } from './core/calc'
-import { formatHash, resolveParams } from './core/hash'
+import { formatHash, paramsKey as computeParamsKey, resolveParams } from './core/hash'
 import type { ToeParams } from './core/types'
 
 /**
  * Ключ записи прогресса в `localStorage` (§10.2): `{ paramsKey, row }`. Строка
- * зафиксирована здесь, а не в тикете #9, чтобы читающая половина (приоритет при
- * загрузке, §10.3) и пишущая половина (первая отметка ряда) сходились на одном
+ * зафиксирована здесь, чтобы читающая половина (приоритет при загрузке, §10.3)
+ * и пишущая половина (тикет #9 — первая явная отметка ряда) сходились на одном
  * ключе, а не заводили каждая свой.
- *
- * Этот тикет запись не производит вовсе — она появляется только при первой явной
- * отметке ряда, а отметка ряда не его. Здесь только чтение, для фолбэка при пустом
- * hash.
  */
 export const PROGRESS_STORAGE_KEY = 'knitting-tools:toe-progress'
 
 /**
- * `paramsKey` сохранённого расчёта или `null` — записи нет, она повреждена, либо
- * `localStorage` недоступен (приватная вкладка, `file://`, тестовый узел без DOM).
- * Тихий фолбэк — приоритет при загрузке не вправе падать из-за недоступного
- * хранилища (§10.3).
+ * Запись `{ paramsKey, row }` из `localStorage`, или `null` — записи нет, она
+ * повреждена, либо `localStorage` недоступен (приватная вкладка, `file://`,
+ * тестовый узел без DOM). Тихий фолбэк — ни приоритет при загрузке (§10.3), ни
+ * восстановление ряда (тикет #9) не вправе падать из-за недоступного хранилища.
  */
-function readSavedParamsKey(): string | null {
+function readSavedProgress(): { paramsKey: string; row: number } | null {
   if (typeof localStorage === 'undefined') return null
   try {
     const raw = localStorage.getItem(PROGRESS_STORAGE_KEY)
     if (!raw) return null
     const parsed: unknown = JSON.parse(raw)
-    const paramsKey = (parsed as { paramsKey?: unknown } | null)?.paramsKey
-    return typeof paramsKey === 'string' ? paramsKey : null
+    const record = parsed as { paramsKey?: unknown; row?: unknown } | null
+    const key = record?.paramsKey
+    const row = record?.row
+    if (typeof key !== 'string' || typeof row !== 'number' || !Number.isFinite(row)) return null
+    return { paramsKey: key, row }
   } catch {
     return null
   }
+}
+
+/** `paramsKey` сохранённого расчёта, для фолбэка при пустом hash (§10.3). */
+function readSavedParamsKey(): string | null {
+  return readSavedProgress()?.paramsKey ?? null
 }
 
 function loadInitialParams(): ToeParams {
@@ -79,6 +83,79 @@ syncHash()
 // не даёт адресу на миг застыть на несходящемся промежуточном значении.
 watch(params, syncHash, { deep: true })
 
+/**
+ * Прогресс ряда (тикет #9, §8, §10.2). Восстанавливается молча при загрузке —
+ * только если `paramsKey` записи совпал с уже разрешёнными `params` (§10.3 уже
+ * выбрал, из hash они или из `localStorage`); не совпал — прогресса нет, значение
+ * остаётся нулевым, ровно как для расчёта, у которого записи не было вовсе.
+ */
+function initialProgressRow(): number {
+  const saved = readSavedProgress()
+  if (!saved || saved.paramsKey !== computeParamsKey(params)) return 0
+  return Math.max(0, Math.min(saved.row, calculation.value.totalRows))
+}
+
+const progressRow = ref(initialProgressRow())
+
+/**
+ * Пишет прогресс в `localStorage`, либо стирает запись при `row === 0`.
+ *
+ * Запись появляется только когда есть что хранить: до первой явной отметки
+ * `row` всегда 0, и эта ветка стирает — что при пустом хранилище не более чем
+ * холостой `removeItem` (§10.2 «кручение ритма мусора не создаёт»). Отмена до
+ * нуля тем же путём убирает запись, а не оставляет в ней `row: 0` — так «ряд 0»
+ * никогда не всплывает вторым источником правды для фолбэка на пустой hash (§10.3).
+ */
+function persistProgress(row: number): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    if (row > 0) {
+      localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ paramsKey: computeParamsKey(params), row }))
+    } else {
+      localStorage.removeItem(PROGRESS_STORAGE_KEY)
+    }
+  } catch {
+    // Хранилище недоступно — прогресс не переживёт эту сессию, но экран не падает.
+  }
+}
+
+/** Первое нажатие «Ряд 1 готов» и есть начало счёта — отдельного включения нет (§8). */
+function markRow(): void {
+  const total = calculation.value.totalRows
+  if (progressRow.value >= total) return
+  progressRow.value += 1
+  persistProgress(progressRow.value)
+}
+
+/** Отмена — «−1» (§8); автоповтор на удержании собирает `RowProgressBar.vue`. */
+function undoRow(): void {
+  if (progressRow.value <= 0) return
+  progressRow.value -= 1
+  persistProgress(progressRow.value)
+}
+
+/** Сброс — ряд возвращается к нулю, расчёт остаётся (§8); подтверждение — на экране. */
+function resetProgress(): void {
+  progressRow.value = 0
+  persistProgress(0)
+}
+
+// Смена расчёта на ходу номер ряда сохраняет, а если рядов стало меньше — подтягивает
+// к последнему (§8); автоматическая правка ввода (§9) идёт тем же путём — она меняет
+// `params`, а `calculation` пересчитывается сама. Пока не было ни одной отметки, `row`
+// остаётся 0, и `persistProgress` при каждой правке лишь холостит `removeItem` —
+// мусора это не создаёт (§10.2). `flush: 'sync'` — зажим случается тем же тиком, что
+// и правка `params`: `ToeChart.vue` не вправе на кадр увидеть `progressRow`, отставший
+// от уже усечённого расчёта.
+watch(
+  calculation,
+  (next) => {
+    if (progressRow.value > next.totalRows) progressRow.value = next.totalRows
+    persistProgress(progressRow.value)
+  },
+  { flush: 'sync' },
+)
+
 export function useToeCalculator() {
-  return { params, calculation }
+  return { params, calculation, progressRow, markRow, undoRow, resetProgress }
 }

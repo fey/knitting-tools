@@ -3,6 +3,7 @@ import {
   CELL_SIZE,
   CHART_VIEWPORT_HEIGHT,
   chartGuideLines,
+  shutterTopPx,
   stitchLinePoints,
   trianglePoints,
 } from './constants'
@@ -52,5 +53,24 @@ describe('геометрия значков — один источник для
 
   it('штрих лицевой стоит по центру клетки', () => {
     expect(stitchLinePoints(2, 3)).toEqual({ x1: 2.5, x2: 2.5, y1: 3.2, y2: 3.8 })
+  })
+})
+
+describe('положение кромки шторки прогресса (тикет #9, §8)', () => {
+  it('ничего не отмечено — кромка у самого низа схемы', () => {
+    expect(shutterTopPx(19, 0)).toBe(19 * 22)
+  })
+
+  it('формула одна: (totalRows − done) × CELL_SIZE', () => {
+    expect(shutterTopPx(19, 7)).toBe((19 - 7) * 22)
+  })
+
+  it('отмечены все ряды — кромка у самого верха', () => {
+    expect(shutterTopPx(19, 19)).toBe(0)
+  })
+
+  it('зажимается в границы — лишнее сверху и снизу не даёт отрицательной высоты', () => {
+    expect(shutterTopPx(19, 30)).toBe(0)
+    expect(shutterTopPx(19, -5)).toBe(19 * 22)
   })
 })
