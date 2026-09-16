@@ -9,7 +9,7 @@ import { computed, reactive } from 'vue'
 import { calculateToe, DEFAULT_PARAMS } from './core/calc'
 import type { ToeParams } from './core/types'
 
-/** Параметры расчёта. Полей ввода ещё нет — значения дефолтные (§4). */
+/** Параметры расчёта. Открывается дефолтом (§4), поля петель и кромки правит `StitchFields.vue`. */
 const params = reactive<ToeParams>({
   ...DEFAULT_PARAMS,
   rhythm: { ...DEFAULT_PARAMS.rhythm },
