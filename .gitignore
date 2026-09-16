@@ -7,4 +7,3 @@ dist/
 playwright-report/
 test-results/
 blob-report/
-e2e/**/*-snapshots/
