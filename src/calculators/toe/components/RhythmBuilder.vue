@@ -18,14 +18,17 @@
  * как требует §6.1. RhythmPresets.vue при этом не тронут: она ничего не знает
  * про свой ритм.
  *
- * Недобор и перебор сегментов конструкцией не запрещены (§9.5) — счётчик покрытия
- * здесь несёт только сходящийся случай «Сегменты покрывают все N убавочных
- * рядов»; тексты недобора и перебора и дублирование строки у числа рядов — тикет #7.
+ * Недобор и перебор сегментов конструкцией не запрещены и **не чинятся** (§9.5):
+ * добавление шага неизбежно проходит через недобор, и починка на лету дралась бы
+ * с тем, кто ритм собирает. Счётчик покрытия говорит все три случая — покрытие,
+ * недобор и перебор, — а тот же текст дублируется строкой у числа рядов в итоге:
+ * конструктор сворачивается, и единственная строка ушла бы с экрана вместе с ним.
  */
 import { computed, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import type { Segment } from '../core/types'
-import { decRowsWord, plainRowsWord, rowsWord, timesWord } from '../core/text'
+import { coverageNote } from '../core/notes'
+import { plainRowsWord, rowsWord, timesWord } from '../core/text'
 
 /** Потолок интервала (§6.1): шаг 1, потолок 6. */
 const INTERVAL_MAX = 6
@@ -90,11 +93,8 @@ function toggle(): void {
   expanded.value = !expanded.value
 }
 
-/** «Сегменты покрывают все 10 убавочных рядов» — только сходящийся случай (§9.5, тикет #7 — остальное). */
-const coverageText = computed<string | null>(() => {
-  if (calculation.value.lack !== 0) return null
-  return `Сегменты покрывают все ${decRowsWord(calculation.value.decRowsNeeded)}`
-})
+/** Покрытие, недобор или перебор — одной строкой из ядра (§9.5). */
+const coverage = computed(() => coverageNote(calculation.value))
 </script>
 
 <template>
@@ -207,8 +207,12 @@ const coverageText = computed<string | null>(() => {
         + ещё шаг
       </button>
 
-      <p v-if="coverageText" class="mt-3 text-sm text-slate-700" data-testid="rhythm-builder-coverage">
-        {{ coverageText }}
+      <p
+        class="mt-3 text-sm"
+        :class="coverage.kind === 'ok' ? 'text-slate-700' : 'text-amber-700'"
+        data-testid="rhythm-builder-coverage"
+      >
+        {{ coverage.text }}
       </p>
     </div>
   </section>
