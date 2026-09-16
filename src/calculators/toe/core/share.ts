@@ -6,29 +6,21 @@
  * и добавление обратного импорта туда завело бы цикл модулей ради одной функции.
  */
 import type { ToeCalculation } from './types'
-import { presetByCode } from './presets'
+import { rhythmName } from './presets'
 import { rowsWord } from './text'
-
-/**
- * Имя ритма для текста «Поделиться» — тем же правилом, что у итога (§5.5):
- * «Свой ритм» навсегда после первой правки сегмента, сравнения с пресетами нет.
- *
- * Дублирует одноимённый расчёт в `SummaryPanel.vue` — свести их в одно место
- * нельзя, тот файл сейчас правит соседняя ветка, а этот тикет его не трогает.
- */
-function rhythmLabel(calculation: ToeCalculation): string {
-  const { rhythm } = calculation
-  return rhythm.kind === 'preset' ? presetByCode(rhythm.name).name.toLowerCase() : 'свой ритм'
-}
 
 /**
  * Текст для системного шита «Поделиться»: «Мысок: 60 → 20 петель, убавки через
  * ряд, 19 рядов» — читается даже без перехода по ссылке.
  *
- * Петли — те, на которых мысок **действительно кончится** (§9.5): `finalReal` при
- * недоборе сегментов, иначе запрошенные `final` — тем же правилом, что в итоге.
+ * Петли — те, на которых мысок **действительно кончится**, то есть `finalReal`
+ * и только он, тем же правилом, что в итоге (§9.5): при недоборе мысок встанет
+ * на 36 петлях вместо 20, а при переборе `finalReal` сам равен конечным — лишние
+ * шаги ядро не выполняет. Развилки здесь нет: второй источник правды на одно число
+ * разъехался бы со схемой.
+ *
+ * Имя ритма — общее `rhythmName` из `presets.ts`: одно правило на итог и на ссылку.
  */
 export function shareText(calculation: ToeCalculation): string {
-  const finalShown = calculation.lack > 0 ? calculation.finalReal : calculation.final
-  return `Мысок: ${calculation.initial} → ${finalShown} петель, убавки ${rhythmLabel(calculation)}, ${rowsWord(calculation.totalRows)}`
+  return `Мысок: ${calculation.initial} → ${calculation.finalReal} петель, убавки ${rhythmName(calculation.rhythm)}, ${rowsWord(calculation.totalRows)}`
 }

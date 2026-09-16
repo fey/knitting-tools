@@ -7,7 +7,7 @@
  *
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
-import type { PresetName, Segment } from './types'
+import type { PresetName, Rhythm, Segment } from './types'
 import { buildRows } from './rows'
 import { decRowsWord } from './text'
 
@@ -81,6 +81,18 @@ export function presetByCode(code: PresetName): Preset {
   const preset = PRESETS.find((p) => p.code === code)
   if (!preset) throw new Error(`Неизвестный ритм: ${code}`)
   return preset
+}
+
+/**
+ * Имя ритма для подписи — одно на весь калькулятор: итог, «Поделиться» и всё, что
+ * ритм называет словами, читают его отсюда. Правило §5.5: «Свой ритм» навсегда после
+ * первой правки сегмента, сравнения набранных сегментов с пресетами нет нигде.
+ *
+ * Строчная буква — ритм всегда стоит внутри фразы: «убавки через ряд», «убавки
+ * свой ритм».
+ */
+export function rhythmName(rhythm: Rhythm): string {
+  return rhythm.kind === 'preset' ? presetByCode(rhythm.name).name.toLowerCase() : 'свой ритм'
 }
 
 /**

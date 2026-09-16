@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PRESETS, presetByCode, presetRowCount, presetWhyOff } from './presets'
+import { PRESETS, presetByCode, presetRowCount, presetWhyOff, rhythmName } from './presets'
 import { calculateToe, DEFAULT_PARAMS } from './calc'
 import type { PresetName } from './types'
 
@@ -93,5 +93,17 @@ describe('ритм, который не собирается', () => {
     expect(calc.finalReal).toBe(52)
     expect(calc.rows[calc.rows.length - 1].stitches).toBe(calc.finalReal)
     expect(calc.finalReal).toBe(calc.final)
+  })
+})
+
+describe('имя ритма — одно на весь калькулятор (§5.5)', () => {
+  it('пресет называется своим именем со строчной буквы: ритм стоит внутри фразы', () => {
+    expect(rhythmName({ kind: 'preset', name: 'even' })).toBe('через ряд')
+    expect(rhythmName({ kind: 'preset', name: 'ramp' })).toBe('с разгоном')
+  })
+
+  it('набранные руками сегменты — «свой ритм», сравнения с пресетами нет', () => {
+    // Сегменты в точности как у «через ряд» на дефолте — имя всё равно своё.
+    expect(rhythmName({ kind: 'custom', segments: [{ interval: 1, repeats: 10 }] })).toBe('свой ритм')
   })
 })

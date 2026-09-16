@@ -20,7 +20,7 @@
  */
 import { computed } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
-import { presetByCode } from '../core/presets'
+import { rhythmName } from '../core/presets'
 import { coverageNote, lengthNote } from '../core/notes'
 import { decRowsWord, rowsWord } from '../core/text'
 
@@ -30,10 +30,8 @@ const coverage = computed(() => coverageNote(calculation.value))
 const finalShown = computed(() => calculation.value.finalReal)
 const length = computed(() => lengthNote(calculation.value.totalRows))
 
-const rhythmName = computed(() => {
-  const rhythm = calculation.value.rhythm
-  return rhythm.kind === 'preset' ? presetByCode(rhythm.name).name.toLowerCase() : 'свой ритм'
-})
+/** Имя ритма — общее правило ядра (§5.5), одно на итог и на текст «Поделиться». */
+const rhythm = computed(() => rhythmName(calculation.value.rhythm))
 </script>
 
 <template>
@@ -41,7 +39,7 @@ const rhythmName = computed(() => {
     <h2 class="text-base font-semibold">Итог</h2>
     <p class="mt-2 text-slate-700" data-testid="summary-params">
       Мысок: {{ calculation.initial }} → {{ finalShown }} петель, кромка {{ calculation.edge }},
-      убавки {{ rhythmName }}
+      убавки {{ rhythm }}
     </p>
     <p class="mt-1 text-slate-900">
       <span data-testid="summary-dec-rows">{{ decRowsWord(calculation.decRowsNeeded) }}</span>
