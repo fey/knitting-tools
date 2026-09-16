@@ -139,7 +139,7 @@ test('пустое поле возвращает своё прошлое зна�
   await expect(page.getByTestId('initial-fix')).toHaveCount(0)
 })
 
-test('недобор показан и в конструкторе, и у числа рядов', async ({ page }) => {
+test('недобор показан и в конструкторе, и у живого числа рядов', async ({ page }) => {
   await page.goto('./')
 
   await page.getByTestId('rhythm-builder-toggle').click()
@@ -148,13 +148,20 @@ test('недобор показан и в конструкторе, и у чис
 
   const text = 'Не хватает 4 убавочных рядов: останется 36 петель вместо 20'
   await expect(page.getByTestId('rhythm-builder-coverage')).toHaveText(text)
+  await expect(page.getByTestId('rhythm-lack-note')).toHaveText(text)
   await expect(page.getByTestId('summary-coverage')).toHaveText(text)
   // Схема рисует то, что реально выйдет.
   await expect(page.getByTestId('summary-params')).toContainText('60 → 36 петель')
 
-  // Конструктор сворачивается — строка у числа рядов остаётся на экране.
+  // В подписях пресетов остаётся голое число рядов: четыре строки с предупреждениями
+  // в списке выбора превращают подсказку в шум (§9.6).
+  await expect(page.getByTestId('preset-even')).not.toContainText('Не хватает')
+  await expect(page.getByTestId('preset-accel')).not.toContainText('Не хватает')
+
+  // Конструктор сворачивается — строка у ручки ритма остаётся на экране.
   await page.getByTestId('rhythm-builder-toggle').click()
   await expect(page.getByTestId('rhythm-builder-coverage')).toHaveCount(0)
+  await expect(page.getByTestId('rhythm-lack-note')).toHaveText(text)
   await expect(page.getByTestId('summary-coverage')).toHaveText(text)
 })
 
@@ -169,6 +176,8 @@ test('перебор говорит, что до лишних шагов не д
   await expect(page.getByTestId('summary-coverage')).toHaveText(
     'Лишние 2 шага: мысок кончится раньше, до них не дойдёт',
   )
+  // Дублировать строкой у числа рядов спека просит именно недобор (§9.5).
+  await expect(page.getByTestId('rhythm-lack-note')).toHaveCount(0)
   // Мысок кончается на конечных петлях: до лишних убавок дело не доходит,
   // и итог не вправе называть петли, которых не будет.
   await expect(page.getByTestId('summary-params')).toContainText('60 → 52 петель')
