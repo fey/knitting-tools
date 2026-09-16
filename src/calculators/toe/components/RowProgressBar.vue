@@ -39,7 +39,24 @@ function clearHold(): void {
   holdTick = undefined
 }
 
-function startUndoHold(): void {
+/**
+ * Захват указателя на время удержания: без него `pointerup`, случившийся мимо кнопки
+ * (мышь увели и отпустили в стороне), до кнопки не доходит вовсе, и автоповтор
+ * тикает дальше — до ряда 0. На тач захват неявный, на мыши — нет, поэтому он ставится
+ * руками, как в `ToeChart.vue`. `pointerleave` для той же цели не годится: уход
+ * указателя с кнопки при зажатой мыши — не отпускание, и повтор он гасил бы раньше времени.
+ */
+function capturePointer(event: PointerEvent): void {
+  try {
+    ;(event.currentTarget as Element | null)?.setPointerCapture(event.pointerId)
+  } catch {
+    // Захват недоступен (напр. в тестовом окружении) — остаются `pointerup` на кнопке
+    // и `blur` окна.
+  }
+}
+
+function startUndoHold(event: PointerEvent): void {
+  capturePointer(event)
   if (progressRow.value <= 0) return
   undoRow() // первое «−1» — сразу на pointerdown, короткий тап тоже должен отменять
   clearHold()
@@ -136,7 +153,7 @@ function confirmReset(): void {
           class="h-11 w-16 rounded border border-slate-300 text-base leading-none disabled:opacity-40"
           data-testid="row-progress-undo"
           :disabled="progressRow === 0"
-          @pointerdown="startUndoHold"
+          @pointerdown="startUndoHold($event)"
           @pointerup="stopUndoHold"
           @pointercancel="stopUndoHold"
         >

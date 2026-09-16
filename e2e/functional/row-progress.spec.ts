@@ -111,6 +111,36 @@ test('отмена с удержанием — автоповтор после �
   expect(n).toBeLessThan(5)
 })
 
+test('автоповтор гаснет, даже если мышь отпустили мимо кнопки', async ({ page }) => {
+  await page.goto('./')
+
+  for (let i = 0; i < 10; i++) await page.getByTestId('row-progress-mark').click()
+  await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 11 из 19')
+
+  const undo = page.getByTestId('row-progress-undo')
+  const box = await undo.boundingBox()
+  expect(box).not.toBeNull()
+
+  // Настоящая мышь, а не синтетический pointerdown: захват указателя ставится
+  // только на реальном событии.
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+  await page.mouse.down()
+  // Указатель уводится с кнопки, кнопка остаётся зажатой — повтор обязан тикать.
+  await page.mouse.move(box!.x + 200, box!.y - 200)
+  await page.waitForTimeout(700) // 400 мс до старта + пара шагов по 120 мс
+  await page.mouse.up()
+
+  const rowAfterRelease = await page.getByTestId('row-progress-current').textContent()
+  const released = Number(rowAfterRelease?.match(/\d+/)?.[0])
+  expect(released).toBeGreaterThan(1) // повтор успел отработать, но не добежал до нуля
+
+  // Отпускание мимо кнопки гасит повтор так же, как отпускание на ней: без захвата
+  // указателя `pointerup` до кнопки не дошёл бы и счёт тикал бы дальше, до ряда 0.
+  await page.waitForTimeout(600)
+  const rowLater = await page.getByTestId('row-progress-current').textContent()
+  expect(Number(rowLater?.match(/\d+/)?.[0])).toBe(released)
+})
+
 test('шторка стоит на отмеченном ряду: контур совпадает с текущим рядом', async ({ page }) => {
   await page.goto('./')
 
