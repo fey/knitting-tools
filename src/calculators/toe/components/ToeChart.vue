@@ -40,7 +40,7 @@ const pixelHeight = computed(() => Math.round(viewHeight.value * CELL_SIZE))
 
 const guideLines = computed(() => chartGuideLines(cols.value))
 
-type Cell = { j: number; fill: string; stroke: string; strokeWidth: number }
+type Cell = { j: number; fill: string; stroke: string; strokeWidth: number; empty: boolean }
 type Stitch = { j: number; p: number; edge: boolean; line: ReturnType<typeof stitchLinePoints> }
 type Decoration = { j: number; p: number; dir: 'left' | 'right'; points: string }
 type RowLayer = { row: Row; y: number; cells: Cell[]; stitches: Stitch[]; decorations: Decoration[] }
@@ -67,6 +67,7 @@ function buildRowLayer(row: Row, y: number, colsN: number, edgeN: number): RowLa
         fill: CHART_COLORS.emptyCell,
         stroke: CHART_COLORS.emptyCellStroke,
         strokeWidth: CHART_STROKE.emptyCell,
+        empty: true,
       })
       continue
     }
@@ -84,6 +85,7 @@ function buildRowLayer(row: Row, y: number, colsN: number, edgeN: number): RowLa
       fill: isEdge ? CHART_COLORS.edgeCell : CHART_COLORS.cell,
       stroke: CHART_COLORS.cellStroke,
       strokeWidth: CHART_STROKE.cell,
+      empty: false,
     })
 
     if (decStart) {
@@ -241,6 +243,7 @@ onUnmounted(() => {
               :stroke-width="cell.strokeWidth"
               :data-row="layer.row.n"
               :data-col="cell.j"
+              :data-empty="cell.empty ? '' : null"
             />
             <line
               v-for="stitch in layer.stitches"

@@ -86,13 +86,29 @@ test.describe('схема мыска', () => {
     await page.goto('./')
     const svg = page.getByTestId('toe-chart-svg')
 
-    // Каждая живая клетка (включая тонированную кромку) несёт значок — штрих или
-    // треугольник; проверка идёт по всей схеме, а не по одному ряду (§7.1).
-    const holes = await svg.evaluate(
-      (el) =>
-        el.querySelectorAll('[data-stitch]').length - el.querySelectorAll('[data-symbol]').length,
-    )
-    expect(holes).toBe(0)
+    // Живая клетка — та, что не помечена `data-empty` («нет петли»). У каждой такой
+    // клетки должен найтись значок (штрих или треугольник) с теми же координатами —
+    // сверка идёт по всей схеме, а не по одному ряду (§7.1).
+    const liveCells = svg.locator('rect[data-row][data-col]:not([data-empty])')
+
+    // Ожидаемое число живых клеток — от модели расчёта, а не от той же разметки, которую
+    // проверяем: сумма активных петель (row.stitches / 2) по всем 19 рядам дефолта
+    // 60 → 20 (§12.1 случай 2) — 28+28+26+26+24+24+22+22+20+20+18+18+16+16+14+14+12+12+10.
+    await expect(liveCells).toHaveCount(370)
+
+    const missing = await svg.evaluate((el) => {
+      const cells = Array.from(el.querySelectorAll('rect[data-row][data-col]:not([data-empty])'))
+      return cells.filter((cell) => {
+        const row = cell.getAttribute('data-row')
+        const col = cell.getAttribute('data-col')
+        return !el.querySelector(`[data-symbol][data-row="${row}"][data-col="${col}"]`)
+      }).length
+    })
+    expect(missing).toBe(0) // живая клетка без штриха или треугольника — и есть проваленный критерий
+
+    // Обратная сторона той же проверки: значков не больше, чем живых клеток — иначе
+    // на одну клетку мог бы прийтись задвоенный значок, а сверка координат его не ловит.
+    await expect(svg.locator('[data-symbol]')).toHaveCount(370)
   })
 
   test('жирные линии каждые 5 петель — 5 штук на дефолте; убавочные ряды выделены', async ({
