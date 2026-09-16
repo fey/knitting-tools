@@ -11,3 +11,104 @@ export const CELL_SIZE = 22
 
 /** Высота окна схемы, px. На дефолтном расчёте 60 → 20 мысок помещается целиком. */
 export const CHART_VIEWPORT_HEIGHT = 420
+
+/**
+ * Ширина полосы под номера рядов справа от сетки, в клетках (§7, chart.md §1).
+ * Подписи стоят вне сетки — полоса не масштабируется вместе с клетками.
+ */
+export const CHART_LABEL_WIDTH = 1.9
+
+/**
+ * Геометрия значков — доли клетки (клетка = 1×1). Общий источник и для сетки схемы,
+ * и для значков легенды: `trianglePoints` и координаты штриха принимают размер клетки
+ * параметром, поэтому легенда (клетка 14 px) и сетка (клетка 1 в единицах viewBox) читают
+ * одни и те же доли, не заводя вторых чисел (§11 «единый источник этих величин»).
+ */
+
+/** Отступ вертикального катета убавки от края клетки, доля клетки (chart.md §3). */
+export const CHART_ICON_INSET = 0.22
+/** Верх и низ штриха лицевой и вертикального катета убавки, доля клетки. */
+export const CHART_ICON_TOP = 0.2
+export const CHART_ICON_BOTTOM = 0.8
+/** Штрих лицевой стоит по центру клетки, доля клетки. */
+export const CHART_STITCH_X = 0.5
+
+/** Толщины линий, доли клетки (chart.md §4). */
+export const CHART_STROKE = {
+  /** Штрих лицевой. */
+  stitch: 0.09,
+  /** Обводка обычной клетки (в т.ч. кромки). */
+  cell: 0.04,
+  /** Обводка клетки «нет петли». */
+  emptyCell: 0.03,
+  /** Жирные линии каждые 5 петель. */
+  guideLine: 0.07,
+  /** Рамка сетки. */
+  gridBorder: 0.09,
+} as const
+
+/** Палитра «Вязаный.рф» (chart.md §4). */
+export const CHART_COLORS = {
+  /** Штрих лицевой. */
+  stitchStroke: '#4a453d',
+  /** Заливка треугольников убавки и номера убавочного ряда. */
+  decorFill: '#1c1a17',
+  /** Клетка, обычная петля. */
+  cell: '#fff',
+  /** Клетка, петля кромки — тонирована, но несёт тот же штрих лицевой. */
+  edgeCell: '#f7f4ee',
+  /** Клетка «нет петли». */
+  emptyCell: '#e4dfd5',
+  /** Обводка клетки «нет петли». */
+  emptyCellStroke: '#d5cec2',
+  /** Обводка обычной клетки. */
+  cellStroke: '#c9c2b6',
+  /** Жирные линии каждые 5 петель и рамка сетки. */
+  guideLine: '#8f887c',
+  /** Номер убавочного ряда. */
+  decRowLabel: '#1c1a17',
+  /** Номер промежуточного ряда. */
+  plainRowLabel: '#9a948a',
+} as const
+
+/**
+ * Точки залитого треугольника убавки в единицах viewBox: вертикальный катет со стороны
+ * наклона, гипотенуза — по диагонали клетки (chart.md §3).
+ *
+ * `size` — сторона клетки в тех же единицах, что и `x`, `y`: `1` для сетки схемы (клетки
+ * viewBox), `14` для значка в легенде. Один источник инсета и высоты катета на оба места.
+ */
+export function trianglePoints(dir: 'left' | 'right', x: number, y: number, size = 1): string {
+  const near = x + CHART_ICON_INSET * size
+  const far = x + (1 - CHART_ICON_INSET) * size
+  const top = y + CHART_ICON_TOP * size
+  const bottom = y + CHART_ICON_BOTTOM * size
+  return dir === 'left'
+    ? `${near},${bottom} ${near},${top} ${far},${bottom}`
+    : `${far},${bottom} ${far},${top} ${near},${bottom}`
+}
+
+/**
+ * Координаты штриха лицевой (вертикальная линия по центру клетки), в тех же единицах
+ * и с тем же параметром `size`, что и `trianglePoints`.
+ */
+export function stitchLinePoints(x: number, y: number, size = 1) {
+  return {
+    x1: x + CHART_STITCH_X * size,
+    x2: x + CHART_STITCH_X * size,
+    y1: y + CHART_ICON_TOP * size,
+    y2: y + CHART_ICON_BOTTOM * size,
+  }
+}
+
+/**
+ * Позиции жирных линий счёта каждые 5 петель, в клетках сетки — считая **от правого края**
+ * (`cols`), а не от левого (§ задачи, закрывает открытую мелочь chart.md §4): петли читаются
+ * справа налево, начало ряда справа, счёт групп по пять идёт оттуда же. На `cols`, кратных 5,
+ * набор позиций совпадает со счётом от левого края; расходится при `cols % 5 !== 0`.
+ */
+export function chartGuideLines(cols: number): number[] {
+  const lines: number[] = []
+  for (let x = cols - 5; x > 0; x -= 5) lines.push(x)
+  return lines
+}
