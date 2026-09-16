@@ -128,6 +128,15 @@ test('пустое поле возвращает своё прошлое зна�
   await expect(final).toHaveValue('16')
   await expect(page.getByTestId('final-fix')).toHaveCount(0)
   await expect(page.getByTestId('summary-params')).toContainText('60 → 16 петель')
+
+  // То же у начальных: пустое поле возвращает набранные 64, а не заводские 60.
+  const initial = page.getByTestId('initial-stitches')
+  await page.getByTestId('initial-plus').click()
+  await expect(initial).toHaveValue('64')
+  await initial.fill('')
+  await initial.press('Enter')
+  await expect(initial).toHaveValue('64')
+  await expect(page.getByTestId('initial-fix')).toHaveCount(0)
 })
 
 test('недобор показан и в конструкторе, и у числа рядов', async ({ page }) => {
@@ -160,6 +169,9 @@ test('перебор говорит, что до лишних шагов не д
   await expect(page.getByTestId('summary-coverage')).toHaveText(
     'Лишние 2 шага: мысок кончится раньше, до них не дойдёт',
   )
+  // Мысок кончается на конечных петлях: до лишних убавок дело не доходит,
+  // и итог не вправе называть петли, которых не будет.
+  await expect(page.getByTestId('summary-params')).toContainText('60 → 52 петель')
 })
 
 test('мягкое замечание о длине — не красным и без запрета', async ({ page }) => {
