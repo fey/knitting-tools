@@ -74,8 +74,11 @@ test('выбор не откатывается сам, если петли су�
   await expect(summary.getByTestId('summary-params')).toContainText('убавки с разгоном')
 })
 
-test('выбор карточки «с ускорением» меняет ритм в итоге', async ({ page }) => {
+test('выбор карточки «с ускорением» меняет ритм и число рядов в итоге', async ({ page }) => {
   await page.goto('./')
+
+  const totalRows = page.getByTestId('summary-panel').getByTestId('summary-total-rows')
+  await expect(totalRows).toHaveText('19 рядов всего')
 
   await page.getByTestId('preset-accel').click()
 
@@ -84,4 +87,6 @@ test('выбор карточки «с ускорением» меняет ри�
   await expect(page.getByTestId('summary-panel').getByTestId('summary-params')).toContainText(
     'убавки с ускорением',
   )
+  // Дефолт — N = 10: «с ускорением» делит 5 + 5 через ряд/каждый ряд — 15 рядов вместо 19 у «через ряд».
+  await expect(totalRows).toHaveText('15 рядов всего')
 })
