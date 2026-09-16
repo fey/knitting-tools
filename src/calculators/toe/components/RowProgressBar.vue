@@ -139,7 +139,6 @@ function confirmReset(): void {
           @pointerdown="startUndoHold"
           @pointerup="stopUndoHold"
           @pointercancel="stopUndoHold"
-          @pointerleave="stopUndoHold"
         >
           −1
         </button>
