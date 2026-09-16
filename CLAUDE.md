@@ -27,6 +27,23 @@ workflow не написан.
 **промежуточный ряд**, **интервал**, **ритм**, **кромка**, **ленточный мысок**. Эти слова идут в код,
 интерфейс и коммиты — синоним значит разойтись с картой. Полный словарь — в §2 спеки.
 
+## Agent skills
+
+### Issue tracker
+
+Задачи — в GitHub Issues репозитория `fey/knitting-tools`, работа через `gh`. Карта калькулятора
+мыска и её восемь закрытых тикетов остаются markdown-архивом в `.scratch/toe-calculator/` — это
+законченная картография, в Issues она не переезжает. См. `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Пять канонических меток без переименований: `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`. См. `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` и `docs/adr/` в корне. См. `docs/agents/domain.md`.
+
 ## Стек и доставка
 
 Vite + Vue 3 + TypeScript + Tailwind 4, статика на GitHub Pages. Версии, хостинг, деплой, причины и
