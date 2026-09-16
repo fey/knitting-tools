@@ -23,3 +23,13 @@ export function rowsWord(n: number): string {
 export function decRowsWord(n: number): string {
   return `${n} ${plural(n, 'убавочный ряд', 'убавочных ряда', 'убавочных рядов')}`
 }
+
+/** «1 промежуточный», «2 промежуточных» — существительное «ряд» опущено, как в §6.1. */
+export function plainRowsWord(n: number): string {
+  return `${n} ${plural(n, 'промежуточный', 'промежуточных', 'промежуточных')}`
+}
+
+/** «повторить 1 раз», «повторить 2 раза», «повторить 5 раз» (§6.1). */
+export function timesWord(n: number): string {
+  return `${n} ${plural(n, 'раз', 'раза', 'раз')}`
+}

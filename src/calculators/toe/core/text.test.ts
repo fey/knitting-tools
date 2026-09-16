@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decRowsWord, plural, rowsWord } from './text'
+import { decRowsWord, plainRowsWord, plural, rowsWord, timesWord } from './text'
 
 describe('склонения', () => {
   it('ряд, ряда, рядов', () => {
@@ -16,5 +16,15 @@ describe('склонения', () => {
 
   it('ноль идёт множественным', () => {
     expect(plural(0, 'ряд', 'ряда', 'рядов')).toBe('рядов')
+  })
+
+  it('промежуточные склоняются, «ряд» опущен (§6.1)', () => {
+    expect([0, 1, 2, 5].map(plainRowsWord)).toEqual([
+      '0 промежуточных', '1 промежуточный', '2 промежуточных', '5 промежуточных',
+    ])
+  })
+
+  it('«раз» в «повторить M раз» склоняется', () => {
+    expect([1, 2, 5, 10].map(timesWord)).toEqual(['1 раз', '2 раза', '5 раз', '10 раз'])
   })
 })
