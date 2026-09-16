@@ -14,7 +14,10 @@ import RowProgressBar from './calculators/toe/components/RowProgressBar.vue'
 
 <template>
   <div class="min-h-screen bg-white text-slate-900">
-    <main class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-4 pb-32">
+    <!-- Запас снизу — под полосу прогресса и сброса, прибитую к низу экрана (тикет #9):
+         дока растёт вверх, а не вниз, но место под неё в потоке страницы резервируется
+         заранее, иначе последний блок «Итог» на части экранов уезжает под полосу. -->
+    <main class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-4 pb-56">
       <h1 class="text-xl font-semibold">Калькулятор мыска носка</h1>
 
       <ToeChart />

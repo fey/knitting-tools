@@ -8,6 +8,17 @@
  * от начала половины, то есть от правого края. Перепутать сторону значило бы зеркально
  * отразить всю схему — ловит это только скриншот, поэтому геометрия и её отсчёт
  * зафиксированы константами в `core/constants.ts`, а не пересчитаны здесь на глаз.
+ *
+ * **Шторка прогресса (тикет #9, §8)** несёт два слоя, и путать их нельзя (перенос
+ * из `prototypes/row-progress.html`, вариант E):
+ * - контур текущего ряда рисует сама сетка — обычный `<rect>` в SVG, часть содержимого,
+ *   поэтому он переживает и горизонтальную, и вертикальную прокрутку бесплатно;
+ * - затенение связанного — бумага `toe-chart-shutter-paper`, положенная в обёртку
+ *   `toe-chart-box` (со `position: relative`, приготовлена тикетом #3) рядом со
+ *   скроллером, а не внутри него. Её верхний край считается в пикселях содержимого
+ *   (`shutterTopPx`) и переводится в пиксели окна вычитанием `scrollTop` — окно
+ *   схемы теперь скроллится не только вбок, но и вниз (кадр 420 px, §14), поэтому
+ *   без вычитания бумага отставала бы от содержимого при вертикальной прокрутке.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
@@ -16,14 +27,21 @@ import {
   CELL_SIZE,
   CHART_COLORS,
   CHART_LABEL_WIDTH,
+  CHART_SCROLL_GAP,
   CHART_STROKE,
   CHART_VIEWPORT_HEIGHT,
   chartGuideLines,
+  shutterTopPx,
   stitchLinePoints,
   trianglePoints,
 } from '../core/constants'
 
-const { calculation } = useToeCalculator()
+/** Цвет шторки — перенесён буквально из прототипа (`row-progress.html`), это выбор
+ * акцента, а не геометрия: в палитру §7.1 «Вязаный.рф» не входит, у значков схемы
+ * своя роль. */
+const SHUTTER_ACCENT = '#b4472a'
+
+const { calculation, progressRow } = useToeCalculator()
 
 /** Ширина сетки постоянна и равна половине начальных петель (§7), сетка не сужается. */
 const cols = computed(() => calculation.value.initial / 2)
@@ -108,6 +126,10 @@ const grid = computed(() =>
 const finalReal = computed(() => calculation.value.finalReal)
 const initial = computed(() => calculation.value.initial)
 
+/** Строка контура текущего ряда в развёрнутой сетке — та же индексация, что у `displayRows`. */
+const currentRowY = computed(() => rowsCount.value - progressRow.value - 1)
+const hasCurrentRow = computed(() => progressRow.value < rowsCount.value)
+
 type LegendItem = {
   key: string
   label: string
@@ -187,15 +209,50 @@ function onWheel(e: WheelEvent) {
   e.preventDefault()
 }
 
+/**
+ * Вертикальный `scrollTop` окна — единственное, что нужно бумаге шторки снаружи
+ * скроллера (тикет #9, §8): бумага живёт в `toe-chart-box` рядом со скроллером,
+ * а не внутри него, поэтому её позиция в пикселях **окна** считается вычитанием
+ * `scrollTop` из позиции границы в пикселях **содержимого** — см. `shutterPaperTopPx`.
+ */
+const scrollTopPx = ref(0)
+function onScroll() {
+  if (scrollEl.value) scrollTopPx.value = scrollEl.value.scrollTop
+}
+
+/**
+ * Верхний край бумаги шторки в пикселях окна, зажатый в его границы: бумага
+ * покрывает окно целиком, когда граница уже прокручена выше видимого (нижние,
+ * давно связанные ряды укатились за верх экрана), и пропадает, когда граница ещё
+ * не доехала до низа окна (несвязанное занимает весь кадр).
+ */
+const shutterPaperTopPx = computed(() => {
+  const contentTopPx = shutterTopPx(rowsCount.value, progressRow.value)
+  return Math.max(0, Math.min(contentTopPx - scrollTopPx.value, CHART_VIEWPORT_HEIGHT))
+})
+
 onMounted(() => {
   const el = scrollEl.value
   if (!el) return
   el.scrollLeft = el.scrollWidth
+
+  // Разовая прокрутка к текущему ряду при открытии (§8): низ текущего ряда встаёт
+  // чуть выше нижней кромки окна. Читает прогресс один раз, синхронно при монтаже —
+  // и не подписывается на него дальше: реактивная привязка воскресила бы отклонённый
+  // вариант D, автопрокрутку на каждое нажатие (§8, §14 «прокрутка считается от
+  // нижней кромки окна, а не от плашки»).
+  const bottomOfCurrentPx = shutterTopPx(rowsCount.value, progressRow.value)
+  const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight)
+  const target = bottomOfCurrentPx - el.clientHeight + CHART_SCROLL_GAP
+  el.scrollTop = Math.max(0, Math.min(target, maxScrollTop))
+  scrollTopPx.value = el.scrollTop
+
   el.addEventListener('pointerdown', onPointerDown)
   el.addEventListener('pointermove', onPointerMove)
   el.addEventListener('pointerup', stopDragging)
   el.addEventListener('pointercancel', stopDragging)
   el.addEventListener('wheel', onWheel, { passive: false })
+  el.addEventListener('scroll', onScroll, { passive: true })
 })
 
 onUnmounted(() => {
@@ -206,6 +263,7 @@ onUnmounted(() => {
   el.removeEventListener('pointerup', stopDragging)
   el.removeEventListener('pointercancel', stopDragging)
   el.removeEventListener('wheel', onWheel)
+  el.removeEventListener('scroll', onScroll)
 })
 </script>
 
@@ -302,8 +360,32 @@ onUnmounted(() => {
             :stroke="CHART_COLORS.guideLine"
             :stroke-width="CHART_STROKE.gridBorder"
           />
+
+          <!-- Контур текущего ряда (тикет #9, §8) — часть содержимого схемы, поэтому
+               переживает и горизонтальную, и вертикальную прокрутку сама, без JS. -->
+          <rect
+            v-if="hasCurrentRow"
+            x="0"
+            :y="currentRowY"
+            :width="cols"
+            height="1"
+            fill="none"
+            :stroke="SHUTTER_ACCENT"
+            stroke-width="0.12"
+            data-testid="toe-chart-current-row"
+          />
         </svg>
       </div>
+
+      <!-- Бумага шторки: затенение связанного (§8). Снаружи скроллера — окно схемы теперь
+           скроллится и вбок, и вниз (кадр 420 px, §14), а бумага должна закрывать окно
+           целиком независимо от горизонтальной прокрутки, поэтому её ширина — ширина окна,
+           а не содержимого; вертикаль синхронизирует `onScroll`. -->
+      <div
+        class="pointer-events-none absolute inset-x-0 bottom-0 bg-slate-900/30"
+        :style="{ top: `${shutterPaperTopPx}px` }"
+        data-testid="toe-chart-shutter-paper"
+      />
     </div>
 
     <p class="mt-2 text-sm text-slate-600" data-testid="toe-chart-caption-bottom">
