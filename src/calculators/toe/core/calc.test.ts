@@ -80,12 +80,42 @@ describe('недобор и перебор сегментов', () => {
     expect(result.decRowsCovered).toBe(6)
   })
 
-  it('перебор доводит мысок ниже конечных петель, а не обрывает расчёт', () => {
+  it('перебор кончается на конечных петлях: лишние шаги не выполняются', () => {
     const result = toe({
       rhythm: { kind: 'custom', segments: [{ interval: 1, repeats: 12 }] },
     })
     expect(result.lack).toBe(-2)
-    expect(result.finalReal).toBe(12)
+    expect(result.decRowsCovered).toBe(12)
+    expect(result.finalReal).toBe(20)
+    // Число рядов не считает невыполненные шаги: столько же, сколько у сходящегося {1, 10}.
+    expect(result.totalRows).toBe(19)
+    const last = result.rows[result.rows.length - 1]
+    expect(last.type).toBe('dec')
+    expect(last.dec).toBe(10)
+    expect(last.stitches).toBe(20)
+  })
+
+  it('кеп, упавший внутрь сегмента, срезает и хвост промежуточных', () => {
+    const result = toe({
+      rhythm: {
+        kind: 'custom',
+        segments: [{ interval: 0, repeats: 8 }, { interval: 2, repeats: 5 }],
+      },
+    })
+    expect(result.lack).toBe(-3)
+    expect(result.finalReal).toBe(20)
+    // 8 убавочных подряд, потом два по «убавочный + 2 промежуточных» без хвоста: 8 + 3 + 1.
+    expect(result.totalRows).toBe(12)
+    const last = result.rows[result.rows.length - 1]
+    expect(last.type).toBe('dec')
+    expect(last.stitches).toBe(20)
+  })
+
+  it('перебор не усекает набранные сегменты: конструктор видит все шаги', () => {
+    const segments = [{ interval: 1, repeats: 6 }, { interval: 0, repeats: 6 }]
+    const result = toe({ rhythm: { kind: 'custom', segments } })
+    expect(result.segments).toEqual(segments)
+    expect(result.finalReal).toBe(20)
   })
 })
 

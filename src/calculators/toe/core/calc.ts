@@ -27,6 +27,30 @@ export function segmentsOf(rhythm: Rhythm, decRowsNeeded: number): Segment[] {
 }
 
 /**
+ * Сегменты, которые мысок успеет выполнить: убавочных рядов в них не больше, чем нужно
+ * (§9.5, перебор). Лишние шаги не выполняются — схема кончается на конечных петлях,
+ * ровно как о том говорит текст предупреждения «до них не дойдёт».
+ *
+ * Усечение живёт только здесь, на пути построения рядов. `calculation.segments` остаются
+ * набранными целиком: их читает конструктор ритма, и усечённый список заставил бы
+ * набранные шаги молча исчезнуть с экрана — а управление последним шагом спека отнимать
+ * запрещает (§9.5).
+ */
+function executedSegments(segments: Segment[], decRows: number): Segment[] {
+  const done: Segment[] = []
+  let left = decRows
+
+  for (const segment of segments) {
+    if (left <= 0) break
+    const repeats = Math.min(segment.repeats, left)
+    done.push({ ...segment, repeats })
+    left -= repeats
+  }
+
+  return done
+}
+
+/**
  * Минимум конечных петель при этой кромке: `4 + 4 × кромка` — 4 / 8 / 12 (§9.4).
  * Убавочному ряду на половине нужно `кромка + 2 + 2 + кромка` петель.
  *
@@ -40,13 +64,20 @@ export function minFinalStitches(edge: number): number {
 /**
  * Считает мысок. Результат строится всегда — недобор и перебор сегментов приходят
  * величинами `lack` и `finalReal`, а не отказом считать (§9.5).
+ *
+ * Недобор рисуется честно: мысок встанет на 36 петлях вместо 20. Перебор — наоборот,
+ * упирается в конечные петли: лишние шаги не выполняются, и число рядов их не считает.
  */
 export function calculateToe(params: ToeParams): ToeCalculation {
   const { initial, final, edge, rhythm } = params
   const decRowsNeeded = decRowsFor(initial, final)
   const segments = segmentsOf(rhythm, decRowsNeeded)
   const decRowsCovered = segments.reduce((sum, s) => sum + s.repeats, 0)
-  const rows = buildRows(initial, segments)
+  // Выполненных убавочных рядов не больше, чем нужно: при переборе лишние шаги
+  // не выполняются (§9.5). Величина держится локальной — наружу она выходит
+  // числом рядов и `finalReal`, а `lack` считается по набранному покрытию.
+  const decRowsDone = Math.min(decRowsCovered, decRowsNeeded)
+  const rows = buildRows(initial, executedSegments(segments, decRowsDone))
 
   return {
     initial,
@@ -59,6 +90,6 @@ export function calculateToe(params: ToeParams): ToeCalculation {
     rows,
     totalRows: rows.length,
     lack: decRowsNeeded - decRowsCovered,
-    finalReal: initial - decRowsCovered * STITCHES_PER_DEC_ROW,
+    finalReal: initial - decRowsDone * STITCHES_PER_DEC_ROW,
   }
 }
