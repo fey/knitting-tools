@@ -80,16 +80,18 @@ describe('ритм, который не собирается', () => {
   // «С разгоном» несёт фиксированный хвост в 4 ряда, который сам по себе превышает N
   // ниже min = 5. Карточка на экране гасится и не выбирается (RhythmPresets.vue), но
   // сегменты остаются достижимы напрямую — например когда ритм выбрали при N = 10,
-  // а петли потом сузили до N = 2. `decRowsCovered` обязан совпадать с тем, что реально
-  // строит `buildRows`, а не с плоской суммой: иначе «перебора нет» соврёт при фактическом
-  // перекрытии.
+  // а петли потом сузили до N = 2. `decRowsCovered` обязан быть плоской суммой повторов:
+  // иначе «перебора нет» соврёт при фактическом перекрытии. А `finalReal` обязан совпадать
+  // с тем, что реально рисует схема, — при переборе это конечные петли (§9.5).
   it('«с разгоном» ниже min не врёт числом: перебор честно виден, а не спрятан нулевым lack', () => {
     const calc = calculateToe({ ...DEFAULT_PARAMS, initial: 60, final: 52, rhythm: { kind: 'preset', name: 'ramp' } })
     expect(calc.decRowsNeeded).toBe(2)
+    // Сегменты остаются набранными целиком: усечение живёт только на пути построения рядов.
     expect(calc.segments.map((s) => s.repeats)).toEqual([1, 1, 1, 1, 0])
     expect(calc.decRowsCovered).toBe(4)
     expect(calc.lack).toBe(-2)
-    expect(calc.finalReal).toBe(44)
-    expect(calc.rows[calc.rows.length - 1].stitches).toBe(44)
+    expect(calc.finalReal).toBe(52)
+    expect(calc.rows[calc.rows.length - 1].stitches).toBe(calc.finalReal)
+    expect(calc.finalReal).toBe(calc.final)
   })
 })
