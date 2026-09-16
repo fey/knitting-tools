@@ -96,4 +96,31 @@ describe('счёт ряда (тикет #9)', () => {
 
     resetProgress()
   })
+
+  it('правка обоих полей сразу — одна смена расчёта: ряд подтягивается, а не обнуляется', () => {
+    const { params, calculation, progressRow, markRow, resetProgress, setStitches } = useToeCalculator()
+    resetProgress()
+    setStitches({ initial: 100, final: 60, edge: 1 })
+    params.rhythm = { kind: 'preset', name: 'even' }
+    expect(calculation.value.totalRows).toBe(19)
+
+    for (let i = 0; i < 15; i++) markRow()
+    expect(progressRow.value).toBe(15)
+
+    // Начальные 40 при конечных 60 не сходятся, поэтому починка приносит пару целиком:
+    // 40 → 36 — это один убавочный ряд и один ряд всего. Промежуточного состояния
+    // 40 → 60 зажим видеть не должен, иначе ряд обнулится вместо подтягивания.
+    setStitches({ initial: 40, final: 36 })
+    expect(calculation.value.totalRows).toBe(1)
+    expect(progressRow.value).toBe(1)
+
+    // Обратная сторона того же зажима: расчёт вырос — номер не поднимается сам,
+    // а остаётся там, где остановился (§8, клина вверх нет).
+    setStitches({ initial: 100, final: 20 })
+    expect(calculation.value.totalRows).toBe(39)
+    expect(progressRow.value).toBe(1)
+
+    resetProgress()
+    setStitches({ initial: 60, final: 20, edge: 1 })
+  })
 })

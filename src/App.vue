@@ -10,6 +10,7 @@ import RhythmBuilder from './calculators/toe/components/RhythmBuilder.vue'
 import StitchFields from './calculators/toe/components/StitchFields.vue'
 import SummaryPanel from './calculators/toe/components/SummaryPanel.vue'
 import RowProgressBar from './calculators/toe/components/RowProgressBar.vue'
+import ShareButton from './calculators/toe/components/ShareButton.vue'
 </script>
 
 <template>
@@ -18,7 +19,14 @@ import RowProgressBar from './calculators/toe/components/RowProgressBar.vue'
          дока растёт вверх, а не вниз, но место под неё в потоке страницы резервируется
          заранее, иначе последний блок «Итог» на части экранов уезжает под полосу. -->
     <main class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-4 pb-56">
-      <h1 class="text-xl font-semibold">Калькулятор мыска носка</h1>
+      <!-- «Поделиться» стоит в шапке, выше полей петель, и это не оформление (§10.4):
+           подпись починки поля вставляется синхронным `blur`, который срабатывает
+           раньше `click`. Кнопка ниже полей уехала бы от этой вставки между
+           `mousedown` и `mouseup` одного касания, и клик промахнулся бы мимо. -->
+      <header class="flex items-start justify-between gap-3">
+        <h1 class="text-xl font-semibold">Калькулятор мыска носка</h1>
+        <ShareButton />
+      </header>
 
       <ToeChart />
       <RhythmPresets />

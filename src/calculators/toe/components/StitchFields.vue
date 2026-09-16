@@ -30,7 +30,7 @@ import {
 
 const STEP = 4
 
-const { params } = useToeCalculator()
+const { params, setStitches } = useToeCalculator()
 
 /** Черновики полей: то, что реально набрано, может не совпадать со сходящимся `params`. */
 const initialDraft = ref(String(params.initial))
@@ -57,8 +57,7 @@ const finalFix = ref<Fix | null>(null)
 function commitIfConverges(patch: Partial<{ initial: number; final: number }>): void {
   const next = { initial: params.initial, final: params.final, edge: params.edge, ...patch }
   if (!converges(next)) return
-  params.initial = next.initial
-  params.final = next.final
+  setStitches(next)
 }
 
 function parseDraft(raw: string): number | null {
@@ -80,8 +79,9 @@ function parseDraft(raw: string): number | null {
  * поставленную первым.
  */
 function apply(result: NormalizedFields): void {
-  params.initial = result.initial
-  params.final = result.final
+  // Пара идёт одной сменой расчёта: два присвоения подряд провели бы расчёт через
+  // несходящееся промежуточное состояние и стёрли бы отмеченный ряд (§8).
+  setStitches({ initial: result.initial, final: result.final })
   initialDraft.value = String(result.initial)
   finalDraft.value = String(result.final)
 

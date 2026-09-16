@@ -11,12 +11,26 @@
  *
  * Карточка «Свой ритм» — работа тикета #6, здесь её нет: сравнения сегментов
  * с пресетами в коде нет нигде (§5.5), имя ритма решает происхождение, а не форма.
+ *
+ * **Предупреждение о недоборе стоит здесь второй строкой (§9.5)** — «дублируется
+ * строкой у числа рядов, потому что конструктор сворачивается и единственная строка
+ * ушла бы с экрана вместе с ним». Место выбрано требованием §6: число рядов обязано
+ * стоять вплотную к ручке ритма, а блок «Итог» на телефоне всегда за экраном — копия
+ * в «Итоге» полезна только тем, кто долистал. Строка одна на весь блок ритма
+ * и **не уходит в подписи отдельных карточек**: там остаётся голое число рядов,
+ * четыре строки с предупреждениями в списке выбора превращают подсказку в шум (§9.6).
+ * Перебора это не касается — дублировать спека просит именно недобор.
  */
+import { computed } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import { PRESETS, presetRowCount, presetWhyOff, type Preset } from '../core/presets'
+import { coverageNote } from '../core/notes'
 import { rowsWord } from '../core/text'
 
 const { params, calculation } = useToeCalculator()
+
+/** Недобор — и только он — дублируется строкой у живого числа рядов (§9.5). */
+const coverage = computed(() => coverageNote(calculation.value))
 
 function rows(preset: Preset): number | null {
   return presetRowCount(preset, calculation.value.decRowsNeeded, calculation.value.initial)
@@ -60,5 +74,8 @@ function select(preset: Preset): void {
         </span>
       </button>
     </div>
+    <p v-if="coverage.kind === 'lack'" class="mt-3 text-sm text-amber-700" data-testid="rhythm-lack-note">
+      {{ coverage.text }}
+    </p>
   </section>
 </template>

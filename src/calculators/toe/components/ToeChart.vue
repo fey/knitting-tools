@@ -30,6 +30,7 @@ import {
   CHART_SCROLL_GAP,
   CHART_STROKE,
   CHART_VIEWPORT_HEIGHT,
+  LEGEND_CELL_SIZE,
   chartGuideLines,
   shutterTopPx,
   stitchLinePoints,
@@ -165,7 +166,6 @@ const legend: LegendItem[] = [
   },
   { key: 'empty', label: 'нет петли', box: CHART_COLORS.emptyCell, kind: 'none', dir: null },
 ]
-const LEGEND_BOX = 14
 
 // Горизонтальная прокрутка при открытии стоит на правом краю — там начало ряда (§7).
 // Перетаскивание мышью и shift+колесо переносятся из `wireChartScroll` (chart.md §6).
@@ -394,25 +394,25 @@ onUnmounted(() => {
 
     <div class="mt-3 flex flex-col gap-1 text-sm text-slate-700" data-testid="toe-chart-legend">
       <div v-for="item in legend" :key="item.key" class="flex items-center gap-2">
-        <svg :width="LEGEND_BOX" :height="LEGEND_BOX" aria-hidden="true">
+        <svg :width="LEGEND_CELL_SIZE" :height="LEGEND_CELL_SIZE" aria-hidden="true">
           <rect
             x="0.5"
             y="0.5"
-            :width="LEGEND_BOX - 1"
-            :height="LEGEND_BOX - 1"
+            :width="LEGEND_CELL_SIZE - 1"
+            :height="LEGEND_CELL_SIZE - 1"
             :fill="item.box"
             :stroke="CHART_COLORS.cellStroke"
           />
           <line
             v-if="item.kind === 'stitch'"
-            v-bind="stitchLinePoints(0, 0, LEGEND_BOX)"
+            v-bind="stitchLinePoints(0, 0, LEGEND_CELL_SIZE)"
             :stroke="CHART_COLORS.stitchStroke"
             stroke-width="1.4"
             stroke-linecap="round"
           />
           <polygon
             v-if="item.kind === 'dec'"
-            :points="trianglePoints(item.dir!, 0, 0, LEGEND_BOX)"
+            :points="trianglePoints(item.dir!, 0, 0, LEGEND_CELL_SIZE)"
             :fill="CHART_COLORS.decorFill"
           />
         </svg>
