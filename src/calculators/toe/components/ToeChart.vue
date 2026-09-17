@@ -66,7 +66,7 @@ type RowLayer = { row: Row; y: number; cells: Cell[]; stitches: Stitch[]; decora
 
 /**
  * Раскладывает один ряд на клетки, штрихи и треугольники. Перенос тела из
- * `prototypes/toe-visualization.html` (`renderD`, chart.md §2) с единственной правкой
+ * `prototypes/toe-visualization.html` (`renderD`) с единственной правкой
  * задачи: жирные линии считаются от правого края (в `chartGuideLines`, не здесь).
  */
 function buildRowLayer(row: Row, y: number, colsN: number, edgeN: number): RowLayer {
@@ -168,7 +168,7 @@ const legend: LegendItem[] = [
 ]
 
 // Горизонтальная прокрутка при открытии стоит на правом краю — там начало ряда (§7).
-// Перетаскивание мышью и shift+колесо переносятся из `wireChartScroll` (chart.md §6).
+// Перетаскивание мышью и shift+колесо переносятся из `wireChartScroll` того же прототипа.
 const scrollEl = ref<HTMLDivElement | null>(null)
 let dragging = false
 let startX = 0
@@ -424,7 +424,7 @@ onUnmounted(() => {
 
 <style scoped>
 /* Видимая полоса прокрутки (§7 требует её видимой); цвета — тема прокрутки, не палитра
-   клеток из core/constants.ts, поэтому живут здесь литералами (chart.md §6). */
+   клеток из core/constants.ts, поэтому живут здесь литералами. */
 .chartscroll {
   cursor: grab;
   overscroll-behavior-x: contain;
