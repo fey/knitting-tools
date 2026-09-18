@@ -37,6 +37,7 @@ import StitchFields from './StitchFields.vue'
 import SummaryPanel from './SummaryPanel.vue'
 import RowProgressBar from './RowProgressBar.vue'
 import ShareButton from './ShareButton.vue'
+import GaugeDialog from './GaugeDialog.vue'
 import AppHeader from '../../../shared/AppHeader.vue'
 import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
 
@@ -139,5 +140,10 @@ const settingsHidden = ref(false)
         <RowProgressBar />
       </div>
     </div>
+
+    <!-- Диалог плотности (тикет #27). Кнопка у него в «Итоге», а не в шапке: ряд
+         шапки на телефоне уже в три строки, и пятая кнопка выталкивала вводку
+         с первого экрана — §6.1 этого не допускает. -->
+    <GaugeDialog />
   </div>
 </template>

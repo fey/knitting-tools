@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { calculateToe } from './calc'
-import { coverageNote, lengthNote } from './notes'
+import { coverageNote, lengthNote, lengthNoteCm } from './notes'
 import type { ToeParams } from './types'
 
 const BASE: ToeParams = { initial: 60, final: 20, edge: 1, rhythm: { kind: 'preset', name: 'even' } }
@@ -53,5 +53,25 @@ describe('lengthNote', () => {
     expect(lengthNote(12)).toBeNull()
     expect(lengthNote(19)).toBeNull()
     expect(lengthNote(30)).toBeNull()
+  })
+})
+
+describe('lengthNoteCm', () => {
+  it('коридор в сантиметрах молчит на обычном мыске', () => {
+    // 19 рядов при 40 рядах / 10 см — 4,75 см, середина коридора.
+    expect(lengthNoteCm(4.75)).toBeNull()
+  })
+
+  it('короткий мысок — то же замечание, но в сантиметрах', () => {
+    expect(lengthNoteCm(2.5)).toBe('Меньше 3 см — мысок выйдет тупым')
+  })
+
+  it('длинный мысок — тоже', () => {
+    expect(lengthNoteCm(8)).toBe('Больше 7 см — мысок выйдет длинным, проверь ритм')
+  })
+
+  it('границы коридора замечания не вызывают', () => {
+    expect(lengthNoteCm(3)).toBeNull()
+    expect(lengthNoteCm(7)).toBeNull()
   })
 })
