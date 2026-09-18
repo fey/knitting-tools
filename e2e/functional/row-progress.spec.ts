@@ -250,34 +250,45 @@ test('правка петель чинит пару целиком — ряд п
   expect(JSON.parse(stored ?? 'null')).toEqual({ paramsKey: 's=40&e=36&k=1&r=even', row: 1 })
 })
 
-test('на дефолте мысок помещается в окно целиком — прокрутка при открытии не нужна', async ({ page }) => {
+test('чистый заход открывается сверху, на вводке — прокручивать не к чему', async ({ page }) => {
+  // Ничего не отмечено, значит и подъезжать некуда: первый экран обязан начинаться
+  // с текста, ради которого порядок экрана и переставлен (§6).
   await page.goto('./')
-  const scrollTop = await page.getByTestId('toe-chart-scroll').evaluate((el) => el.scrollTop)
-  expect(scrollTop).toBe(0)
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+  await expect(page.getByTestId('intro')).toBeInViewport()
 })
 
-test('окно схемы один раз подъезжает к текущему ряду при открытии — на длинном мыске', async ({ page }) => {
+test('страница один раз подъезжает к текущему ряду при открытии — на длинном мыске', async ({ page }) => {
   // 140 → 16, через ряд: N = 31, even даёт 2N−1 = 61 рядов, пиксельная высота 61×22 = 1342.
   await page.goto('./#s=140&e=16&k=1&r=even')
   for (let i = 0; i < 10; i++) await page.getByTestId('row-progress-mark').click()
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 11 из 61')
 
   // Разовая прокрутка случается при монтаже — перезагрузка воспроизводит открытие
-  // с уже отмеченными 10 рядами: низ текущего ряда — (61 − 10) × 22 = 1122 px от
-  // верха содержимого. `clientHeight` меряется на живом элементе, а не берётся
-  // константой 420 — горизонтальная полоса прокрутки отъедает часть высоты окна
-  // (в схеме 140 → 16 она есть: сетка шире вьюпорта), и ровно на эту разницу
-  // «зазор от нижней кромки» отличался бы, будь он посчитан на глаз.
+  // с уже отмеченными 10 рядами. Кадра у схемы нет, подъезжает страница: низ текущего
+  // ряда — (61 − 10) × 22 = 1122 px от верха сетки — встаёт над плашкой прогресса.
+  // Высота плашки и положение сетки меряются на живой вёрстке: плашка растёт от
+  // числа строк текста в ней, а сетка стоит под ручками, высота которых своя.
   await page.reload()
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 11 из 61')
-  const metrics = await page.getByTestId('toe-chart-scroll').evaluate((el) => ({
-    scrollTop: el.scrollTop,
-    clientHeight: el.clientHeight,
-    scrollHeight: el.scrollHeight,
-  }))
-  const GAP = 16
-  const expected = Math.max(0, Math.min(1122 - metrics.clientHeight + GAP, metrics.scrollHeight - metrics.clientHeight))
-  expect(metrics.scrollTop).toBe(expected)
+
+  const GAP = 16 // CHART_SCROLL_GAP
+  const measured = await page.evaluate(() => {
+    const svg = document.querySelector('[data-testid="toe-chart-svg"]')!
+    const dock = document.querySelector('[data-testid="bottom-dock"]')!
+    return {
+      scrollY: window.scrollY,
+      chartTopDoc: svg.getBoundingClientRect().top + window.scrollY,
+      dockHeight: dock.getBoundingClientRect().height,
+      viewport: window.innerHeight,
+      maxScroll: document.documentElement.scrollHeight - window.innerHeight,
+    }
+  })
+  const target = Math.round(
+    measured.chartTopDoc + 1122 - (measured.viewport - measured.dockHeight - GAP),
+  )
+  expect(measured.scrollY).toBe(Math.max(0, Math.min(target, measured.maxScroll)))
+  expect(measured.scrollY).toBeGreaterThan(0) // схема длинная — прокрутка правда случилась
 })
 
 test('прогресс в ссылку не попадает никогда', async ({ page }) => {

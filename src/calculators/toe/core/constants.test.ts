@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   CELL_SIZE,
-  CHART_VIEWPORT_HEIGHT,
+  CHART_SCROLL_GAP,
   chartGuideLines,
+  pageScrollTargetPx,
   shutterTopPx,
   stitchLinePoints,
   trianglePoints,
@@ -11,10 +12,6 @@ import {
 describe('константы схемы', () => {
   it('клетка остаётся 22 px', () => {
     expect(CELL_SIZE).toBe(22)
-  })
-
-  it('окно схемы — 420 px', () => {
-    expect(CHART_VIEWPORT_HEIGHT).toBe(420)
   })
 })
 
@@ -72,5 +69,34 @@ describe('положение кромки шторки прогресса (ти�
   it('зажимается в границы — лишнее сверху и снизу не даёт отрицательной высоты', () => {
     expect(shutterTopPx(19, 30)).toBe(0)
     expect(shutterTopPx(19, -5)).toBe(19 * 22)
+  })
+})
+
+describe('разовая прокрутка страницы к текущему ряду (§8)', () => {
+  // Схема кадра не имеет: подъезжает страница целиком, и низ текущего ряда встаёт
+  // над плашкой прогресса, а не над нижней кромкой окна схемы.
+  const CHART_TOP = 900
+  const VIEWPORT = 844
+  const DOCK = 120
+
+  it('низ текущего ряда встаёт над плашкой, с зазором', () => {
+    // 61 ряд, отмечено 10: низ текущего ряда — (61 − 10) × 22 = 1122 px от верха схемы.
+    const target = pageScrollTargetPx(CHART_TOP, 61, 10, VIEWPORT, DOCK)
+    expect(target).toBe(CHART_TOP + 1122 - (VIEWPORT - DOCK - CHART_SCROLL_GAP))
+  })
+
+  it('высокая плашка поднимает страницу выше — замер живой, не константа', () => {
+    const low = pageScrollTargetPx(CHART_TOP, 61, 10, VIEWPORT, 100)
+    const high = pageScrollTargetPx(CHART_TOP, 61, 10, VIEWPORT, 180)
+    expect(high - low).toBe(80)
+  })
+
+  it('короткий мысок целиком помещается над плашкой — страница остаётся вверху', () => {
+    // Дефолт 60 → 20: 19 рядов, ничего не отмечено — прокручивать не к чему.
+    expect(pageScrollTargetPx(0, 19, 0, VIEWPORT, DOCK)).toBe(0)
+  })
+
+  it('отмечены все ряды — граница у верха схемы, страница остаётся вверху', () => {
+    expect(pageScrollTargetPx(0, 61, 61, VIEWPORT, DOCK)).toBe(0)
   })
 })
