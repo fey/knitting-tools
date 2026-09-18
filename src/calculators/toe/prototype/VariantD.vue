@@ -7,8 +7,13 @@
  *
  * - **Вводка стоит сверху и живёт своей жизнью**: сворачивается собственной кнопкой
  *   (§6.1), кнопкой настроек не трогается вовсе.
- * - **Настройки — слева сверху, схема справа от них** (§6.2), свёрнутые оставляют
- *   на своём месте строку с числами расчёта.
+ * - **Настройки — слева сверху, схема справа от них** (§6.2). Кнопка «Убрать» стоит
+ *   одной строкой с кнопкой вводки и в обоих состояниях на одном месте: свёрнутая
+ *   вводка — сама одна кнопка, и вторая под ней читалась столбиком кнопок, ни к чему
+ *   не приписанных.
+ * - **Числа расчёта стоят над схемой всегда** — и с настройками, и без них. Отдельной
+ *   полосы, всплывающей вместо убранных ручек, нет: по этой строке читают, что именно
+ *   нарисовано ниже, а такое не показывают через раз.
  * - **«Итог» — часть схемы и идёт прямо под ней**, а не под ручками: он говорит
  *   про то, что нарисовано, и уезжать вместе с настройками ему незачем. Это и есть
  *   расхождение с §6.2, где «Итог» стоит в левой колонке под ручками.
@@ -29,7 +34,7 @@ import ShareButton from '../components/ShareButton.vue'
 const { calculation } = useToeCalculator()
 const hidden = ref(false)
 
-/** Свёрнутые настройки оставляют свои числа: иначе непонятно, что именно убрано. */
+/** Строка над схемой: что нарисовано ниже. Стоит там всегда, в обоих состояниях. */
 const summary = computed(() => {
   const c = calculation.value
   return `${c.initial} → ${c.finalReal} петель · кромка ${c.edge} · ${c.totalRows} рядов`
@@ -46,8 +51,20 @@ const summary = computed(() => {
         <ShareButton />
       </header>
 
-      <!-- Вводка кнопкой настроек не трогается: у неё своя кнопка и своя память. -->
-      <IntroNote />
+      <!-- Вводка кнопкой настроек не трогается: у неё своя кнопка и своя память.
+           Обе кнопки стоят одной строкой: свёрнутая вводка — это одна кнопка, и
+           вторая кнопка под ней читалась столбиком кнопок ни к чему не приписанных. -->
+      <div class="flex flex-wrap items-start gap-3">
+        <IntroNote />
+        <button
+          type="button"
+          class="h-11 shrink-0 rounded border border-slate-300 px-3 text-sm text-slate-700"
+          data-testid="proto-focus-toggle"
+          @click="hidden = !hidden"
+        >
+          {{ hidden ? 'Показать настройки' : 'Убрать настройки' }}
+        </button>
+      </div>
 
       <div
         :class="
@@ -61,43 +78,24 @@ const summary = computed(() => {
           class="flex flex-col gap-4 min-[1240px]:col-start-1 min-[1240px]:row-start-1"
           data-testid="proto-settings"
         >
-          <button
-            type="button"
-            class="h-11 self-start rounded border border-slate-300 px-3 text-sm text-slate-700"
-            data-testid="proto-focus-toggle"
-            @click="hidden = true"
-          >
-            Убрать настройки
-          </button>
           <StitchFields />
           <RhythmPresets />
           <RhythmBuilder />
         </div>
 
-        <div
-          v-else
-          class="flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-slate-50 px-3 py-2"
-          data-testid="proto-summary-strip"
-        >
-          <span class="text-sm tabular-nums text-slate-700">{{ summary }}</span>
-          <button
-            type="button"
-            class="ml-auto h-11 rounded border border-slate-300 px-3 text-sm text-slate-700"
-            data-testid="proto-focus-toggle"
-            @click="hidden = false"
-          >
-            Показать настройки
-          </button>
-        </div>
-
         <!-- Схема и «Итог» — один блок: «Итог» про то, что нарисовано выше,
              и в правой колонке он стоит под схемой, а не в левой под ручками. -->
         <div
-          class="flex flex-col gap-4 min-[1240px]:col-start-2 min-[1240px]:row-start-1"
+          class="flex flex-col gap-2 min-[1240px]:col-start-2 min-[1240px]:row-start-1"
           data-testid="proto-chart-block"
         >
+          <!-- Числа расчёта стоят над схемой всегда, а не всплывают вместо убранных
+               настроек: по ним читают, что именно нарисовано ниже. -->
+          <p class="text-sm tabular-nums text-slate-600" data-testid="proto-chart-params">
+            {{ summary }}
+          </p>
           <ToeChart />
-          <SummaryPanel />
+          <SummaryPanel class="mt-2" />
         </div>
       </div>
     </main>
