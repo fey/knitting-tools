@@ -39,6 +39,15 @@ import RowProgressBar from './RowProgressBar.vue'
 import ShareButton from './ShareButton.vue'
 import AppHeader from '../../../shared/AppHeader.vue'
 import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
+// ПРОТОТИП, тикет #27 — линейка в сантиметрах. Включается только `?variant=` в адресе
+// и только на стенде: `import.meta.env.DEV`. Уедет на ветку прототипа вместе с папкой
+// `prototype/`, в main останется победивший вариант.
+import GaugeChartPrototype from '../prototype/GaugeChartPrototype.vue'
+import GaugeSummaryPrototype from '../prototype/GaugeSummaryPrototype.vue'
+import GaugeDialogPrototype from '../prototype/GaugeDialogPrototype.vue'
+import GaugeButtonPrototype from '../prototype/GaugeButtonPrototype.vue'
+import VariantSwitcherPrototype from '../prototype/VariantSwitcherPrototype.vue'
+import { prototypeOn } from '../prototype/gauge'
 
 /**
  * Ручки расчёта прячутся кнопкой (§6.2): досчитав, по схеме вяжут, и панель настроек
@@ -50,6 +59,9 @@ import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
  * всегда, и делятся расчётом, а не тем, свернул ли отправитель панель.
  */
 const settingsHidden = ref(false)
+
+/** ПРОТОТИП #27: страница остаётся собой, меняется только схема и «Итог». */
+const proto = import.meta.env.DEV && prototypeOn()
 </script>
 
 <template>
@@ -73,6 +85,8 @@ const settingsHidden = ref(false)
       </template>
       <ShareButton />
       <FeedbackButton />
+      <!-- ПРОТОТИП #27: второе из двух мест кнопки плотности. -->
+      <GaugeButtonPrototype v-if="proto" place="header" />
     </AppHeader>
 
     <!-- Запас снизу — под полосу прогресса и сброса, прибитую к низу экрана (тикет #9):
@@ -125,8 +139,10 @@ const settingsHidden = ref(false)
           class="flex flex-col gap-4 min-[1240px]:col-start-2 min-[1240px]:row-start-1"
           data-testid="chart-column"
         >
-          <ToeChart />
-          <SummaryPanel />
+          <GaugeChartPrototype v-if="proto" />
+          <ToeChart v-else />
+          <GaugeSummaryPrototype v-if="proto" />
+          <SummaryPanel v-else />
         </div>
       </div>
     </main>
@@ -139,5 +155,11 @@ const settingsHidden = ref(false)
         <RowProgressBar />
       </div>
     </div>
+
+    <!-- ПРОТОТИП #27 -->
+    <template v-if="proto">
+      <GaugeDialogPrototype />
+      <VariantSwitcherPrototype />
+    </template>
   </div>
 </template>
