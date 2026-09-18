@@ -30,26 +30,26 @@ jobs:
           cache: npm
 
       - name: Установка зависимостей
-        run: npm ci
+        run: make install
 
       - name: Браузер для прогона страницы
-        run: npx playwright install --with-deps chromium
+        run: make browsers
 
       - name: Тесты ядра
-        run: npm run test:unit
+        run: make test-unit
 
       # Гоняется только функциональный проект. Скриншотный (test:screens) в CI
       # не запускается намеренно: базлайны сняты на машине мастера, на раннере
       # рендер другой, и первый же push положил бы прогон вместе с деплоем.
       - name: Тесты страницы
-        run: npm run test:e2e
+        run: make test-e2e
 
       # Ссылка на форму обратной связи (§11) приезжает секретом: без неё сборка
       # не падает, но страница уезжает без кнопки «Оставить отзыв» — молча.
       # Прогон страницы выше собирает себе dist сам и подставляет заведомо
       # ненастоящую ссылку (playwright.config.ts), к живой форме тесты не ходят.
       - name: Сборка
-        run: npm run build
+        run: make build
         env:
           VITE_FEEDBACK_PREFILL_URL: ${{ secrets.VITE_FEEDBACK_PREFILL_URL }}
 
