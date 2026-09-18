@@ -12,7 +12,7 @@ import { expect, test } from '@playwright/test'
  */
 
 test('починка срабатывает на уходе фокуса, а не на каждом нажатии', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const summary = page.getByTestId('summary-panel')
   const final = page.getByTestId('final-stitches')
@@ -44,7 +44,7 @@ test('починка срабатывает на уходе фокуса, а н�
 })
 
 test('разница не кратна 4: подтягивание с подписью и сосед касаемой кнопкой', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const final = page.getByTestId('final-stitches')
   await final.fill('18')
@@ -62,7 +62,7 @@ test('разница не кратна 4: подтягивание с подпи
 })
 
 test('нечётные начальные: оба соседа предложены, конечные уступают следом', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const initial = page.getByTestId('initial-stitches')
   await initial.fill('61')
@@ -80,7 +80,7 @@ test('нечётные начальные: оба соседа предложе�
 })
 
 test('кромка 2 при конечных 8 неактивна с причиной, значение не меняется', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   // 20 → 8 кнопкой шага: ниже кромка 1 не пускает.
   for (let i = 0; i < 3; i++) await page.getByTestId('final-minus').click()
@@ -99,7 +99,7 @@ test('кромка 2 при конечных 8 неактивна с причи�
 })
 
 test('кромка уже 2, набрали конечные 8 — число тянется до 12', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('edge-2').click()
   await expect(page.getByTestId('edge-2')).toHaveAttribute('aria-pressed', 'true')
@@ -116,7 +116,7 @@ test('кромка уже 2, набрали конечные 8 — число т
 })
 
 test('пустое поле возвращает своё прошлое значение, а не дефолт', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const final = page.getByTestId('final-stitches')
   await page.getByTestId('final-minus').click()
@@ -140,7 +140,7 @@ test('пустое поле возвращает своё прошлое зна�
 })
 
 test('недобор показан и в конструкторе, и у живого числа рядов', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('rhythm-builder-toggle').click()
   // Дефолт — один сегмент на все 10 убавочных рядов; снимаем четыре повтора.
@@ -166,7 +166,7 @@ test('недобор показан и в конструкторе, и у жив
 })
 
 test('перебор говорит, что до лишних шагов не дойдёт', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('preset-ramp').click()
   // 20 → 52: убавочных рядов остаётся два, а «с разгоном» несёт четыре.
@@ -184,7 +184,7 @@ test('перебор говорит, что до лишних шагов не д
 })
 
 test('мягкое замечание о длине — не красным и без запрета', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const note = page.getByTestId('summary-length-note')
   await expect(note).toHaveCount(0)

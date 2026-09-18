@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('порядок на экране: петли, потом ритм, потом схема (§6, AC 8)', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const fieldsBox = await page.getByTestId('stitch-fields').boundingBox()
   const rhythmBox = await page.getByTestId('rhythm-presets').boundingBox()
@@ -18,7 +18,7 @@ test('порядок на экране: петли, потом ритм, пот�
 })
 
 test('кнопка + у начальных петель двигает число рядов на экране', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const summary = page.getByTestId('summary-panel')
   await expect(summary.getByTestId('summary-total-rows')).toHaveText('19 рядов всего')
@@ -32,7 +32,7 @@ test('кнопка + у начальных петель двигает числ�
 })
 
 test('кнопка − у конечных петель двигает число рядов на экране', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const summary = page.getByTestId('summary-panel')
 
@@ -44,7 +44,7 @@ test('кнопка − у конечных петель двигает числ�
 })
 
 test('несходящийся набор не трогает схему, сходящийся — пересчитывает живьём', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const summary = page.getByTestId('summary-panel')
   const initialInput = page.getByTestId('initial-stitches')
@@ -60,7 +60,7 @@ test('несходящийся набор не трогает схему, схо
 })
 
 test('кромка выбирается из 0 / 1 / 2, дефолт — 1, у двойки подпись «широкий мысок»', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const summary = page.getByTestId('summary-panel')
   await expect(page.getByTestId('edge-1')).toHaveAttribute('aria-pressed', 'true')
@@ -74,7 +74,7 @@ test('кромка выбирается из 0 / 1 / 2, дефолт — 1, у �
 })
 
 test('поля петель несут подсказки словарём спеки', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   // Подсказки пришиты целиком, а не по слову: §4 перечисляет их дословно, и тест —
   // единственное, что держит экран и спеку в одном тексте.
@@ -105,7 +105,7 @@ const STEPPERS = [
 ]
 
 test('кнопки петель показывают свой шаг: \u22124 и +4', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   for (const { minus, plus } of STEPPERS) {
     // Минус — U+2212, а не дефис: знак тот же, что стоял на кнопке до подписи.
@@ -115,7 +115,7 @@ test('кнопки петель показывают свой шаг: \u22124 и
 })
 
 test('подписанные кнопки держат мишень 44 px, ряд с полем не переносится', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   for (const { minus, input, plus } of STEPPERS) {
     const minusBox = (await page.getByTestId(minus).boundingBox())!
@@ -143,7 +143,7 @@ test.describe('своё число петель вписывается, а не 
   test('62 начальных — чётные, но не кратные 4 — считаются и подтягивают конечные к 22', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     const initialInput = page.getByTestId('initial-stitches')
     await initialInput.fill('62')
@@ -156,14 +156,14 @@ test.describe('своё число петель вписывается, а не 
   })
 
   test('подсказка у начальных зовёт вписать своё, а не только жать кнопки', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     await expect(page.getByTestId('initial-hint')).toContainText(
       'своё число вписывается прямо в поле',
     )
   })
 
   test('подсказка у конечных не выдаёт «шаг 4» за набор допустимых значений', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     // «шаг 4: …» остаётся — §4 требует эти числа, — но рядом сказано, что набор ими не кончается.
     await expect(page.getByTestId('final-hint')).toContainText('шаг 4')
     await expect(page.getByTestId('final-hint')).toContainText('своё число вписывается так же')
@@ -172,7 +172,7 @@ test.describe('своё число петель вписывается, а не 
   test('конечные названы петлями круга — на схеме половина, и спутать их легко', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     // Порядок пришит, а не только наличие: числа закрытия идут первыми — за ними
     // к подписи и приходят, — счёт в круге стоит за ними и их не разбавляет (§4).
     await expect(page.getByTestId('final-explainer')).toHaveText(

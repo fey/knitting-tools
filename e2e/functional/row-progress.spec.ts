@@ -12,7 +12,7 @@ import { expect, test } from '@playwright/test'
 const PROGRESS_KEY = 'knitting-tools:toe-progress'
 
 test('первое «Ряд 1 готов» и есть начало — отметка переживает перезагрузку', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 1 из 19')
   await expect(page.getByTestId('row-progress-what')).toHaveText('убавочный 1 из 10 · в круге станет 56')
@@ -29,7 +29,7 @@ test('первое «Ряд 1 готов» и есть начало — отме
 })
 
 test('до первой отметки кручение расчёта не пишет ничего в localStorage', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('final-minus').click() // 20 → 16, ритм пересчитался, отметки не было
   await expect(page.getByTestId('summary-params')).toContainText('60 → 16 петель')
@@ -39,7 +39,7 @@ test('до первой отметки кручение расчёта не пи
 })
 
 test('плашка не прыгает: кнопка отметки стоит на месте при смене ряда', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const markButton = page.getByTestId('row-progress-mark')
   const before = await markButton.boundingBox()
@@ -57,7 +57,7 @@ test('плашка не прыгает: кнопка отметки стоит �
 test('плашка не прыгает: блок растёт вверх — строка подтверждения сброса не двигает кнопку отметки', async ({
   page,
 }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
   await page.getByTestId('row-progress-mark').click() // иначе «Сбросить счёт» заглушена, не откроет подтверждение
 
   const markButton = page.getByTestId('row-progress-mark')
@@ -78,7 +78,7 @@ test('плашка не прыгает: блок растёт вверх — с�
 })
 
 test('отмена «−1» возвращает ряд назад, не уходит ниже нуля', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('row-progress-mark').click()
   await page.getByTestId('row-progress-mark').click()
@@ -94,7 +94,7 @@ test('отмена «−1» возвращает ряд назад, не ухо�
 })
 
 test('отмена с удержанием — автоповтор после задержки уводит счёт дальше одного шага', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   for (let i = 0; i < 5; i++) await page.getByTestId('row-progress-mark').click()
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 6 из 19')
@@ -112,7 +112,7 @@ test('отмена с удержанием — автоповтор после �
 })
 
 test('автоповтор гаснет, даже если мышь отпустили мимо кнопки', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   for (let i = 0; i < 10; i++) await page.getByTestId('row-progress-mark').click()
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 11 из 19')
@@ -142,7 +142,7 @@ test('автоповтор гаснет, даже если мышь отпуст
 })
 
 test('шторка стоит на отмеченном ряду: контур совпадает с текущим рядом', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('row-progress-mark').click()
   await page.getByTestId('row-progress-mark').click()
@@ -152,7 +152,7 @@ test('шторка стоит на отмеченном ряду: контур �
 })
 
 test('сброс: кнопка заглушена, пока сбрасывать нечего, требует подтверждения', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const reset = page.getByTestId('reset-progress')
   await expect(reset).toBeDisabled()
@@ -188,7 +188,7 @@ test('не совпал paramsKey — прогресса нет, схема чи
   // Явный hash — приоритет hash → localStorage (§10.3) не даёт сохранённым 60 → 16
   // стать расчётом на экране; на экране дефолт 60 → 20, а сохранённый paramsKey
   // остаётся про другой расчёт — прогресс не восстанавливается.
-  await page.goto('./#s=60&e=20&k=1&r=even')
+  await page.goto('./toe-band/#s=60&e=20&k=1&r=even')
 
   await expect(page.getByTestId('summary-params')).toContainText('60 → 20 петель')
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 1 из 19')
@@ -196,7 +196,7 @@ test('не совпал paramsKey — прогресса нет, схема чи
 })
 
 test('смена расчёта на ходу номер ряда сохраняет, пока рядов хватает', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   for (let i = 0; i < 15; i++) await page.getByTestId('row-progress-mark').click()
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 16 из 19')
@@ -208,7 +208,7 @@ test('смена расчёта на ходу номер ряда сохраня
 })
 
 test('смена расчёта на ходу: рядов стало меньше отмеченных — номер подтягивается к последнему', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   for (let i = 0; i < 15; i++) await page.getByTestId('row-progress-mark').click()
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 16 из 19')
@@ -231,7 +231,7 @@ test('правка петель чинит пару целиком — ряд п
     { key: PROGRESS_KEY, value: JSON.stringify({ paramsKey: 's=100&e=60&k=1&r=even', row: 15 }) },
   )
 
-  await page.goto('./#s=100&e=60&k=1&r=even')
+  await page.goto('./toe-band/#s=100&e=60&k=1&r=even')
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 16 из 19')
 
   // Начальные 40 при конечных 60 не сходятся: починка приносит пару целиком, 40 → 36.
@@ -253,14 +253,14 @@ test('правка петель чинит пару целиком — ряд п
 test('чистый заход открывается сверху, на вводке — прокручивать не к чему', async ({ page }) => {
   // Ничего не отмечено, значит и подъезжать некуда: первый экран обязан начинаться
   // с текста, ради которого порядок экрана и переставлен (§6).
-  await page.goto('./')
+  await page.goto('./toe-band/')
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
   await expect(page.getByTestId('intro')).toBeInViewport()
 })
 
 test('страница один раз подъезжает к текущему ряду при открытии — на длинном мыске', async ({ page }) => {
   // 140 → 16, через ряд: N = 31, even даёт 2N−1 = 61 рядов, пиксельная высота 61×22 = 1342.
-  await page.goto('./#s=140&e=16&k=1&r=even')
+  await page.goto('./toe-band/#s=140&e=16&k=1&r=even')
   for (let i = 0; i < 10; i++) await page.getByTestId('row-progress-mark').click()
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 11 из 61')
 
@@ -292,7 +292,7 @@ test('страница один раз подъезжает к текущему 
 })
 
 test('прогресс в ссылку не попадает никогда', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('row-progress-mark').click()
   await page.getByTestId('row-progress-mark').click()

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('дефолт — «через ряд», выбран и несёт 19 рядов в подписи', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const even = page.getByTestId('preset-even')
   await expect(even).toHaveAttribute('aria-pressed', 'true')
@@ -9,7 +9,7 @@ test('дефолт — «через ряд», выбран и несёт 19 ря
 })
 
 test('живое число рядов у карточки двигается вместе с петлями, без выбора карточки', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   // 60 → 16 даёт N = 11: «через ряд» — 21 ряд, «с ускорением» — 17, «по третям» — 20, «с разгоном» — 21.
   await page.getByTestId('final-minus').click()
@@ -26,7 +26,7 @@ test('живое число рядов у карточки двигается в
 test('карточка «с разгоном» гасится с причиной при недостатке убавочных рядов и не выбирается кликом', async ({
   page,
 }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   // 60 → 52: N = 2, у «с разгоном» нужно 5.
   await page.getByTestId('final-plus').click()
@@ -53,7 +53,7 @@ test('карточка «с разгоном» гасится с причино�
 test('выбор не откатывается сам, если петли сузили N ниже минимума: карточка гасится, но остаётся выбранной', async ({
   page,
 }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   // N = 10 у дефолта — «с разгоном» собирается (min 5), выбираем его.
   await page.getByTestId('preset-ramp').click()
@@ -75,7 +75,7 @@ test('выбор не откатывается сам, если петли су�
 })
 
 test('выбор карточки «с ускорением» меняет ритм и число рядов в итоге', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const totalRows = page.getByTestId('summary-panel').getByTestId('summary-total-rows')
   await expect(totalRows).toHaveText('19 рядов всего')

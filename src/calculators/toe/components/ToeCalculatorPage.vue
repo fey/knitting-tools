@@ -1,7 +1,10 @@
 <script setup lang="ts">
 /**
- * Оболочка страницы. Порядок блоков — из спеки §6: шапка, заголовок, вводка, ручки
- * расчёта, схема, итог.
+ * Страница калькулятора ленточного мыска — подстраница `/toe-band/` (§11). Корень сайта
+ * занят витриной разделов, и калькулятор стоит своим входом многостраничной сборки:
+ * роутера нет, hash целиком остаётся параметрам расчёта (§10.1).
+ *
+ * Порядок блоков — из спеки §6: шапка, заголовок, вводка, ручки расчёта, схема, итог.
  * Схема стоит **под** ручками (§14 отменил обратный порядок): открытая страница обязана
  * сперва сказать, что это за инструмент и куда нажимать, а сетка значков этого не говорит.
  * Плашка прогресса прибита к низу экрана.
@@ -26,16 +29,16 @@
  * страница становится одноколоночной на любой ширине, и схема забирает всё место.
  */
 import { ref } from 'vue'
-import ToeChart from './calculators/toe/components/ToeChart.vue'
-import IntroNote from './calculators/toe/components/IntroNote.vue'
-import RhythmPresets from './calculators/toe/components/RhythmPresets.vue'
-import RhythmBuilder from './calculators/toe/components/RhythmBuilder.vue'
-import StitchFields from './calculators/toe/components/StitchFields.vue'
-import SummaryPanel from './calculators/toe/components/SummaryPanel.vue'
-import RowProgressBar from './calculators/toe/components/RowProgressBar.vue'
-import ShareButton from './calculators/toe/components/ShareButton.vue'
-import AppHeader from './shared/AppHeader.vue'
-import FeedbackButton from './shared/feedback/FeedbackButton.vue'
+import ToeChart from './ToeChart.vue'
+import IntroNote from './IntroNote.vue'
+import RhythmPresets from './RhythmPresets.vue'
+import RhythmBuilder from './RhythmBuilder.vue'
+import StitchFields from './StitchFields.vue'
+import SummaryPanel from './SummaryPanel.vue'
+import RowProgressBar from './RowProgressBar.vue'
+import ShareButton from './ShareButton.vue'
+import AppHeader from '../../../shared/AppHeader.vue'
+import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
 
 /**
  * Ручки расчёта прячутся кнопкой (§6.2): досчитав, по схеме вяжут, и панель настроек
@@ -61,6 +64,13 @@ const settingsHidden = ref(false)
          между `mousedown` и `mouseup` одного касания. В шапке над всем содержимым
          её не двигает ничто. -->
     <AppHeader>
+      <!-- Слева — возврат к витрине (§6.4): резерв левого края занят ровно этим.
+           Адрес относительный, на страницу выше. -->
+      <template #nav>
+        <a class="text-sm text-slate-700" href="../" data-testid="back-to-home">
+          ← Калькуляторы
+        </a>
+      </template>
       <ShareButton />
       <FeedbackButton />
     </AppHeader>
@@ -71,7 +81,7 @@ const settingsHidden = ref(false)
     <main
       class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-4 pb-56 min-[800px]:max-w-3xl min-[1240px]:max-w-[1400px]"
     >
-      <h1 class="text-xl font-semibold">Калькулятор мыска носка</h1>
+      <h1 class="text-xl font-semibold">Ленточный мысок носка</h1>
 
       <!-- Кнопка «Убрать настройки» стоит в строке кнопки вводки (§6.1): блок вводки
            меняет ширину, и кнопка, поставленная рядом с ним, ездила бы вбок вместе

@@ -30,7 +30,7 @@ async function openDialog(page: Page): Promise<void> {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 })
 
 test('кнопка стоит в шапке и открывает диалог', async ({ page }) => {
@@ -39,7 +39,7 @@ test('кнопка стоит в шапке и открывает диалог',
 
   // Шапка — над заголовком, кнопки к расчёту не относятся (§6.4).
   const header = await page.getByTestId('app-header').boundingBox()
-  const title = await page.getByRole('heading', { name: 'Калькулятор мыска носка' }).boundingBox()
+  const title = await page.getByRole('heading', { name: 'Ленточный мысок носка' }).boundingBox()
   expect(header!.y + header!.height).toBeLessThanOrEqual(title!.y)
 
   await openDialog(page)
@@ -132,7 +132,7 @@ test('отправка уносит сообщение, контакт и пол
   expect(bodies[0]).toContain('схема врёт на 84 петлях')
   expect(bodies[0]).toContain('почта для ответа')
   // Полным адресом, а не голым hash: по ссылке кликают прямо из таблицы ответов.
-  expect(bodies[0]).toContain('/knitting-tools/#s=60&e=20&k=1&r=even')
+  expect(bodies[0]).toContain('/knitting-tools/toe-band/#s=60&e=20&k=1&r=even')
 
   // Черновик стёрт: отправленное больше не всплывает.
   await page.getByTestId('feedback-done').click()

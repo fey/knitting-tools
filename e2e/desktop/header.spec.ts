@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test'
  */
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 })
 
 test('полоса идёт во всю ширину окна, а кнопки держат меру страницы', async ({ page }) => {
@@ -26,23 +26,26 @@ test('полоса идёт во всю ширину окна, а кнопки �
   expect(Math.abs(last!.x + last!.width - (grid!.x + grid!.width))).toBeLessThan(2)
 })
 
-test('кнопки прижаты вправо — левый край полосы пуст под то, что встанет там потом', async ({
-  page,
-}) => {
-  const header = await page.getByTestId('app-header').boundingBox()
+test('слева возврат к витрине, кнопки прижаты вправо (§6.4)', async ({ page }) => {
+  const back = await page.getByTestId('back-to-home').boundingBox()
+  const grid = await page.getByTestId('layout-grid').boundingBox()
   const share = await page.getByTestId('share-button').boundingBox()
   const feedback = await page.getByTestId('feedback-button').boundingBox()
 
-  // «Поделиться» первой, «Оставить отзыв» второй.
+  // Резерв левого края занят возвратом к витрине, и стоит он по мере страницы,
+  // а не по краю окна.
+  expect(Math.abs(back!.x - grid!.x)).toBeLessThan(2)
+
+  // «Поделиться» первой, «Оставить отзыв» второй, и обе — правее возврата,
+  // с пустотой между ними больше половины полосы.
   expect(share!.x).toBeLessThan(feedback!.x)
-  // Слева от первой кнопки — больше половины полосы пустоты.
-  expect(share!.x - header!.x).toBeGreaterThan(header!.width / 2)
+  expect(share!.x - (back!.x + back!.width)).toBeGreaterThan(grid!.width / 2)
 })
 
 test('шапка стоит над заголовком и уезжает при прокрутке — она не липнет (§6.4)', async ({
   page,
 }) => {
-  const title = await page.getByRole('heading', { name: 'Калькулятор мыска носка' }).boundingBox()
+  const title = await page.getByRole('heading', { name: 'Ленточный мысок носка' }).boundingBox()
   const before = await page.getByTestId('app-header').boundingBox()
   expect(before!.y + before!.height).toBeLessThanOrEqual(title!.y)
 

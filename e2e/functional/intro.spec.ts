@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test'
 // нажимать». Ради неё порядок экрана переставлен: схема, стоявшая первой, уехала под ручки.
 
 test('вводка стоит первой и видна без прокрутки', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const intro = page.getByTestId('intro')
   await expect(intro).toBeVisible()
@@ -18,7 +18,7 @@ test('вводка стоит первой и видна без прокрутк
 test('вводка называет конструкцию и её границу — настройку, которой нет, не ищут', async ({
   page,
 }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const intro = page.getByTestId('intro')
   await expect(intro).toContainText('ленточный мысок')
@@ -29,7 +29,7 @@ test('вводка называет конструкцию и её границ�
 })
 
 test('вводка не несёт живых чисел — они живут у ручек, которые их меняют', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   // Дефолт 60 → 20 даёт 19 рядов; ни одно из этих чисел во вводке стоять не должно,
   // иначе на экране появится второй источник правды рядом с «Итогом» и подписью ритма.
@@ -38,7 +38,7 @@ test('вводка не несёт живых чисел — они живут �
 })
 
 test('кромка объясняется подписью у своей ручки, а не во вводке', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const explainer = page.getByTestId('edge-explainer')
   await expect(explainer).toContainText('с краю половины до места убавки')
@@ -54,7 +54,7 @@ test('кромка объясняется подписью у своей руч�
 test('вводка называет половины круга и связь с четырьмя петлями убавочного ряда', async ({
   page,
 }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   // Тикет #13: «круг делится пополам» без имён половин не объясняет ни того, почему
   // на схеме одна половина, ни почему убавочный ряд снимает 4 петли, а не 2. Модель
@@ -71,7 +71,7 @@ test('вводка называет половины круга и связь с
 // в `localStorage` (§10.2), отдельной от прогресса.
 
 test('вводка открывается развёрнутой, кнопка внизу её сворачивает', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const body = page.getByTestId('intro-body')
   const collapse = page.getByTestId('intro-collapse')
@@ -101,7 +101,7 @@ test('вводка открывается развёрнутой, кнопка �
 })
 
 test('строка-кнопка разворачивает вводку обратно', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('intro-collapse').click()
   await expect(page.getByTestId('intro-body')).toBeHidden()
@@ -114,7 +114,7 @@ test('строка-кнопка разворачивает вводку обра
 })
 
 test('свёрнутость переживает перезагрузку', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
   await page.getByTestId('intro-collapse').click()
 
   await page.reload()
@@ -129,7 +129,7 @@ test('свёрнутость переживает перезагрузку', asy
 })
 
 test('свёрнутость не попадает в hash и не сбрасывается сменой расчёта', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
   await page.getByTestId('intro-collapse').click()
 
   // Прогресс привязан к расчёту, свёрнутость — к человеку: смена петель её не трогает.
@@ -153,7 +153,7 @@ test('недоступное localStorage не роняет страницу —
     })
   })
 
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await expect(page.getByTestId('intro-body')).toBeVisible()
   await expect(page.getByTestId('intro-collapse')).toBeVisible()

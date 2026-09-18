@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test'
 // они: вводка и «Итог» остаются, у вводки своя кнопка (§6.1).
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 })
 
 test('кнопка убирает ручки и возвращает их', async ({ page }) => {
