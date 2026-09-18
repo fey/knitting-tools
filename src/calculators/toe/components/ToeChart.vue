@@ -417,83 +417,83 @@ onUnmounted(() => {
             style="display: block"
             data-testid="toe-chart-svg"
           >
-          <template v-for="layer in grid" :key="layer.row.n">
-            <rect
-              v-for="cell in layer.cells"
-              :key="`cell-${layer.row.n}-${cell.j}`"
-              :x="cell.j"
-              :y="layer.y"
-              width="1"
-              height="1"
-              :fill="cell.fill"
-              :stroke="cell.stroke"
-              :stroke-width="cell.strokeWidth"
-              :data-row="layer.row.n"
-              :data-col="cell.j"
-              :data-empty="cell.empty ? '' : null"
-            />
+            <template v-for="layer in grid" :key="layer.row.n">
+              <rect
+                v-for="cell in layer.cells"
+                :key="`cell-${layer.row.n}-${cell.j}`"
+                :x="cell.j"
+                :y="layer.y"
+                width="1"
+                height="1"
+                :fill="cell.fill"
+                :stroke="cell.stroke"
+                :stroke-width="cell.strokeWidth"
+                :data-row="layer.row.n"
+                :data-col="cell.j"
+                :data-empty="cell.empty ? '' : null"
+              />
+              <line
+                v-for="stitch in layer.stitches"
+                :key="`stitch-${layer.row.n}-${stitch.j}`"
+                :x1="stitch.line.x1"
+                :y1="stitch.line.y1"
+                :x2="stitch.line.x2"
+                :y2="stitch.line.y2"
+                :stroke="CHART_COLORS.stitchStroke"
+                :stroke-width="CHART_STROKE.stitch"
+                stroke-linecap="round"
+                :data-row="layer.row.n"
+                :data-col="stitch.j"
+                :data-stitch="stitch.p"
+                data-symbol="stitch"
+              />
+              <polygon
+                v-for="dec in layer.decorations"
+                :key="`dec-${layer.row.n}-${dec.j}`"
+                :points="dec.points"
+                :fill="CHART_COLORS.decorFill"
+                :data-row="layer.row.n"
+                :data-col="dec.j"
+                :data-stitch="dec.p"
+                :data-symbol="`dec-${dec.dir}`"
+              />
+            </template>
+
             <line
-              v-for="stitch in layer.stitches"
-              :key="`stitch-${layer.row.n}-${stitch.j}`"
-              :x1="stitch.line.x1"
-              :y1="stitch.line.y1"
-              :x2="stitch.line.x2"
-              :y2="stitch.line.y2"
-              :stroke="CHART_COLORS.stitchStroke"
-              :stroke-width="CHART_STROKE.stitch"
-              stroke-linecap="round"
-              :data-row="layer.row.n"
-              :data-col="stitch.j"
-              :data-stitch="stitch.p"
-              data-symbol="stitch"
+              v-for="x in guideLines"
+              :key="`guide-${x}`"
+              :x1="x"
+              y1="0"
+              :x2="x"
+              :y2="viewHeight"
+              :stroke="CHART_COLORS.guideLine"
+              :stroke-width="CHART_STROKE.guideLine"
+              data-testid="toe-chart-guide"
+              :data-x="x"
             />
-            <polygon
-              v-for="dec in layer.decorations"
-              :key="`dec-${layer.row.n}-${dec.j}`"
-              :points="dec.points"
-              :fill="CHART_COLORS.decorFill"
-              :data-row="layer.row.n"
-              :data-col="dec.j"
-              :data-stitch="dec.p"
-              :data-symbol="`dec-${dec.dir}`"
+            <rect
+              x="0"
+              y="0"
+              :width="cols"
+              :height="viewHeight"
+              fill="none"
+              :stroke="CHART_COLORS.guideLine"
+              :stroke-width="CHART_STROKE.gridBorder"
             />
-          </template>
 
-          <line
-            v-for="x in guideLines"
-            :key="`guide-${x}`"
-            :x1="x"
-            y1="0"
-            :x2="x"
-            :y2="viewHeight"
-            :stroke="CHART_COLORS.guideLine"
-            :stroke-width="CHART_STROKE.guideLine"
-            data-testid="toe-chart-guide"
-            :data-x="x"
-          />
-          <rect
-            x="0"
-            y="0"
-            :width="cols"
-            :height="viewHeight"
-            fill="none"
-            :stroke="CHART_COLORS.guideLine"
-            :stroke-width="CHART_STROKE.gridBorder"
-          />
-
-          <!-- Контур текущего ряда (тикет #9, §8) — часть содержимого схемы, поэтому
-               переживает и горизонтальную, и вертикальную прокрутку сама, без JS. -->
-          <rect
-            v-if="hasCurrentRow"
-            x="0"
-            :y="currentRowY"
-            :width="cols"
-            height="1"
-            fill="none"
-            :stroke="SHUTTER_ACCENT"
-            stroke-width="0.12"
-            data-testid="toe-chart-current-row"
-          />
+            <!-- Контур текущего ряда (тикет #9, §8) — часть содержимого схемы, поэтому
+                 переживает и горизонтальную, и вертикальную прокрутку сама, без JS. -->
+            <rect
+              v-if="hasCurrentRow"
+              x="0"
+              :y="currentRowY"
+              :width="cols"
+              height="1"
+              fill="none"
+              :stroke="SHUTTER_ACCENT"
+              stroke-width="0.12"
+              data-testid="toe-chart-current-row"
+            />
           </svg>
 
           <!-- Полоса номеров рядов (§7 «номера рядов справа»). Прилипает к правому краю
