@@ -31,16 +31,18 @@ test('слева возврат к витрине, кнопки прижаты �
   const grid = await page.getByTestId('layout-grid').boundingBox()
   const share = await page.getByTestId('share-button').boundingBox()
   const feedback = await page.getByTestId('feedback-button').boundingBox()
+  const source = await page.getByTestId('source-link').boundingBox()
   const channel = await page.getByTestId('channel-link').boundingBox()
 
   // Резерв левого края занят возвратом к витрине, и стоит он по мере страницы,
   // а не по краю окна.
   expect(Math.abs(back!.x - grid!.x)).toBeLessThan(2)
 
-  // «Поделиться» первой, «Оставить отзыв» второй, канал последним, и все — правее
-  // возврата, с пустотой между ним и рядом больше половины полосы.
+  // «Поделиться» первой, «Оставить отзыв» второй, значок кода предпоследним, канал
+  // последним, и все — правее возврата, с пустотой между ним и рядом больше половины полосы.
   expect(share!.x).toBeLessThan(feedback!.x)
-  expect(feedback!.x).toBeLessThan(channel!.x)
+  expect(feedback!.x).toBeLessThan(source!.x)
+  expect(source!.x).toBeLessThan(channel!.x)
   expect(share!.x - (back!.x + back!.width)).toBeGreaterThan(grid!.width / 2)
 })
 
