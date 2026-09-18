@@ -29,10 +29,22 @@ import StitchFields from './calculators/toe/components/StitchFields.vue'
 import SummaryPanel from './calculators/toe/components/SummaryPanel.vue'
 import RowProgressBar from './calculators/toe/components/RowProgressBar.vue'
 import ShareButton from './calculators/toe/components/ShareButton.vue'
+
+// ПРОТОТИП (ветка proto/chart-fullscreen): варианты «только схема» на `?variant=`.
+// В main это не едет — гейт на `import.meta.env.DEV`.
+import { prototypeOn, variant } from './calculators/toe/prototype/variant'
+import PrototypeSwitcher from './calculators/toe/prototype/PrototypeSwitcher.vue'
+import VariantA from './calculators/toe/prototype/VariantA.vue'
+import VariantB from './calculators/toe/prototype/VariantB.vue'
+import VariantC from './calculators/toe/prototype/VariantC.vue'
 </script>
 
 <template>
-  <div class="min-h-screen bg-white text-slate-900">
+  <PrototypeSwitcher v-if="prototypeOn" />
+  <VariantA v-if="prototypeOn && variant === 'A'" />
+  <VariantB v-else-if="prototypeOn && variant === 'B'" />
+  <VariantC v-else-if="prototypeOn && variant === 'C'" />
+  <div v-else class="min-h-screen bg-white text-slate-900">
     <!-- Запас снизу — под полосу прогресса и сброса, прибитую к низу экрана (тикет #9):
          дока растёт вверх, а не вниз, но место под неё в потоке страницы резервируется
          заранее, иначе последний блок на части экранов уезжает под полосу. -->

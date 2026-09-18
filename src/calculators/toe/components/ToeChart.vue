@@ -398,6 +398,8 @@ onUnmounted(() => {
            а не масштабом. Знак ушёл внутрь лупы (§7). Текста на кнопке нет вовсе — имя
            держится на `aria-label`, значок от читалки спрятан. -->
       <div class="flex shrink-0 items-center gap-1" data-testid="toe-chart-zoom">
+        <!-- ПРОТОТИП: место под кнопку «только схема», в main не едет. -->
+        <slot name="actions" />
         <button
           v-for="button in zoomButtons"
           :key="button.testId"
