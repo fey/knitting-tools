@@ -24,9 +24,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Мажор тот же, на котором гоняют локально: разойдись раннер с локалью
+      # версией ноды — и зелёный прогон здесь перестал бы что-либо обещать там.
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
 
       - name: Установка зависимостей
