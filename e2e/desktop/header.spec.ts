@@ -20,8 +20,8 @@ test('полоса идёт во всю ширину окна, а кнопки �
   // во всю ширину, но кнопки внутри неё стоят по той же мере, что ручки и схема.
   // Мера берётся по сетке раскладки, а не по самой схеме: схема уже колонки встаёт
   // по центру (§7), и её правый край мерой страницы не является.
-  // Правый край держит последняя кнопка ряда — ссылка на канал (§6.4).
-  const last = await page.getByTestId('channel-link').boundingBox()
+  // Правый край держит замыкающий ряд значок исходного кода (§6.4).
+  const last = await page.getByTestId('source-link').boundingBox()
   const grid = await page.getByTestId('layout-grid').boundingBox()
   expect(Math.abs(last!.x + last!.width - (grid!.x + grid!.width))).toBeLessThan(2)
 })
@@ -38,11 +38,11 @@ test('слева возврат к витрине, кнопки прижаты �
   // а не по краю окна.
   expect(Math.abs(back!.x - grid!.x)).toBeLessThan(2)
 
-  // «Поделиться» первой, «Оставить отзыв» второй, значок кода предпоследним, канал
-  // последним, и все — правее возврата, с пустотой между ним и рядом больше половины полосы.
+  // «Поделиться» первой, «Оставить отзыв» второй, канал третьим, значок кода замыкающим,
+  // и все — правее возврата, с пустотой между ним и рядом больше половины полосы.
   expect(share!.x).toBeLessThan(feedback!.x)
-  expect(feedback!.x).toBeLessThan(source!.x)
-  expect(source!.x).toBeLessThan(channel!.x)
+  expect(feedback!.x).toBeLessThan(channel!.x)
+  expect(channel!.x).toBeLessThan(source!.x)
   expect(share!.x - (back!.x + back!.width)).toBeGreaterThan(grid!.width / 2)
 })
 
