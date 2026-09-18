@@ -91,6 +91,12 @@ test('вводка открывается развёрнутой, кнопка �
   await expect(expand).toBeVisible()
   await expect(expand).toHaveText('Как этим пользоваться')
   await expect(expand).toBeInViewport()
+
+  // Порядок экрана свёрнутая вводка не ломает (§12.2 п.7): строка-кнопка встаёт
+  // ровно на её место — выше полей петель, а не куда-нибудь под схему.
+  const expandBox = (await expand.boundingBox())!
+  const fieldsBox = (await page.getByTestId('stitch-fields').boundingBox())!
+  expect(expandBox.y).toBeLessThan(fieldsBox.y)
 })
 
 test('строка-кнопка разворачивает вводку обратно', async ({ page }) => {
