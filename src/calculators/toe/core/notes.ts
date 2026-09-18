@@ -19,6 +19,16 @@ export const SHORT_TOE_ROWS = 12
 /** Мысок длиннее этого — замечание о длинном мыске (§9.6). */
 export const LONG_TOE_ROWS = 30
 
+/**
+ * Тот же коридор в сантиметрах (§9.6, тикет #27). Коридор в рядах — **сам перевод**:
+ * спека выводит его из «мысок ≈ 20 % длины стопы» по носочной плотности
+ * 40–44 ряда / 10 см. Когда плотность известна, гадать больше не о чем, и замечание
+ * меряет напрямую; числа получены обратным переводом тех же границ по середине
+ * коридора, 42 ряда / 10 см: 12 ÷ 4,2 ≈ 3 и 30 ÷ 4,2 ≈ 7.
+ */
+export const SHORT_TOE_CM = 3
+export const LONG_TOE_CM = 7
+
 export type CoverageNote = {
   /** `ok` — сегменты покрывают `N`; `lack` — недобор; `excess` — перебор. */
   kind: 'ok' | 'lack' | 'excess'
@@ -60,5 +70,20 @@ export function coverageNote(
 export function lengthNote(totalRows: number): string | null {
   if (totalRows < SHORT_TOE_ROWS) return `Меньше ${SHORT_TOE_ROWS} рядов — мысок выйдет тупым`
   if (totalRows > LONG_TOE_ROWS) return `Больше ${LONG_TOE_ROWS} рядов — мысок выйдет длинным, проверь ритм`
+  return null
+}
+
+/**
+ * То же замечание, но в сантиметрах — когда плотность вписана (§9.6, тикет #27).
+ * Замечание остаётся замечанием: не красным, ничего не запрещает, расчёт
+ * не придерживает.
+ *
+ * Отдельная функция, а не флаг у `lengthNote`: без плотности сантиметров нет вовсе,
+ * и подставлять в неё предполагаемую значило бы вернуть ровно то допущение, которое
+ * известная плотность и снимает.
+ */
+export function lengthNoteCm(lengthCm: number): string | null {
+  if (lengthCm < SHORT_TOE_CM) return `Меньше ${SHORT_TOE_CM} см — мысок выйдет тупым`
+  if (lengthCm > LONG_TOE_CM) return `Больше ${LONG_TOE_CM} см — мысок выйдет длинным, проверь ритм`
   return null
 }
