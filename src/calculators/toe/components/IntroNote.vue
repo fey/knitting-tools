@@ -38,16 +38,23 @@
 import { useToeCalculator } from '../useToeCalculator'
 
 const { introCollapsed, toggleIntro } = useToeCalculator()
+
+/**
+ * Свернуть и развернуть — один переключатель в двух видах, поэтому и вид у кнопок
+ * один: мишень 44 px, как у прочих кнопок экрана. Свернувший вводку возвращается
+ * к ней тем же пальцем, каким свернул.
+ */
+const TOGGLE_CLASS = 'flex h-11 items-center self-start rounded border border-slate-300 px-3 text-sm text-slate-700'
 </script>
 
 <template>
   <section class="flex max-w-[42rem] flex-col gap-2 text-sm text-slate-600" data-testid="intro">
-    <!-- Свёрнутая вводка — одна строка-кнопка на её месте. Мишень 44 px, как у прочих
-         кнопок экрана: свернувший вводку возвращается к ней тем же пальцем. -->
+    <!-- Свёрнутая вводка — одна строка-кнопка на её месте. Прятать её нельзя:
+         выход из свёрнутого состояния всегда на виду (§6.1). -->
     <button
       v-if="introCollapsed"
       type="button"
-      class="flex h-11 items-center self-start rounded border border-slate-300 px-3 text-sm text-slate-700"
+      :class="TOGGLE_CLASS"
       data-testid="intro-expand"
       @click="toggleIntro"
     >
@@ -77,7 +84,7 @@ const { introCollapsed, toggleIntro } = useToeCalculator()
 
       <button
         type="button"
-        class="flex h-11 items-center self-start rounded border border-slate-300 px-3 text-sm text-slate-700"
+        :class="TOGGLE_CLASS"
         data-testid="intro-collapse"
         @click="toggleIntro"
       >
