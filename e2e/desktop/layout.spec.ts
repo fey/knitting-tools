@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
-// §6: от 1240 px страница раскладывается в две колонки — слева ручки и «Итог», справа
-// схема. Вьюпорт проекта 1280×900. Порог считается от ширины схемы: дефолтный расчёт
+// §6: от 1240 px страница раскладывается в две колонки — слева ручки, справа схема
+// и «Итог» под ней. Вьюпорт проекта 1280×900. Порог считается от ширины схемы: дефолтный расчёт
 // 60 → 20 — это схема в 702 px (сетка 660 плюс полоса номеров 42), и две колонки честны
 // только там, где она встаёт целиком.
 
@@ -36,14 +36,32 @@ test('ручки слева, схема справа — путь глазом �
   expect(Math.abs(chart!.y - controls!.y)).toBeLessThan(2)
 })
 
-test('«Итог» уходит под ручки, в левую колонку', async ({ page }) => {
+test('«Итог» стоит под схемой, в правой колонке (§6.2)', async ({ page }) => {
   const controls = await page.getByTestId('controls-column').boundingBox()
   const summary = await page.getByTestId('summary-panel').boundingBox()
   const chart = await page.getByTestId('toe-chart').boundingBox()
 
-  expect(Math.abs(summary!.x - controls!.x)).toBeLessThan(2)
-  expect(summary!.y).toBeGreaterThan(controls!.y)
-  expect(summary!.x).toBeLessThan(chart!.x)
+  // «Итог» про то, что нарисовано выше, и живёт в колонке схемы: с убранными ручками
+  // он остаётся на экране, а в левой колонке уехал бы вместе с ними.
+  expect(Math.abs(summary!.x - chart!.x)).toBeLessThan(2)
+  expect(summary!.y).toBeGreaterThan(chart!.y)
+  expect(summary!.x).toBeGreaterThan(controls!.x + controls!.width - 1)
+})
+
+test('убранные ручки снимают левую колонку — схема забирает всю ширину (§6.2)', async ({ page }) => {
+  const wide = await page.getByTestId('toe-chart').boundingBox()
+
+  await page.getByTestId('toggle-settings').click()
+
+  await expect(page.getByTestId('controls-column')).toHaveCount(0)
+  const full = await page.getByTestId('toe-chart').boundingBox()
+  // Схема встаёт на всю страницу, а не остаётся в своей колонке рядом с пустым местом.
+  expect(full!.width).toBeGreaterThan(wide!.width + 300)
+  expect(full!.x).toBeLessThan(wide!.x)
+
+  // Вводка и «Итог» кнопкой настроек не трогаются.
+  await expect(page.getByTestId('intro-body')).toBeVisible()
+  await expect(page.getByTestId('summary-panel')).toBeVisible()
 })
 
 test('на дефолтном расчёте схема помещается в колонку без горизонтальной прокрутки', async ({

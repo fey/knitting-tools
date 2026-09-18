@@ -17,10 +17,14 @@
  * Телефонный порядок сверху вниз не меняется ни на одном шаге.
  *
  * Порядок в DOM — телефонный (ручки → схема → итог), а десктопная раскладка получается
- * явной расстановкой по клеткам грида: «Итог» уходит под ручки в левую колонку, схема
- * занимает правую целиком. Переставлять сам DOM ради десктопа нельзя — порядок чтения
- * с клавиатуры и голосом обязан совпадать с телефонным.
+ * явной расстановкой по клеткам грида: слева ручки, справа схема и «Итог» под ней.
+ * Переставлять сам DOM ради десктопа нельзя — порядок чтения с клавиатуры и голосом
+ * обязан совпадать с телефонным.
+ *
+ * **Ручки прячутся кнопкой (§6.2).** Убранные, они снимают левую колонку целиком:
+ * страница становится одноколоночной на любой ширине, и схема забирает всё место.
  */
+import { ref } from 'vue'
 import ToeChart from './calculators/toe/components/ToeChart.vue'
 import IntroNote from './calculators/toe/components/IntroNote.vue'
 import RhythmPresets from './calculators/toe/components/RhythmPresets.vue'
@@ -29,6 +33,17 @@ import StitchFields from './calculators/toe/components/StitchFields.vue'
 import SummaryPanel from './calculators/toe/components/SummaryPanel.vue'
 import RowProgressBar from './calculators/toe/components/RowProgressBar.vue'
 import ShareButton from './calculators/toe/components/ShareButton.vue'
+
+/**
+ * Ручки расчёта прячутся кнопкой (§6.2): досчитав, по схеме вяжут, и панель настроек
+ * на экране больше не нужна. Прячутся **только ручки** — вводка и «Итог» остаются,
+ * у вводки своя кнопка (§6.1).
+ *
+ * Состояние экрана, не расчёта: как и масштаб схемы (§7), в hash не попадает и
+ * в `localStorage` не хранится — страница открывается с показанными настройками
+ * всегда, и делятся расчётом, а не тем, свернул ли отправитель панель.
+ */
+const settingsHidden = ref(false)
 </script>
 
 <template>
@@ -48,13 +63,34 @@ import ShareButton from './calculators/toe/components/ShareButton.vue'
         <ShareButton />
       </header>
 
-      <IntroNote />
+      <!-- Кнопка «Убрать настройки» стоит в строке кнопки вводки (§6.1): блок вводки
+           меняет ширину, и кнопка, поставленная рядом с ним, ездила бы вбок вместе
+           с его правым краем. -->
+      <IntroNote>
+        <template #aside>
+          <button
+            type="button"
+            class="flex h-11 items-center rounded border border-slate-300 px-3 text-sm text-slate-700"
+            data-testid="toggle-settings"
+            @click="settingsHidden = !settingsHidden"
+          >
+            {{ settingsHidden ? 'Показать настройки' : 'Убрать настройки' }}
+          </button>
+        </template>
+      </IntroNote>
 
+      <!-- Убранные настройки снимают вторую колонку целиком: схеме отдаётся вся
+           ширина страницы, а не 1fr рядом с пустыми 400 px. -->
       <div
-        class="flex flex-col gap-4 min-[1240px]:grid min-[1240px]:grid-cols-[400px_minmax(0,1fr)] min-[1240px]:items-start min-[1240px]:gap-6"
+        :class="
+          settingsHidden
+            ? 'flex flex-col gap-4'
+            : 'flex flex-col gap-4 min-[1240px]:grid min-[1240px]:grid-cols-[400px_minmax(0,1fr)] min-[1240px]:items-start min-[1240px]:gap-6'
+        "
         data-testid="layout-grid"
       >
         <div
+          v-if="!settingsHidden"
           class="flex flex-col gap-4 min-[1240px]:col-start-1 min-[1240px]:row-start-1"
           data-testid="controls-column"
         >
@@ -63,11 +99,15 @@ import ShareButton from './calculators/toe/components/ShareButton.vue'
           <RhythmBuilder />
         </div>
 
-        <ToeChart
-          class="min-[1240px]:col-start-2 min-[1240px]:row-start-1 min-[1240px]:row-span-2"
-        />
-
-        <SummaryPanel class="min-[1240px]:col-start-1 min-[1240px]:row-start-2" />
+        <!-- «Итог» — часть блока схемы и идёт прямо под ней (§6.2): он говорит про
+             то, что нарисовано выше, и с убранными ручками никуда не девается. -->
+        <div
+          class="flex flex-col gap-4 min-[1240px]:col-start-2 min-[1240px]:row-start-1"
+          data-testid="chart-column"
+        >
+          <ToeChart />
+          <SummaryPanel />
+        </div>
       </div>
     </main>
 

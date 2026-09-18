@@ -19,6 +19,9 @@
  * Масштаб — состояние экрана, а не расчёта: в hash не попадает (§10.5) и в `localStorage`
  * не хранится, схема открывается на дефолтном шаге всегда.
  *
+ * **Подпись над схемой несёт числа расчёта** (§7) — «60 → 20 петель · кромка 1 · 19 рядов».
+ * Ручки прячутся кнопкой (§6.2), и схема обязана сама сказать, что на ней нарисовано.
+ *
  * **Схема уже окна встаёт по центру** (§7) — автополями на дорожке, а не `justify-content`:
  * у флексбокса центрированное содержимое, переросшее контейнер, вылезает в обе стороны,
  * и левый край становится недостижим прокруткой. Автополя при переполнении честно обнуляются.
@@ -59,6 +62,7 @@ import {
   stitchLinePoints,
   trianglePoints,
 } from '../core/constants'
+import { rowsWord, stitchesWord } from '../core/text'
 
 /** Цвет шторки — перенесён буквально из прототипа (`row-progress.html`), это выбор
  * акцента, а не геометрия: в палитру §7.1 «Вязаный.рф» не входит, у значков схемы
@@ -185,6 +189,17 @@ const grid = computed(() =>
 
 const finalReal = computed(() => calculation.value.finalReal)
 const initial = computed(() => calculation.value.initial)
+
+/**
+ * Числа расчёта в подписи схемы (§7). Второго источника правды тут нет: строка
+ * считается из того же `calculation`, что сама сетка, и разойтись с ней не может.
+ * Конечные петли берутся как `finalReal` — те, на которых мысок действительно
+ * кончится, тем же правилом, что в «Итоге» (§9.5).
+ */
+const paramsLine = computed(() => {
+  const c = calculation.value
+  return `${c.initial} → ${stitchesWord(c.finalReal)} · кромка ${c.edge} · ${rowsWord(c.totalRows)}`
+})
 
 /** Строка контура текущего ряда в развёрнутой сетке — та же индексация, что у `displayRows`. */
 const currentRowY = computed(() => rowsCount.value - progressRow.value - 1)
@@ -389,9 +404,16 @@ onUnmounted(() => {
          `toe-chart-box` их класть нельзя — там бумага шторки на `absolute inset-x-0`
          накрыла бы мишени. -->
     <div class="flex items-center justify-between gap-3">
-      <p class="text-sm text-slate-600" data-testid="toe-chart-caption-top">
-        ↑ {{ finalReal }} петель на закрытие
-      </p>
+      <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5">
+        <p class="text-sm text-slate-600" data-testid="toe-chart-caption-top">
+          ↑ {{ finalReal }} петель на закрытие
+        </p>
+        <!-- Числа расчёта стоят у самой схемы и не зависят от того, показаны ли
+             ручки (§7): по ним читают, что именно нарисовано ниже. -->
+        <p class="text-sm tabular-nums text-slate-500" data-testid="toe-chart-params">
+          {{ paramsLine }}
+        </p>
+      </div>
 
       <!-- Мишень 44 px — размером та же, что у степперов конструктора ритма (§6.3), а знак
            другой: голые «−» и «+» рядом с ручками расчёта читались прибавкой к петлям,

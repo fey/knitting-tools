@@ -207,5 +207,10 @@ test.describe('схема мыска', () => {
 
     await expect(page.getByTestId('toe-chart-caption-top')).toContainText('20 петель на закрытие')
     await expect(page.getByTestId('toe-chart-caption-bottom')).toContainText('Начало мыска, 60 петель')
+    // Подпись несёт и сам расчёт (§7): ручки прячутся кнопкой (§6.2), и схема обязана
+    // сама сказать, что на ней нарисовано.
+    await expect(page.getByTestId('toe-chart-params')).toHaveText(
+      '60 → 20 петель · кромка 1 · 19 рядов',
+    )
   })
 })
