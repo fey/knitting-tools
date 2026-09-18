@@ -1,19 +1,20 @@
 import { expect, test } from '@playwright/test'
 
-test('порядок на экране: схема, потом ритм, потом петли (§6, AC 8)', async ({ page }) => {
+test('порядок на экране: петли, потом ритм, потом схема (§6, AC 8)', async ({ page }) => {
   await page.goto('./')
 
-  const chartBox = await page.getByTestId('toe-chart').boundingBox()
-  const rhythmBox = await page.getByTestId('rhythm-presets').boundingBox()
   const fieldsBox = await page.getByTestId('stitch-fields').boundingBox()
+  const rhythmBox = await page.getByTestId('rhythm-presets').boundingBox()
+  const chartBox = await page.getByTestId('toe-chart').boundingBox()
 
-  expect(chartBox).not.toBeNull()
-  expect(rhythmBox).not.toBeNull()
   expect(fieldsBox).not.toBeNull()
+  expect(rhythmBox).not.toBeNull()
+  expect(chartBox).not.toBeNull()
 
-  // Схема выше ритма, ритм выше полей петель — сверху вниз, как требует §6.
-  expect(chartBox!.y).toBeLessThan(rhythmBox!.y)
-  expect(rhythmBox!.y).toBeLessThan(fieldsBox!.y)
+  // Петли выше ритма, ритм выше схемы: сперва факты о своём носке, потом выбор ритма,
+  // и только затем то, по чему вяжут (§6, порядок правок §9.2 читается так же).
+  expect(fieldsBox!.y).toBeLessThan(rhythmBox!.y)
+  expect(rhythmBox!.y).toBeLessThan(chartBox!.y)
 })
 
 test('кнопка + у начальных петель двигает число рядов на экране', async ({ page }) => {

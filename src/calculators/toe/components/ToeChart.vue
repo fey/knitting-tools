@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
- * Схема мыска — настоящая вязальная схема с условными обозначениями (§7), первый блок
- * на экране. Декларативный SVG: `v-for` по рядам и клеткам, пересчёт реактивностью (§11).
+ * Схема мыска — настоящая вязальная схема с условными обозначениями (§7). Стоит под
+ * ручками расчёта (§6): первым идёт текст вводки, потом петли и ритм, и только затем
+ * схема — по ней уже вяжут. Декларативный SVG: `v-for` по рядам и клеткам, пересчёт
+ * реактивностью (§11).
  *
  * Ряд 1 — внизу, кончик мыска — сверху, поэтому ряды обходятся развёрнутым массивом.
  * Петли читаются справа налево (круговое вязание): `p` — порядковый номер живой петли
@@ -15,10 +17,10 @@
  *   поэтому он переживает и горизонтальную, и вертикальную прокрутку бесплатно;
  * - затенение связанного — бумага `toe-chart-shutter-paper`, положенная в обёртку
  *   `toe-chart-box` (со `position: relative`, приготовлена тикетом #3) рядом со
- *   скроллером, а не внутри него. Её верхний край считается в пикселях содержимого
- *   (`shutterTopPx`) и переводится в пиксели окна вычитанием `scrollTop` — окно
- *   схемы теперь скроллится не только вбок, но и вниз (кадр 420 px, §14), поэтому
- *   без вычитания бумага отставала бы от содержимого при вертикальной прокрутке.
+ *   скроллером, а не внутри него. Схема прокручивается только вбок, а в высоту растёт
+ *   целиком (§6, кадр 420 px отменён), поэтому верхний край бумаги — прямо
+ *   `shutterTopPx` в пикселях содержимого: вертикального `scrollTop`, за которым
+ *   пришлось бы следить, у скроллера больше нет.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
@@ -27,11 +29,10 @@ import {
   CELL_SIZE,
   CHART_COLORS,
   CHART_LABEL_WIDTH,
-  CHART_SCROLL_GAP,
   CHART_STROKE,
-  CHART_VIEWPORT_HEIGHT,
   LEGEND_CELL_SIZE,
   chartGuideLines,
+  pageScrollTargetPx,
   shutterTopPx,
   stitchLinePoints,
   trianglePoints,
@@ -170,6 +171,8 @@ const legend: LegendItem[] = [
 // Горизонтальная прокрутка при открытии стоит на правом краю — там начало ряда (§7).
 // Перетаскивание мышью и shift+колесо переносятся из `wireChartScroll` того же прототипа.
 const scrollEl = ref<HTMLDivElement | null>(null)
+/** Верх сетки в документе — точка отсчёта разовой прокрутки страницы (§8). */
+const svgEl = ref<SVGSVGElement | null>(null)
 let dragging = false
 let startX = 0
 let startLeft = 0
@@ -210,49 +213,64 @@ function onWheel(e: WheelEvent) {
 }
 
 /**
- * Вертикальный `scrollTop` окна — единственное, что нужно бумаге шторки снаружи
- * скроллера (тикет #9, §8): бумага живёт в `toe-chart-box` рядом со скроллером,
- * а не внутри него, поэтому её позиция в пикселях **окна** считается вычитанием
- * `scrollTop` из позиции границы в пикселях **содержимого** — см. `shutterPaperTopPx`.
+ * Верхний край бумаги шторки, в пикселях содержимого. Зажим сверху — по высоте сетки,
+ * а не по высоте обёртки: обёртка ниже на высоту горизонтальной полосы прокрутки,
+ * и без зажима бумага заходила бы на полосу, затеняя её вместе со схемой.
  */
-const scrollTopPx = ref(0)
-function onScroll() {
-  if (scrollEl.value) scrollTopPx.value = scrollEl.value.scrollTop
-}
+const shutterPaperTopPx = computed(() =>
+  Math.max(0, Math.min(shutterTopPx(rowsCount.value, progressRow.value), pixelHeight.value)),
+)
 
 /**
- * Верхний край бумаги шторки в пикселях окна, зажатый в его границы: бумага
- * покрывает окно целиком, когда граница уже прокручена выше видимого (нижние,
- * давно связанные ряды укатились за верх экрана), и пропадает, когда граница ещё
- * не доехала до низа окна (несвязанное занимает весь кадр).
+ * Разовая прокрутка **страницы** к текущему ряду при открытии (§8). Кадра у схемы нет,
+ * она стоит под ручками расчёта, поэтому подъезжает страница, а не окно схемы.
+ *
+ * Случается только тогда, когда прогресс восстановлен из `localStorage` при загрузке:
+ * `progressRow` на монтаже больше нуля ровно в этом случае — починенная ссылка даёт
+ * другой `paramsKey`, и прогресс не подхватывается вовсе (§10.4). Чистый заход
+ * открывается сверху, на вводке, ради которой порядок экрана и переставлен.
+ *
+ * Читает прогресс один раз и не подписывается на него дальше: реактивная привязка
+ * воскресила бы отклонённый §8 вариант — автопрокрутку на каждое нажатие.
+ *
+ * Откладывается на кадр после монтажа намеренно: браузер восстанавливает позицию
+ * страницы после перезагрузки сам и делает это позже, чем срабатывает `onMounted`, —
+ * прокрутка, выставленная в монтаже, была бы им тут же затёрта нулём.
+ *
+ * Замеры (`dock`, высота окна, положение схемы в документе) живые; арифметика —
+ * в `pageScrollTargetPx`, чтобы правило проверялось швом ядра, а не только браузером.
  */
-const shutterPaperTopPx = computed(() => {
-  const contentTopPx = shutterTopPx(rowsCount.value, progressRow.value)
-  return Math.max(0, Math.min(contentTopPx - scrollTopPx.value, CHART_VIEWPORT_HEIGHT))
-})
+function scrollPageToCurrentRow(): void {
+  if (progressRow.value <= 0) return
+  const svg = svgEl.value
+  if (!svg || typeof window === 'undefined') return
+
+  const dock = document.querySelector('[data-testid="bottom-dock"]')
+  const dockHeight = dock ? dock.getBoundingClientRect().height : 0
+  const chartContentTopPx = svg.getBoundingClientRect().top + window.scrollY
+
+  const target = pageScrollTargetPx(
+    chartContentTopPx,
+    rowsCount.value,
+    progressRow.value,
+    window.innerHeight,
+    dockHeight,
+  )
+  requestAnimationFrame(() => window.scrollTo(0, target))
+}
 
 onMounted(() => {
   const el = scrollEl.value
   if (!el) return
   el.scrollLeft = el.scrollWidth
 
-  // Разовая прокрутка к текущему ряду при открытии (§8): низ текущего ряда встаёт
-  // чуть выше нижней кромки окна. Читает прогресс один раз, синхронно при монтаже —
-  // и не подписывается на него дальше: реактивная привязка воскресила бы отклонённый
-  // вариант D, автопрокрутку на каждое нажатие (§8, §14 «прокрутка считается от
-  // нижней кромки окна, а не от плашки»).
-  const bottomOfCurrentPx = shutterTopPx(rowsCount.value, progressRow.value)
-  const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight)
-  const target = bottomOfCurrentPx - el.clientHeight + CHART_SCROLL_GAP
-  el.scrollTop = Math.max(0, Math.min(target, maxScrollTop))
-  scrollTopPx.value = el.scrollTop
+  scrollPageToCurrentRow()
 
   el.addEventListener('pointerdown', onPointerDown)
   el.addEventListener('pointermove', onPointerMove)
   el.addEventListener('pointerup', stopDragging)
   el.addEventListener('pointercancel', stopDragging)
   el.addEventListener('wheel', onWheel, { passive: false })
-  el.addEventListener('scroll', onScroll, { passive: true })
 })
 
 onUnmounted(() => {
@@ -263,7 +281,6 @@ onUnmounted(() => {
   el.removeEventListener('pointerup', stopDragging)
   el.removeEventListener('pointercancel', stopDragging)
   el.removeEventListener('wheel', onWheel)
-  el.removeEventListener('scroll', onScroll)
 })
 </script>
 
@@ -275,13 +292,15 @@ onUnmounted(() => {
 
     <!-- Обёртка со `position: relative` — докует шторку прогресса (тикет #9), сама схема её не рисует. -->
     <div class="relative mt-2" data-testid="toe-chart-box">
+      <!-- Схема растёт в естественную высоту: кадра в 420 px больше нет (§6), поэтому
+           прокрутка здесь только горизонтальная — вертикально страницу листают целиком. -->
       <div
         ref="scrollEl"
-        class="chartscroll overflow-auto rounded border border-slate-200"
-        :style="{ height: `${CHART_VIEWPORT_HEIGHT}px` }"
+        class="chartscroll overflow-x-auto rounded border border-slate-200"
         data-testid="toe-chart-scroll"
       >
         <svg
+          ref="svgEl"
           :viewBox="`0 0 ${viewWidth} ${viewHeight}`"
           :width="pixelWidth"
           :height="pixelHeight"
@@ -377,10 +396,10 @@ onUnmounted(() => {
         </svg>
       </div>
 
-      <!-- Бумага шторки: затенение связанного (§8). Снаружи скроллера — окно схемы теперь
-           скроллится и вбок, и вниз (кадр 420 px, §14), а бумага должна закрывать окно
-           целиком независимо от горизонтальной прокрутки, поэтому её ширина — ширина окна,
-           а не содержимого; вертикаль синхронизирует `onScroll`. -->
+      <!-- Бумага шторки: затенение связанного (§8). Снаружи скроллера, потому что закрывать
+           она должна видимую ширину схемы независимо от горизонтальной прокрутки, а не
+           ширину содержимого. Вертикаль теперь совпадает с содержимым один в один:
+           схема не прокручивается вниз, она вся на странице. -->
       <div
         class="pointer-events-none absolute inset-x-0 bottom-0 bg-slate-900/30"
         :style="{ top: `${shutterPaperTopPx}px` }"

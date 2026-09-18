@@ -4,26 +4,41 @@ import { expect, test } from '@playwright/test'
 // cols = 30, 19 рядов, ряд 1 убавочный (§12.1 случай 2).
 
 test.describe('схема мыска', () => {
-  test('стоит первой на экране, до пресетов ритма и остальных блоков', async ({ page }) => {
+  test('стоит под ручками расчёта, но выше итога (§6)', async ({ page }) => {
     await page.goto('./')
 
-    const chartBox = await page.getByTestId('toe-chart').boundingBox()
-    const presetsBox = await page.getByTestId('rhythm-presets').boundingBox()
-    expect(chartBox).not.toBeNull()
-    expect(presetsBox).not.toBeNull()
-    expect(chartBox!.y).toBeLessThan(presetsBox!.y)
+    const intro = await page.getByTestId('intro').boundingBox()
+    const fields = await page.getByTestId('stitch-fields').boundingBox()
+    const presets = await page.getByTestId('rhythm-presets').boundingBox()
+    const chart = await page.getByTestId('toe-chart').boundingBox()
+    const summary = await page.getByTestId('summary-panel').boundingBox()
+    for (const box of [intro, fields, presets, chart, summary]) expect(box).not.toBeNull()
+
+    // Вводка → петли → ритм → схема → итог. Порядок правок §9.2 читается так же:
+    // сперва факты о своём носке, потом выбор ритма, и только затем то, по чему вяжут.
+    expect(intro!.y).toBeLessThan(fields!.y)
+    expect(fields!.y).toBeLessThan(presets!.y)
+    expect(presets!.y).toBeLessThan(chart!.y)
+    expect(chart!.y).toBeLessThan(summary!.y)
   })
 
-  test('окно схемы — 420 px высотой, клетка не сжимается под ширину экрана', async ({ page }) => {
+  test('схема растёт в естественную высоту — вертикальной прокрутки внутри неё нет', async ({
+    page,
+  }) => {
     await page.goto('./')
-
-    const scroll = page.getByTestId('toe-chart-scroll')
-    await expect(scroll).toHaveCSS('height', '420px')
 
     const svg = page.getByTestId('toe-chart-svg')
     // cols = 30, LBL = 1.9, CELL = 22 → ширина ≈ 702 px; rows = 19 → высота = 418 px.
     await expect(svg).toHaveAttribute('width', '702')
     await expect(svg).toHaveAttribute('height', '418')
+
+    // Кадра в 420 px больше нет (§6): окно схемы вмещает всю сетку по высоте, и внутри
+    // схемы прокручивается только горизонталь — вертикально листают страницу целиком.
+    const metrics = await page.getByTestId('toe-chart-scroll').evaluate((el) => ({
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    }))
+    expect(metrics.scrollHeight).toBe(metrics.clientHeight)
   })
 
   test('горизонтальная прокрутка при открытии стоит на правом краю', async ({ page }) => {

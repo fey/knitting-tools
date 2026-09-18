@@ -6,7 +6,7 @@ test('страница открывается и несёт блоки в пор
   await expect(page).toHaveTitle('Калькулятор мыска носка')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Калькулятор мыска носка')
 
-  const blocks = ['toe-chart', 'rhythm-presets', 'rhythm-builder', 'stitch-fields', 'summary-panel']
+  const blocks = ['intro', 'stitch-fields', 'rhythm-presets', 'rhythm-builder', 'toe-chart', 'summary-panel']
   for (const block of blocks) {
     await expect(page.getByTestId(block)).toBeVisible()
   }
