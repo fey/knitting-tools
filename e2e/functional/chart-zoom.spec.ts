@@ -12,12 +12,12 @@ const svgBox = (page: import('@playwright/test').Page) =>
 
 test.describe('масштаб схемы', () => {
   test('схема открывается на дефолтном шаге — клетка 22 px', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     expect(await svgBox(page)).toEqual({ width: 660, height: 418 })
   })
 
   test('«крупнее» растит клетку, «мельче» возвращает к дефолту', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     await page.getByTestId('toe-chart-zoom-in').click()
     const bigger = await svgBox(page)
@@ -31,14 +31,14 @@ test.describe('масштаб схемы', () => {
   test('мельче дефолта тоже есть куда — на телефоне схему хочется и обозреть целиком', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     await page.getByTestId('toe-chart-zoom-out').click()
     const smaller = await svgBox(page)
     expect(smaller.width).toBeLessThan(660)
   })
 
   test('на краях набора кнопка заглушена — жать в пустоту нечего', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     const out = page.getByTestId('toe-chart-zoom-out')
     const zin = page.getByTestId('toe-chart-zoom-in')
 
@@ -57,7 +57,7 @@ test.describe('масштаб схемы', () => {
   // а десктопный несёт только спеки раскладки (§12.2). Щипок по тачпаду браузер шлёт
   // этим же событием, поэтому ветка одна на оба жеста.
   test('ctrl + колесо меняет масштаб, а не зумит страницу целиком (§7)', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     await page.getByTestId('toe-chart-scroll').hover()
 
     await page.keyboard.down('Control')
@@ -74,7 +74,7 @@ test.describe('масштаб схемы', () => {
   test('смена масштаба ставит прокрутку на правый край — там начало ряда (§7, тикет #8)', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     const scroll = page.getByTestId('toe-chart-scroll')
     await scroll.evaluate((el) => {
       el.scrollLeft = 0
@@ -92,7 +92,7 @@ test.describe('масштаб схемы', () => {
   test('шторка прогресса едет за клетками, а не остаётся на дефолтных 22 px (§8)', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     // Отметить пару рядов — шторка встаёт на кромку отмеченного.
     await page.getByTestId('row-progress-mark').click()
     await page.getByTestId('row-progress-mark').click()
@@ -117,7 +117,7 @@ test.describe('зум помечен лупой', () => {
   test('на кнопках значок, а не текстовый знак — зум не читается прибавкой (§7)', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     for (const testId of ['toe-chart-zoom-out', 'toe-chart-zoom-in']) {
       const button = page.getByTestId(testId)
@@ -128,7 +128,7 @@ test.describe('зум помечен лупой', () => {
   })
 
   test('лупы различаются между собой — иначе значок не называет шаг (§7)', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     // Линзы одинаковы, знак внутри — нет: у «мельче» ручка и штрих «−», у «крупнее»
     // к ним добавлен вертикальный штрих. Без этой проверки две неразличимые лупы
@@ -140,7 +140,7 @@ test.describe('зум помечен лупой', () => {
   test('кнопка без текста всё равно называет себя — имя держится на aria-label (§7)', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     await expect(page.getByRole('button', { name: 'Схема крупнее' })).toBeEnabled()
     await expect(page.getByRole('button', { name: 'Схема мельче' })).toBeEnabled()

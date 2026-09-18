@@ -14,7 +14,7 @@ test('первый экран со свёрнутой вводкой', async ({ 
     ({ key, value }) => localStorage.setItem(key, value),
     { key: 'knitting-tools:intro-collapsed', value: 'collapsed' },
   )
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await expect(page.getByTestId('intro-expand')).toHaveText('Показать инструкцию')
   await expect(page).toHaveScreenshot('intro-collapsed.png', { fullPage: true })

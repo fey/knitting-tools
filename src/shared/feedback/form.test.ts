@@ -8,7 +8,7 @@ describe('адрес приёма', () => {
 })
 
 describe('тело запроса', () => {
-  const url = 'https://fey.github.io/knitting-tools/#s=60&e=20&k=1&r=even'
+  const url = 'https://fey.github.io/knitting-tools/toe-band/#s=60&e=20&k=1&r=even'
   // Настоящие entry придут из предзаполненной ссылки формы; тесты берут свои,
   // иначе пустые идентификаторы схлопнули бы три поля в один ключ.
   const entries = { message: 'entry.1', contact: 'entry.2', url: 'entry.3' }

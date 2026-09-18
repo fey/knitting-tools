@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('конструктор свёрнут на первом экране, разворачивается по кнопке', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await expect(page.getByTestId('rhythm-builder-panel')).toBeHidden()
   await expect(page.getByTestId('rhythm-custom-card')).toBeHidden()
@@ -22,7 +22,7 @@ test('конструктор свёрнут на первом экране, ра
 })
 
 test('правка шага переводит ритм в «свой», сворачивание конструктора не теряет его', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await expect(page.getByTestId('preset-even')).toHaveAttribute('aria-pressed', 'true')
 
@@ -60,7 +60,7 @@ test('правка шага переводит ритм в «свой», сво�
 })
 
 test('свой ритм при смене петель не пересчитывается — он остаётся набранным (§5.5)', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('rhythm-builder-toggle').click()
   await page.getByTestId('rhythm-builder-step-0-interval-plus').click()
@@ -80,7 +80,7 @@ test('свой ритм при смене петель не пересчитыв
 })
 
 test('«+ ещё шаг» и «Убрать» правят состав сегментов и тоже переводят ритм в «свой»', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await page.getByTestId('rhythm-builder-toggle').click()
   await page.getByTestId('rhythm-builder-add-step').click()
@@ -105,7 +105,7 @@ test('«+ ещё шаг» и «Убрать» правят состав сегм
 test('степперы шага — мишень 44 px, интервал упирается в потолок 6 и пол 0, повторы — в пол 1', async ({
   page,
 }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
   await page.getByTestId('rhythm-builder-toggle').click()
 
   const intervalPlus = page.getByTestId('rhythm-builder-step-0-interval-plus')

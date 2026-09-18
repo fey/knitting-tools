@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 
 test.describe('схема мыска', () => {
   test('стоит под ручками расчёта, но выше итога (§6)', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     const intro = await page.getByTestId('intro').boundingBox()
     const fields = await page.getByTestId('stitch-fields').boundingBox()
@@ -25,7 +25,7 @@ test.describe('схема мыска', () => {
   test('схема растёт в естественную высоту — вертикальной прокрутки внутри неё нет', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     const svg = page.getByTestId('toe-chart-svg')
     // cols = 30, CELL = 22 → сетка 660 px; полоса номеров (LBL = 1.9) стоит отдельным
@@ -43,7 +43,7 @@ test.describe('схема мыска', () => {
   })
 
   test('горизонтальная прокрутка при открытии стоит на правом краю', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     const metrics = await page.getByTestId('toe-chart-scroll').evaluate((el) => ({
       scrollLeft: el.scrollLeft,
@@ -57,7 +57,7 @@ test.describe('схема мыска', () => {
   test('схема шире окна никуда не центруется — левый край достижим прокруткой', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     const scroll = page.getByTestId('toe-chart-scroll')
     await scroll.evaluate((el) => {
       el.scrollLeft = 0
@@ -73,7 +73,7 @@ test.describe('схема мыска', () => {
   })
 
   test('номера рядов прибиты к правому краю окна и вбок не едут', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     const scroll = page.getByTestId('toe-chart-scroll')
 
     // Отступ правой грани полосы от правой грани окна; 1 px — рамка скроллера.
@@ -98,7 +98,7 @@ test.describe('схема мыска', () => {
   test('ширина сетки постоянна и равна половине начальных петель — 30 колонок на 19 рядов', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     const svg = page.getByTestId('toe-chart-svg')
     const cellCount = await svg.locator('rect[data-row][data-col]').count()
@@ -118,7 +118,7 @@ test.describe('схема мыска', () => {
   test('лицевая — штрих, убавки — 2 треугольника на убавочный ряд, наклон не перепутан', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     const svg = page.getByTestId('toe-chart-svg')
 
     // Ряд 1 — убавочный (дефолт: 10 убавочных рядов, ряд 1 первый из них).
@@ -140,7 +140,7 @@ test.describe('схема мыска', () => {
   })
 
   test('пустой клеткой лицевая не обозначается ни в одном месте схемы', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     const svg = page.getByTestId('toe-chart-svg')
 
     // Живая клетка — та, что не помечена `data-empty` («нет петли»). У каждой такой
@@ -171,7 +171,7 @@ test.describe('схема мыска', () => {
   test('жирные линии каждые 5 петель — 5 штук на дефолте; убавочные ряды выделены', async ({
     page,
   }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     const svg = page.getByTestId('toe-chart-svg')
 
     await expect(svg.locator('[data-testid="toe-chart-guide"]')).toHaveCount(5)
@@ -189,7 +189,7 @@ test.describe('схема мыска', () => {
   })
 
   test('легенда называет типы убавок и петлю кромки, без значка кромочной', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
     const legend = page.getByTestId('toe-chart-legend')
 
     await expect(legend).toContainText('лицевая')
@@ -203,7 +203,7 @@ test.describe('схема мыска', () => {
   })
 
   test('подписи над и под схемой несут число петель к закрытию и начальные петли', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./toe-band/')
 
     await expect(page.getByTestId('toe-chart-caption-top')).toContainText('20 петель на закрытие')
     await expect(page.getByTestId('toe-chart-caption-bottom')).toContainText('Начало мыска, 60 петель')

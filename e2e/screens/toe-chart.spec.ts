@@ -4,6 +4,6 @@ import { expect, test } from '@playwright/test'
 // §12.2, пункт 6: обозначения и то, что схема стоит в естественную высоту целиком,
 // а горизонтальная прокрутка при открытии встала на правый край.
 test('схема мыска на прибитом вьюпорте — обозначения и рамка кадра', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
   await expect(page.getByTestId('toe-chart')).toHaveScreenshot('toe-chart.png')
 })

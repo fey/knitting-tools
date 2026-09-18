@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test'
 // только там, где она встаёт целиком.
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 })
 
 test('вводка стоит над обеими колонками и не режется в узкий столбец', async ({ page }) => {
@@ -137,7 +137,7 @@ test('схема шире колонки всё равно прокручива�
 }) => {
   // 140 начальных петель — 70 клеток, 1540 px: в колонку не влезет ни на каком экране.
   // Переход, меняющий только hash, документ не перезагружает — расчёт остался бы дефолтным.
-  await page.goto('./#s=140&e=16&k=1&r=even')
+  await page.goto('./toe-band/#s=140&e=16&k=1&r=even')
   await page.reload()
   const metrics = await page.getByTestId('toe-chart-scroll').evaluate((el) => ({
     scrollWidth: el.scrollWidth,

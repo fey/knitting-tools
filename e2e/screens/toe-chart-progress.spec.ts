@@ -16,7 +16,7 @@ test('схема мыска с отмеченным прогрессом — ш�
     ({ key, value }) => localStorage.setItem(key, value),
     { key: 'knitting-tools:toe-progress', value: JSON.stringify({ paramsKey: hash.slice(1), row: 20 }) },
   )
-  await page.goto(`./${hash}`)
+  await page.goto(`./toe-band/${hash}`)
 
   await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 21 из 61')
   await expect(page.getByTestId('toe-chart')).toHaveScreenshot('toe-chart-progress.png')

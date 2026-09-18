@@ -15,7 +15,7 @@ const canonicalUrl = new RegExp(`${CANONICAL.replace(/[.*+?^${}()|[\]\\]/g, '\\$
 
 test('битый входящий hash (несходящаяся пара) чинится молча и переписывается', async ({ page }) => {
   // 60 − 18 = 42, не кратно 4 — по отдельности оба числа законны, не сходится сочетание.
-  await page.goto('./#s=60&e=18')
+  await page.goto('./toe-band/#s=60&e=18')
 
   await expect(page).toHaveURL(canonicalUrl)
   await expect(page.getByTestId('final-stitches')).toHaveValue('20')
@@ -27,7 +27,7 @@ test('битый входящий hash (несходящаяся пара) чи�
 })
 
 test('неизвестный код ритма и вне-диапазонная кромка чинятся дефолтом молча', async ({ page }) => {
-  await page.goto('./#s=60&e=20&k=5&r=zigzag')
+  await page.goto('./toe-band/#s=60&e=20&k=5&r=zigzag')
 
   await expect(page).toHaveURL(canonicalUrl)
   await expect(page.getByTestId('edge-1')).toHaveAttribute('aria-pressed', 'true')
@@ -35,7 +35,7 @@ test('неизвестный код ритма и вне-диапазонная 
 })
 
 test('правка петель переписывает hash живьём, без перезагрузки', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
   await expect(page).toHaveURL(canonicalUrl)
 
   await page.getByTestId('final-minus').click()
@@ -47,14 +47,14 @@ test('пустой hash: параметры подхватываются из lo
     localStorage.setItem(key, JSON.stringify({ paramsKey: 's=60&e=16&k=1&r=even', row: 3 }))
   }, 'knitting-tools:toe-progress')
 
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await expect(page).toHaveURL(/#s=60&e=16&k=1&r=even$/)
   await expect(page.getByTestId('final-stitches')).toHaveValue('16')
 })
 
 test('без hash и без localStorage — открывается дефолтом', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   await expect(page).toHaveURL(canonicalUrl)
   await expect(page.getByTestId('final-stitches')).toHaveValue('20')
@@ -70,7 +70,7 @@ test('«Поделиться» зовёт системный шит с почт�
   })
 
   // Битая ссылка: конечные 18 не сходятся с начальными 60.
-  await page.goto('./#s=60&e=18')
+  await page.goto('./toe-band/#s=60&e=18')
   await expect(page).toHaveURL(canonicalUrl)
 
   await page.getByTestId('share-button').click()
@@ -89,7 +89,7 @@ test('«Поделиться» на живом поле: касание увод
     }
   })
 
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   // Поле ещё в фокусе, набранное несходящееся — схема его не тронула (§9.3),
   // params остаются на дефолтных 20, hash ещё не двинулся.
@@ -118,7 +118,7 @@ test('без navigator.share — фолбэк на копирование в б�
     Object.defineProperty(window.navigator, 'share', { value: undefined, configurable: true })
   })
 
-  await page.goto('./#s=60&e=18')
+  await page.goto('./toe-band/#s=60&e=18')
   await expect(page).toHaveURL(canonicalUrl)
 
   await page.getByTestId('share-button').click()

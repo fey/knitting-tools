@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('первый экран открывается посчитанным дефолтом', async ({ page }) => {
-  await page.goto('./')
+  await page.goto('./toe-band/')
 
   const summary = page.getByTestId('summary-panel')
   await expect(summary.getByTestId('summary-dec-rows')).toHaveText('10 убавочных рядов')
