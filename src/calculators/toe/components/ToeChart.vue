@@ -67,6 +67,24 @@ const SHUTTER_ACCENT = '#b4472a'
 
 const { calculation, progressRow } = useToeCalculator()
 
+/**
+ * Значок лупы на кнопках масштаба (§7). Сторона поля и доли внутри него — хром кнопки,
+ * а не величина спеки: в `core/` эта геометрия не едет, там живут доли клетки, общие
+ * у сетки и легенды. 24 px в 44-пиксельной мишени — значок виден, кромка кнопки не жмёт.
+ */
+const ZOOM_ICON_SIZE = 24
+const ZOOM_LENS = {
+  cx: 10.5,
+  cy: 10.5,
+  r: 6.5,
+  /** Ручка лупы — по диагонали от окружности к нижнему правому углу поля. */
+  handleFrom: 15.5,
+  handleTo: 21,
+  /** Полудлина штриха знака внутри линзы: «−» — один штрих, «+» — два. */
+  mark: 3.2,
+  stroke: 2,
+} as const
+
 /** Ширина сетки постоянна и равна половине начальных петель (§7), сетка не сужается. */
 const cols = computed(() => calculation.value.initial / 2)
 const edge = computed(() => calculation.value.edge)
@@ -83,6 +101,12 @@ const zoomStep = ref(DEFAULT_ZOOM_STEP)
 const cellSize = computed(() => cellSizeAt(zoomStep.value))
 const canZoomOut = computed(() => zoomStep.value > 0)
 const canZoomIn = computed(() => zoomStep.value < CHART_CELL_SIZES.length - 1)
+
+/** Две кнопки одним списком: рисунок у них общий, расходятся знаком внутри линзы и шагом. */
+const zoomButtons = computed(() => [
+  { testId: 'toe-chart-zoom-out', label: 'Схема мельче', delta: -1, enabled: canZoomOut.value },
+  { testId: 'toe-chart-zoom-in', label: 'Схема крупнее', delta: 1, enabled: canZoomIn.value },
+])
 
 const viewHeight = computed(() => rowsCount.value)
 /** Сетка и полоса номеров — два SVG, поэтому и ширины две (см. шапку про прибитые номера). */
@@ -369,29 +393,54 @@ onUnmounted(() => {
         ↑ {{ finalReal }} петель на закрытие
       </p>
 
-      <!-- Мишень 44 px — тем же узором, что степперы конструктора ритма (§6.3). -->
+      <!-- Мишень 44 px — размером та же, что у степперов конструктора ритма (§6.3), а знак
+           другой: голые «−» и «+» рядом с ручками расчёта читались прибавкой к петлям,
+           а не масштабом. Знак ушёл внутрь лупы (§7). Текста на кнопке нет вовсе — имя
+           держится на `aria-label`, значок от читалки спрятан. -->
       <div class="flex shrink-0 items-center gap-1" data-testid="toe-chart-zoom">
         <button
+          v-for="button in zoomButtons"
+          :key="button.testId"
           type="button"
-          class="h-11 w-11 rounded border border-slate-300 text-xl leading-none text-slate-700 disabled:opacity-40"
-          :disabled="!canZoomOut"
-          aria-label="Схема мельче"
-          title="Схема мельче"
-          data-testid="toe-chart-zoom-out"
-          @click="zoomBy(-1)"
+          class="flex h-11 w-11 items-center justify-center rounded border border-slate-300 text-slate-700 disabled:opacity-40"
+          :disabled="!button.enabled"
+          :aria-label="button.label"
+          :title="button.label"
+          :data-testid="button.testId"
+          @click="zoomBy(button.delta)"
         >
-          −
-        </button>
-        <button
-          type="button"
-          class="h-11 w-11 rounded border border-slate-300 text-xl leading-none text-slate-700 disabled:opacity-40"
-          :disabled="!canZoomIn"
-          aria-label="Схема крупнее"
-          title="Схема крупнее"
-          data-testid="toe-chart-zoom-in"
-          @click="zoomBy(1)"
-        >
-          +
+          <svg
+            :width="ZOOM_ICON_SIZE"
+            :height="ZOOM_ICON_SIZE"
+            :viewBox="`0 0 ${ZOOM_ICON_SIZE} ${ZOOM_ICON_SIZE}`"
+            fill="none"
+            stroke="currentColor"
+            :stroke-width="ZOOM_LENS.stroke"
+            stroke-linecap="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <circle :cx="ZOOM_LENS.cx" :cy="ZOOM_LENS.cy" :r="ZOOM_LENS.r" />
+            <line
+              :x1="ZOOM_LENS.handleFrom"
+              :y1="ZOOM_LENS.handleFrom"
+              :x2="ZOOM_LENS.handleTo"
+              :y2="ZOOM_LENS.handleTo"
+            />
+            <line
+              :x1="ZOOM_LENS.cx - ZOOM_LENS.mark"
+              :y1="ZOOM_LENS.cy"
+              :x2="ZOOM_LENS.cx + ZOOM_LENS.mark"
+              :y2="ZOOM_LENS.cy"
+            />
+            <line
+              v-if="button.delta > 0"
+              :x1="ZOOM_LENS.cx"
+              :y1="ZOOM_LENS.cy - ZOOM_LENS.mark"
+              :x2="ZOOM_LENS.cx"
+              :y2="ZOOM_LENS.cy + ZOOM_LENS.mark"
+            />
+          </svg>
         </button>
       </div>
     </div>

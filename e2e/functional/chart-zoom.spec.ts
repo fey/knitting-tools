@@ -109,3 +109,44 @@ test.describe('масштаб схемы', () => {
     expect(Number.parseFloat(after)).toBeGreaterThan(374)
   })
 })
+
+// Кнопки зума стоят рядом со степперами конструктора ритма и раньше повторяли их знаки
+// «−»/«+» — на экране это читалось прибавками к расчёту, а не масштабом. Значок лупы
+// разводит их обратно (§7); мишень 44 px и заглушение на краях набора остаются.
+test.describe('зум помечен лупой', () => {
+  test('на кнопках значок, а не текстовый знак — зум не читается прибавкой (§7)', async ({
+    page,
+  }) => {
+    await page.goto('./')
+
+    for (const testId of ['toe-chart-zoom-out', 'toe-chart-zoom-in']) {
+      const button = page.getByTestId(testId)
+      // Текста на кнопке нет вовсе: «−» и «+» теперь живут внутри лупы, штрихами SVG.
+      await expect(button).toHaveText('')
+      await expect(button.locator('svg')).toHaveCount(1)
+    }
+  })
+
+  test('лупы различаются между собой — иначе значок не называет шаг (§7)', async ({ page }) => {
+    await page.goto('./')
+
+    // Линзы одинаковы, знак внутри — нет: у «мельче» ручка и штрих «−», у «крупнее»
+    // к ним добавлен вертикальный штрих. Без этой проверки две неразличимые лупы
+    // прошли бы весь функциональный прогон зелёными.
+    await expect(page.getByTestId('toe-chart-zoom-out').locator('line')).toHaveCount(2)
+    await expect(page.getByTestId('toe-chart-zoom-in').locator('line')).toHaveCount(3)
+  })
+
+  test('кнопка без текста всё равно называет себя — имя держится на aria-label (§7)', async ({
+    page,
+  }) => {
+    await page.goto('./')
+
+    await expect(page.getByRole('button', { name: 'Схема крупнее' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Схема мельче' })).toBeEnabled()
+
+    // Имя рабочее: по нему и жмут.
+    await page.getByRole('button', { name: 'Схема крупнее' }).click()
+    expect((await svgBox(page)).width).toBeGreaterThan(660)
+  })
+})
