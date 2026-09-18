@@ -19,6 +19,15 @@ export default defineConfig({
   webServer: {
     // В CI сборка идёт после тестов, так что прогон собирает себе dist сам.
     command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort',
+    // Прогон идёт по production-сборке, а кнопки отзыва без подставленной ссылки на форму
+    // на экране нет вовсе (§11) — значит ссылку надо подставить и сюда. Она заведомо
+    // ненастоящая: сами запросы спеки перехватывают `page.route`, к живой форме тесты
+    // не ходят никогда, иначе таблица ответов заполнялась бы мусором на каждый прогон.
+    env: {
+      VITE_FEEDBACK_PREFILL_URL:
+        'https://docs.google.com/forms/d/e/e2e-fake-form/viewform' +
+        '?entry.1=message&entry.2=contact&entry.3=url',
+    },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

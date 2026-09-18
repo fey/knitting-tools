@@ -10,6 +10,9 @@ import { computed, reactive, ref, watch } from 'vue'
 import { calculateToe } from './core/calc'
 import { formatHash, paramsKey as computeParamsKey, resolveParams } from './core/hash'
 import type { ToeParams } from './core/types'
+// Доступ к хранилищу — один на проект (§10.2, `src/shared/storage.ts`): записей три,
+// а правило «падать не вправе» сформулировано один раз и на все.
+import { readStored, writeStored } from '../../shared/storage'
 
 /**
  * Ключ записи прогресса в `localStorage` (§10.2): `{ paramsKey, row }`. Строка
@@ -18,41 +21,6 @@ import type { ToeParams } from './core/types'
  * ключе, а не заводили каждая свой.
  */
 export const PROGRESS_STORAGE_KEY = 'knitting-tools:toe-progress'
-
-/**
- * Чтение из `localStorage`, которому нечего вернуть: записи нет либо хранилище
- * недоступно (приватная вкладка, `file://`, тестовый узел без DOM).
- *
- * **Проверка на недоступность стоит внутри `try`, а не перед ним.** У Chrome
- * с заблокированными данными сайта кидает сам доступ к свойству, то есть и
- * `typeof`; чтения идут при загрузке модуля, и брошенное оттуда уронило бы
- * страницу целиком, а не одну запись.
- *
- * §10.2 формулирует это правило один раз и на все записи — реализация тоже одна.
- */
-function readStored(key: string): string | null {
-  try {
-    if (typeof localStorage === 'undefined') return null
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-/**
- * Запись в `localStorage`, либо стирание записи при `null`. Стирание — это то,
- * как обе записи выражают «хранить нечего» (§10.2): дефолтное состояние строкой
- * не хранится. Падать не вправе так же, как и чтение.
- */
-function writeStored(key: string, value: string | null): void {
-  try {
-    if (typeof localStorage === 'undefined') return
-    if (value === null) localStorage.removeItem(key)
-    else localStorage.setItem(key, value)
-  } catch {
-    // Хранилище недоступно — запись не переживёт эту сессию, но экран не падает.
-  }
-}
 
 /**
  * Запись `{ paramsKey, row }` из `localStorage`, или `null` — записи нет, она
