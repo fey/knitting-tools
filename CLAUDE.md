@@ -2,6 +2,14 @@
 
 Инструкции для Claude Code при работе с репозиторием. `AGENTS.md` — симлинк на этот файл.
 
+## Important
+
+- Do not preserve backward compatibility.
+- Choose the simplest implementation that fully meets the current requirements.
+- Prefer established, well-maintained libraries over custom implementations.
+- Fix the cause, not the symptom.
+- Suggest best practices, even if they may require refactoring.
+
 ## Обзор проекта
 
 Калькуляторы для вязания. Первый и пока единственный — **мысок носка cuff-down**: на вход идут
