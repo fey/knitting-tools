@@ -389,9 +389,13 @@ onUnmounted(() => {
          `toe-chart-box` их класть нельзя — там бумага шторки на `absolute inset-x-0`
          накрыла бы мишени. -->
     <div class="flex items-center justify-between gap-3">
-      <p class="text-sm text-slate-600" data-testid="toe-chart-caption-top">
-        ↑ {{ finalReal }} петель на закрытие
-      </p>
+      <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5">
+        <p class="text-sm text-slate-600" data-testid="toe-chart-caption-top">
+          ↑ {{ finalReal }} петель на закрытие
+        </p>
+        <!-- ПРОТОТИП: место под числа расчёта рядом с подписью, в main не едет. -->
+        <slot name="params" />
+      </div>
 
       <!-- Мишень 44 px — размером та же, что у степперов конструктора ритма (§6.3), а знак
            другой: голые «−» и «+» рядом с ручками расчёта читались прибавкой к петлям,
