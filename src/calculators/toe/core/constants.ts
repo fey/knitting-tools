@@ -6,8 +6,41 @@
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
 
-/** Сторона клетки схемы, px. Схема прокручивается вбок, а не вписывается в ширину экрана. */
-export const CELL_SIZE = 22
+/**
+ * Шаги масштаба схемы — сторона клетки в px (§7). Набор, а не непрерывная величина:
+ * зум ходит кнопками «−» и «+», и каждое нажатие обязано быть видно, иначе кнопку
+ * жмут вслепую по десять раз.
+ *
+ * Пол набора — не «влезает в телефон», а «читается»: тикет #3 мерил вписывание схемы
+ * в 390 px и получил клетку 13 px с вердиктом «нихуя не видно». Схема в 30 петель
+ * в телефон не влезает ни на одном шаге, и это свойство задачи (§7), а не то, что
+ * чинится зумом. Потолок — клетка вдвое с лишним от дефолтной: дальше в окно схемы
+ * попадает меньше пяти петель, и счёт по жирным линиям разваливается.
+ */
+export const CHART_CELL_SIZES = [16, 22, 30, 40, 52] as const
+
+/** Шаг, на котором открывается схема, — индекс в `CHART_CELL_SIZES` (§7, клетка 22 px). */
+export const DEFAULT_ZOOM_STEP = 1
+
+/**
+ * Сторона клетки схемы на дефолтном шаге, px. Схема прокручивается вбок, а не
+ * вписывается в ширину экрана; зум эту величину меняет, но открывается схема всегда
+ * отсюда — масштаб не хранится ни в hash, ни в `localStorage` (§7, §10.5).
+ */
+export const CELL_SIZE = CHART_CELL_SIZES[DEFAULT_ZOOM_STEP]
+
+/**
+ * Зажим шага масштаба в границы набора. Дробное обрезается: шаг — индекс набора,
+ * а не непрерывная величина, и половины шага не существует.
+ */
+export function clampZoomStep(step: number): number {
+  return Math.max(0, Math.min(Math.trunc(step), CHART_CELL_SIZES.length - 1))
+}
+
+/** Сторона клетки на данном шаге, px. Шаг вне набора зажимается — иного размера нет. */
+export function cellSizeAt(step: number): number {
+  return CHART_CELL_SIZES[clampZoomStep(step)]
+}
 
 /**
  * Зазор разовой прокрутки к текущему ряду при открытии (§8, тикет #9), px: низ
@@ -129,14 +162,18 @@ export function chartGuideLines(cols: number): number[] {
 
 /**
  * Положение кромки шторки прогресса (тикет #9, §8), в px содержимого схемы, считая
- * от верхнего края (кончик мыска): `(totalRows − done) × CELL_SIZE`. Отмеченные ряды
+ * от верхнего края (кончик мыска): `(totalRows − done) × cellSize`. Отмеченные ряды
  * лежат ниже этой границы — схема перевёрнута, ряд 1 внизу. Формула одна на всё:
  * ей же ставится обводка текущего ряда в SVG (`y = totalRows − done − 1`) и разовая
  * прокрутка страницы при открытии (`pageScrollTargetPx`).
+ *
+ * `cellSize` — параметр обязательный, а не `CELL_SIZE` по умолчанию: бумага шторки
+ * лежит снаружи скроллера и меряется экранными пикселями, поэтому забытый на дефолте
+ * вызов не покраснел бы нигде — клетки уехали бы под зумом, а затенение осталось.
  */
-export function shutterTopPx(totalRows: number, done: number): number {
+export function shutterTopPx(totalRows: number, done: number, cellSize: number): number {
   const clamped = Math.max(0, Math.min(done, totalRows))
-  return (totalRows - clamped) * CELL_SIZE
+  return (totalRows - clamped) * cellSize
 }
 
 /**
@@ -158,8 +195,9 @@ export function pageScrollTargetPx(
   done: number,
   viewportHeight: number,
   dockHeight: number,
+  cellSize: number,
 ): number {
-  const bottomOfCurrent = chartContentTopPx + shutterTopPx(totalRows, done)
+  const bottomOfCurrent = chartContentTopPx + shutterTopPx(totalRows, done, cellSize)
   const visibleBottom = viewportHeight - dockHeight - CHART_SCROLL_GAP
   return Math.max(0, Math.round(bottomOfCurrent - visibleBottom))
 }

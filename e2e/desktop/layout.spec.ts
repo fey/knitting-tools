@@ -55,6 +55,28 @@ test('на дефолтном расчёте схема помещается в 
   expect(metrics.scrollWidth).toBe(metrics.clientWidth)
 })
 
+test('крупный шаг зума возвращает прокрутку и на широком экране — это выбор, а не поломка (§6.2)', async ({
+  page,
+}) => {
+  // Обещание раскладки — «без горизонтальной прокрутки» на дефолтном расчёте И дефолтном
+  // масштабе. Нажатый «+» его снимает осознанно, и проверяется это здесь: утверждение
+  // про раскладку живёт в десктопном проекте, а не в телефонном.
+  const metrics = () =>
+    page.getByTestId('toe-chart-scroll').evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }))
+
+  const before = await metrics()
+  expect(before.scrollWidth).toBe(before.clientWidth)
+
+  await page.getByTestId('toe-chart-zoom-in').click()
+
+  await expect.poll(async () => (await metrics()).scrollWidth > (await metrics()).clientWidth).toBe(
+    true,
+  )
+})
+
 test('схема шире колонки всё равно прокручивается вбок — это свойство задачи (§7)', async ({
   page,
 }) => {
