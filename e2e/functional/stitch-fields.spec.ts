@@ -76,12 +76,20 @@ test('кромка выбирается из 0 / 1 / 2, дефолт — 1, у �
 test('поля петель несут подсказки словарём спеки', async ({ page }) => {
   await page.goto('./')
 
-  await expect(page.getByTestId('initial-hint')).toHaveText('чётное')
-  await expect(page.getByTestId('final-hint')).toContainText('20 (шаг 4: 16, 20, 24)')
-  await expect(page.getByTestId('final-hint')).toContainText('обычно 16–24')
+  // Подсказки пришиты целиком, а не по слову: §4 перечисляет их дословно, и тест —
+  // единственное, что держит экран и спеку в одном тексте.
+  await expect(page.getByTestId('initial-hint')).toHaveText(
+    'чётное · своё число вписывается прямо в поле, не только кнопками',
+  )
+  await expect(page.getByTestId('final-hint')).toHaveText(
+    '20 (шаг 4: 16, 20, 24) · обычно 16–24 · своё число вписывается так же',
+  )
   // Тикет #15: подпись называет оба закрытия с их числами — и только их. Рамку
   // «мысок один, различается закрытие» несут §1 и вводка: подпись у ручки отвечает
   // на «что мне сюда вписать», а не объясняет конструкцию (§4).
+  //
+  // «И только их» — про закрытия, а не про всю подпись: фраза про счёт в круге (§4)
+  // рядом с ними стоит законно, и проверяется она ниже, в своём тесте.
   const explainer = page.getByTestId('final-explainer')
   await expect(explainer).toContainText('трикотажный шов оставляют 16–24')
   await expect(explainer).toContainText('около 8')
@@ -125,4 +133,51 @@ test('подписанные кнопки держат мишень 44 px, ря�
     expect(minusBox.x).toBeLessThan(inputBox.x)
     expect(inputBox.x).toBeLessThan(plusBox.x)
   }
+})
+
+// §4 всё это время разрешал любое чётное («клавиатурный ввод не ограничен»), но на экране
+// об этом не было сказано ни слова: кнопки подписаны «−4»/«+4», подсказка у конечных
+// перечисляла «шаг 4: 16, 20, 24», — и поле читалось как набор допустимых значений,
+// а не как поле. 62 начальных кнопками недостижимы вовсе, вписыванием — всегда были.
+test.describe('своё число петель вписывается, а не только шагается кнопками (§4)', () => {
+  test('62 начальных — чётные, но не кратные 4 — считаются и подтягивают конечные к 22', async ({
+    page,
+  }) => {
+    await page.goto('./')
+
+    const initialInput = page.getByTestId('initial-stitches')
+    await initialInput.fill('62')
+    await initialInput.blur()
+
+    // 62 − 20 = 42 на 4 не делится; ближайшее сходящееся сверху — 22 (62 − 22 = 40).
+    await expect(page.getByTestId('final-stitches')).toHaveValue('22')
+    await expect(page.getByTestId('final-fix')).toContainText('Ближайшее сходящееся — 22')
+    await expect(page.getByTestId('summary-params')).toContainText('62 → 22 петель')
+  })
+
+  test('подсказка у начальных зовёт вписать своё, а не только жать кнопки', async ({ page }) => {
+    await page.goto('./')
+    await expect(page.getByTestId('initial-hint')).toContainText(
+      'своё число вписывается прямо в поле',
+    )
+  })
+
+  test('подсказка у конечных не выдаёт «шаг 4» за набор допустимых значений', async ({ page }) => {
+    await page.goto('./')
+    // «шаг 4: …» остаётся — §4 требует эти числа, — но рядом сказано, что набор ими не кончается.
+    await expect(page.getByTestId('final-hint')).toContainText('шаг 4')
+    await expect(page.getByTestId('final-hint')).toContainText('своё число вписывается так же')
+  })
+
+  test('конечные названы петлями круга — на схеме половина, и спутать их легко', async ({
+    page,
+  }) => {
+    await page.goto('./')
+    // Порядок пришит, а не только наличие: числа закрытия идут первыми — за ними
+    // к подписи и приходят, — счёт в круге стоит за ними и их не разбавляет (§4).
+    await expect(page.getByTestId('final-explainer')).toHaveText(
+      'Под трикотажный шов оставляют 16–24 петли, для стягивания — около 8. Считаются петли ' +
+        'в круге, а не с одной стороны: на схеме половина, и спутать легко.',
+    )
+  })
 })
