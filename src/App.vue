@@ -37,6 +37,7 @@ import PrototypeSwitcher from './calculators/toe/prototype/PrototypeSwitcher.vue
 import VariantA from './calculators/toe/prototype/VariantA.vue'
 import VariantB from './calculators/toe/prototype/VariantB.vue'
 import VariantC from './calculators/toe/prototype/VariantC.vue'
+import VariantD from './calculators/toe/prototype/VariantD.vue'
 </script>
 
 <template>
@@ -44,6 +45,7 @@ import VariantC from './calculators/toe/prototype/VariantC.vue'
   <VariantA v-if="prototypeOn && variant === 'A'" />
   <VariantB v-else-if="prototypeOn && variant === 'B'" />
   <VariantC v-else-if="prototypeOn && variant === 'C'" />
+  <VariantD v-else-if="prototypeOn && variant === 'D'" />
   <div v-else class="min-h-screen bg-white text-slate-900">
     <!-- Запас снизу — под полосу прогресса и сброса, прибитую к низу экрана (тикет #9):
          дока растёт вверх, а не вниз, но место под неё в потоке страницы резервируется

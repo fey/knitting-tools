@@ -14,6 +14,7 @@ export const VARIANTS = [
   { key: 'A', name: 'оверлей «только схема»' },
   { key: 'B', name: 'панель схлопывается на месте' },
   { key: 'C', name: 'схема первична, ручки в шторке' },
+  { key: 'D', name: 'прячутся только настройки' },
 ] as const
 
 export type VariantKey = (typeof VARIANTS)[number]['key']
