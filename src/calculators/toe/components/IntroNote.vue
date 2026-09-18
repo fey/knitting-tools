@@ -45,21 +45,31 @@ const { introCollapsed, toggleIntro } = useToeCalculator()
  * к ней тем же пальцем, каким свернул.
  */
 const TOGGLE_CLASS = 'flex h-11 items-center self-start rounded border border-slate-300 px-3 text-sm text-slate-700'
+
+/**
+ * Слот `aside` — место соседней кнопке в одной строке с кнопкой вводки (§6.1).
+ * Это контракт, а не оформление: блок вводки меняет ширину — свёрнутый он шириной
+ * в кнопку, развёрнутый в 42rem, — и кнопка, поставленная рядом с самим блоком,
+ * ездила бы вбок вместе с его правым краем. В строке кнопки её левый край один
+ * и тот же в обоих состояниях.
+ */
 </script>
 
 <template>
   <section class="flex max-w-[42rem] flex-col gap-2 text-sm text-slate-600" data-testid="intro">
     <!-- Свёрнутая вводка — одна строка-кнопка на её месте. Прятать её нельзя:
          выход из свёрнутого состояния всегда на виду (§6.1). -->
-    <button
-      v-if="introCollapsed"
-      type="button"
-      :class="TOGGLE_CLASS"
-      data-testid="intro-expand"
-      @click="toggleIntro"
-    >
-      Показать инструкцию
-    </button>
+    <div v-if="introCollapsed" class="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        :class="TOGGLE_CLASS"
+        data-testid="intro-expand"
+        @click="toggleIntro"
+      >
+        Показать инструкцию
+      </button>
+      <slot name="aside" />
+    </div>
 
     <template v-else>
       <div class="flex flex-col gap-2" data-testid="intro-body">
@@ -82,14 +92,17 @@ const TOGGLE_CLASS = 'flex h-11 items-center self-start rounded border border-sl
         </p>
       </div>
 
-      <button
-        type="button"
-        :class="TOGGLE_CLASS"
-        data-testid="intro-collapse"
-        @click="toggleIntro"
-      >
-        Свернуть инструкцию
-      </button>
+      <div class="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          :class="TOGGLE_CLASS"
+          data-testid="intro-collapse"
+          @click="toggleIntro"
+        >
+          Свернуть инструкцию
+        </button>
+        <slot name="aside" />
+      </div>
     </template>
   </section>
 </template>
