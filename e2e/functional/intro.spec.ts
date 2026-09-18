@@ -48,3 +48,18 @@ test('кромка объясняется подписью у своей руч�
   const edgeTwoBox = await page.getByTestId('edge-2').boundingBox()
   expect(explainerBox!.y).toBeLessThan(edgeTwoBox!.y)
 })
+
+test('вводка называет половины круга и связь с четырьмя петлями убавочного ряда', async ({
+  page,
+}) => {
+  await page.goto('./')
+
+  // Тикет #13: «круг делится пополам» без имён половин не объясняет ни того, почему
+  // на схеме одна половина, ни почему убавочный ряд снимает 4 петли, а не 2. Модель
+  // это знает (§3) — до экрана знание доходит только здесь.
+  const intro = page.getByTestId('intro')
+  await expect(intro).toContainText('верх стопы и подошву')
+  await expect(intro).toContainText('убавки идут по краям каждой половины')
+  await expect(intro).toContainText('снимает четыре петли')
+  await expect(intro).toContainText('по две с верха стопы и по две с подошвы')
+})
