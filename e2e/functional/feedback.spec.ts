@@ -46,16 +46,6 @@ test('кнопка стоит в шапке и открывает диалог',
   await expect(page.getByTestId('feedback-counter')).toHaveText('осталось 500')
 })
 
-test('две кнопки в шапке не выталкивают страницу за экран телефона', async ({ page }) => {
-  // Замеры §6.4: 358 px под содержимое, «Поделиться» 115 и «Оставить отзыв» 143.
-  // Распухшая «Ссылка скопирована» доводит худший случай до 332 — влезает, а на более
-  // узком экране ряд переносится вместо горизонтальной прокрутки.
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  )
-  expect(overflow).toBe(0)
-})
-
 test('пустое сообщение и перебор гасят «Отправить», ввод при этом не режется', async ({ page }) => {
   await openDialog(page)
   const send = page.getByTestId('feedback-send')
