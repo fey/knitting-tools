@@ -79,6 +79,50 @@ test('поля петель несут подсказки словарём сп�
   await expect(page.getByTestId('initial-hint')).toHaveText('чётное')
   await expect(page.getByTestId('final-hint')).toContainText('20 (шаг 4: 16, 20, 24)')
   await expect(page.getByTestId('final-hint')).toContainText('обычно 16–24')
-  await expect(page.getByTestId('final-explainer')).toContainText('трикотажный шов')
-  await expect(page.getByTestId('final-explainer')).toContainText('8 петлями')
+  // Тикет #15: подпись называет оба закрытия с их числами — и только их. Рамку
+  // «мысок один, различается закрытие» несут §1 и вводка: подпись у ручки отвечает
+  // на «что мне сюда вписать», а не объясняет конструкцию (§4).
+  const explainer = page.getByTestId('final-explainer')
+  await expect(explainer).toContainText('трикотажный шов оставляют 16–24')
+  await expect(explainer).toContainText('около 8')
+  // Восьмёрка — обычное значение, а не другая конструкция: §9.6 её нормой и называет.
+  await expect(explainer).not.toContainText('другой мысок')
+})
+
+// Тикет #14: кнопки ходят шагом 4 (§4), но на самих кнопках об этом не было сказано —
+// куда прыгнет число, было видно только после нажатия. Шаг встал на подпись.
+const STEPPERS = [
+  { minus: 'initial-minus', input: 'initial-stitches', plus: 'initial-plus' },
+  { minus: 'final-minus', input: 'final-stitches', plus: 'final-plus' },
+]
+
+test('кнопки петель показывают свой шаг: \u22124 и +4', async ({ page }) => {
+  await page.goto('./')
+
+  for (const { minus, plus } of STEPPERS) {
+    // Минус — U+2212, а не дефис: знак тот же, что стоял на кнопке до подписи.
+    await expect(page.getByTestId(minus)).toHaveText('\u22124')
+    await expect(page.getByTestId(plus)).toHaveText('+4')
+  }
+})
+
+test('подписанные кнопки держат мишень 44 px, ряд с полем не переносится', async ({ page }) => {
+  await page.goto('./')
+
+  for (const { minus, input, plus } of STEPPERS) {
+    const minusBox = (await page.getByTestId(minus).boundingBox())!
+    const inputBox = (await page.getByTestId(input).boundingBox())!
+    const plusBox = (await page.getByTestId(plus).boundingBox())!
+
+    for (const box of [minusBox, plusBox]) {
+      expect(box.width).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
+
+    // Ряд «кнопка · поле · кнопка» стоит одной строкой: подпись числом, а не словом,
+    // ровно затем, чтобы на телефонной ширине ничего не уехало вниз.
+    expect(Math.abs(minusBox.y - plusBox.y)).toBeLessThan(1)
+    expect(minusBox.x).toBeLessThan(inputBox.x)
+    expect(inputBox.x).toBeLessThan(plusBox.x)
+  }
 })

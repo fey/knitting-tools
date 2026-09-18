@@ -287,7 +287,7 @@ onUnmounted(() => {
 <template>
   <section class="rounded border border-slate-200 p-3" data-testid="toe-chart">
     <p class="text-sm text-slate-600" data-testid="toe-chart-caption-top">
-      ↑ {{ finalReal }} петель на трикотажный шов
+      ↑ {{ finalReal }} петель на закрытие
     </p>
 
     <!-- Обёртка со `position: relative` — докует шторку прогресса (тикет #9), сама схема её не рисует. -->

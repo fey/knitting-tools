@@ -20,16 +20,53 @@ import type { ToeParams } from './core/types'
 export const PROGRESS_STORAGE_KEY = 'knitting-tools:toe-progress'
 
 /**
+ * Чтение из `localStorage`, которому нечего вернуть: записи нет либо хранилище
+ * недоступно (приватная вкладка, `file://`, тестовый узел без DOM).
+ *
+ * **Проверка на недоступность стоит внутри `try`, а не перед ним.** У Chrome
+ * с заблокированными данными сайта кидает сам доступ к свойству, то есть и
+ * `typeof`; чтения идут при загрузке модуля, и брошенное оттуда уронило бы
+ * страницу целиком, а не одну запись.
+ *
+ * §10.2 формулирует это правило один раз и на все записи — реализация тоже одна.
+ */
+function readStored(key: string): string | null {
+  try {
+    if (typeof localStorage === 'undefined') return null
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Запись в `localStorage`, либо стирание записи при `null`. Стирание — это то,
+ * как обе записи выражают «хранить нечего» (§10.2): дефолтное состояние строкой
+ * не хранится. Падать не вправе так же, как и чтение.
+ */
+function writeStored(key: string, value: string | null): void {
+  try {
+    if (typeof localStorage === 'undefined') return
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
+  } catch {
+    // Хранилище недоступно — запись не переживёт эту сессию, но экран не падает.
+  }
+}
+
+/**
  * Запись `{ paramsKey, row }` из `localStorage`, или `null` — записи нет, она
- * повреждена, либо `localStorage` недоступен (приватная вкладка, `file://`,
- * тестовый узел без DOM). Тихий фолбэк — ни приоритет при загрузке (§10.3), ни
- * восстановление ряда (тикет #9) не вправе падать из-за недоступного хранилища.
+ * повреждена, либо хранилище недоступно (`readStored`). Тихий фолбэк — ни приоритет
+ * при загрузке (§10.3), ни восстановление ряда (тикет #9) не вправе падать из-за
+ * недоступного хранилища.
+ *
+ * `try` здесь свой и про другое: он ловит разбор повреждённой записи, а не отказ
+ * хранилища.
  */
 function readSavedProgress(): { paramsKey: string; row: number } | null {
-  if (typeof localStorage === 'undefined') return null
+  const raw = readStored(PROGRESS_STORAGE_KEY)
+  if (!raw) return null
   try {
-    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY)
-    if (!raw) return null
     const parsed: unknown = JSON.parse(raw)
     const record = parsed as { paramsKey?: unknown; row?: unknown } | null
     const key = record?.paramsKey
@@ -119,16 +156,10 @@ const progressRow = ref(initialProgressRow())
  * никогда не всплывает вторым источником правды для фолбэка на пустой hash (§10.3).
  */
 function persistProgress(row: number): void {
-  if (typeof localStorage === 'undefined') return
-  try {
-    if (row > 0) {
-      localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ paramsKey: computeParamsKey(params), row }))
-    } else {
-      localStorage.removeItem(PROGRESS_STORAGE_KEY)
-    }
-  } catch {
-    // Хранилище недоступно — прогресс не переживёт эту сессию, но экран не падает.
-  }
+  writeStored(
+    PROGRESS_STORAGE_KEY,
+    row > 0 ? JSON.stringify({ paramsKey: computeParamsKey(params), row }) : null,
+  )
 }
 
 /** Первое нажатие «Ряд 1 готов» и есть начало счёта — отдельного включения нет (§8). */
@@ -185,6 +216,50 @@ watch(
 )
 
 /**
+ * Ключ свёрнутости вводки (тикет #16, §10.2) — **вторая** запись в `localStorage`
+ * и намеренно отдельная от прогресса. Прогресс привязан к расчёту и живёт под
+ * `paramsKey`; свёрнутость привязана к человеку и от петель на экране не зависит
+ * вовсе — смешать их в одной записи значило бы сбрасывать «уже читал» при каждой
+ * смене расчёта.
+ *
+ * В hash свёрнутость не попадает никогда (§10.5): делятся расчётом, а не тем,
+ * читал ли отправитель вводку.
+ */
+export const INTRO_STORAGE_KEY = 'knitting-tools:intro-collapsed'
+
+/** Единственное хранимое значение свёрнутости: развёрнутая вводка запись стирает. */
+const INTRO_COLLAPSED = 'collapsed'
+
+/**
+ * Свёрнута ли вводка по записи в хранилище. Недоступное `localStorage` (приватная
+ * вкладка, `file://`, тестовый узел без DOM) читается как «не свёрнута»: фолбэк —
+ * развёрнутая вводка, ровно как при первом заходе.
+ */
+function readIntroCollapsed(): boolean {
+  return readStored(INTRO_STORAGE_KEY) === INTRO_COLLAPSED
+}
+
+const introCollapsed = ref(readIntroCollapsed())
+
+/**
+ * Ставит свёрнутость явно и стирает запись при развёрнутой вводке: развёрнутая —
+ * дефолт, и хранить её отдельной строкой незачем.
+ *
+ * **Экран этот сеттер не зовёт** — ему хватает `toggleIntro`. Он нужен юнит-тестам,
+ * чтобы вернуть модульный синглтон в исходное между кейсами: это цена состояния
+ * на уровне модуля, а не ручка интерфейса.
+ */
+function setIntroCollapsed(collapsed: boolean): void {
+  introCollapsed.value = collapsed
+  writeStored(INTRO_STORAGE_KEY, collapsed ? INTRO_COLLAPSED : null)
+}
+
+/** Кнопка внизу вводки и строка-кнопка на её месте — один и тот же переключатель. */
+function toggleIntro(): void {
+  setIntroCollapsed(!introCollapsed.value)
+}
+
+/**
  * Правит петли одной сменой расчёта (§8). Присвоить `initial` и `final` двумя
  * шагами нельзя: между ними стоит пара, которая сама с собой не сходится
  * (60 → 20 и правка начальных на 40 проходит через 40 → 20), синхронный зажим
@@ -207,5 +282,16 @@ function setStitches(next: { initial: number; final: number; edge?: number }): v
 }
 
 export function useToeCalculator() {
-  return { params, calculation, progressRow, markRow, undoRow, resetProgress, setStitches }
+  return {
+    params,
+    calculation,
+    progressRow,
+    markRow,
+    undoRow,
+    resetProgress,
+    setStitches,
+    introCollapsed,
+    setIntroCollapsed,
+    toggleIntro,
+  }
 }

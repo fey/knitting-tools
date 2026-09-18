@@ -156,10 +156,10 @@ test.describe('схема мыска', () => {
     await expect(legend.locator('> div')).toHaveCount(5)
   })
 
-  test('подписи над и под схемой несут число петель на шов и начальные петли', async ({ page }) => {
+  test('подписи над и под схемой несут число петель к закрытию и начальные петли', async ({ page }) => {
     await page.goto('./')
 
-    await expect(page.getByTestId('toe-chart-caption-top')).toContainText('20 петель на трикотажный шов')
+    await expect(page.getByTestId('toe-chart-caption-top')).toContainText('20 петель на закрытие')
     await expect(page.getByTestId('toe-chart-caption-bottom')).toContainText('Начало мыска, 60 петель')
   })
 })
