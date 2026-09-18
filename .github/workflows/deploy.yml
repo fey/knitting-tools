@@ -44,8 +44,14 @@ jobs:
       - name: Тесты страницы
         run: npm run test:e2e
 
+      # Ссылка на форму обратной связи (§11) приезжает секретом: без неё сборка
+      # не падает, но страница уезжает без кнопки «Оставить отзыв» — молча.
+      # Прогон страницы выше собирает себе dist сам и подставляет заведомо
+      # ненастоящую ссылку (playwright.config.ts), к живой форме тесты не ходят.
       - name: Сборка
         run: npm run build
+        env:
+          VITE_FEEDBACK_PREFILL_URL: ${{ secrets.VITE_FEEDBACK_PREFILL_URL }}
 
       - uses: actions/configure-pages@v6
 
