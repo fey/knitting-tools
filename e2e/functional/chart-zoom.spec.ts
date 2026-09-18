@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 // §7: клетка 22 px — дефолт, а не приговор. Тикет #3 записал «22px по умолчанию,
 // кнопки −/+», спека это потеряла и теперь несёт обратно. Дефолт 60 → 20: cols = 30,
-// 19 рядов, ширина на дефолтном шаге ≈ 702 px.
+// 19 рядов; на дефолтном шаге сетка 660 px, полоса номеров ещё 42 px.
 
 const svgBox = (page: import('@playwright/test').Page) =>
   page.getByTestId('toe-chart-svg').evaluate((el) => ({
@@ -13,7 +13,7 @@ const svgBox = (page: import('@playwright/test').Page) =>
 test.describe('масштаб схемы', () => {
   test('схема открывается на дефолтном шаге — клетка 22 px', async ({ page }) => {
     await page.goto('./')
-    expect(await svgBox(page)).toEqual({ width: 702, height: 418 })
+    expect(await svgBox(page)).toEqual({ width: 660, height: 418 })
   })
 
   test('«крупнее» растит клетку, «мельче» возвращает к дефолту', async ({ page }) => {
@@ -21,11 +21,11 @@ test.describe('масштаб схемы', () => {
 
     await page.getByTestId('toe-chart-zoom-in').click()
     const bigger = await svgBox(page)
-    expect(bigger.width).toBeGreaterThan(702)
+    expect(bigger.width).toBeGreaterThan(660)
     expect(bigger.height).toBeGreaterThan(418)
 
     await page.getByTestId('toe-chart-zoom-out').click()
-    expect(await svgBox(page)).toEqual({ width: 702, height: 418 })
+    expect(await svgBox(page)).toEqual({ width: 660, height: 418 })
   })
 
   test('мельче дефолта тоже есть куда — на телефоне схему хочется и обозреть целиком', async ({
@@ -34,7 +34,7 @@ test.describe('масштаб схемы', () => {
     await page.goto('./')
     await page.getByTestId('toe-chart-zoom-out').click()
     const smaller = await svgBox(page)
-    expect(smaller.width).toBeLessThan(702)
+    expect(smaller.width).toBeLessThan(660)
   })
 
   test('на краях набора кнопка заглушена — жать в пустоту нечего', async ({ page }) => {
@@ -63,12 +63,12 @@ test.describe('масштаб схемы', () => {
     await page.keyboard.down('Control')
     await page.mouse.wheel(0, -100)
     await page.keyboard.up('Control')
-    await expect.poll(async () => (await svgBox(page)).width).toBeGreaterThan(702)
+    await expect.poll(async () => (await svgBox(page)).width).toBeGreaterThan(660)
 
     await page.keyboard.down('Control')
     await page.mouse.wheel(0, 100)
     await page.keyboard.up('Control')
-    await expect.poll(async () => (await svgBox(page)).width).toBe(702)
+    await expect.poll(async () => (await svgBox(page)).width).toBe(660)
   })
 
   test('смена масштаба ставит прокрутку на правый край — там начало ряда (§7, тикет #8)', async ({

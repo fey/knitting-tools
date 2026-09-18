@@ -19,6 +19,17 @@
  * Масштаб — состояние экрана, а не расчёта: в hash не попадает (§10.5) и в `localStorage`
  * не хранится, схема открывается на дефолтном шаге всегда.
  *
+ * **Схема уже окна встаёт по центру** (§7) — автополями на дорожке, а не `justify-content`:
+ * у флексбокса центрированное содержимое, переросшее контейнер, вылезает в обе стороны,
+ * и левый край становится недостижим прокруткой. Автополя при переполнении честно обнуляются.
+ *
+ * **Номера рядов прибиты к правому краю окна и вбок не едут** (§7). Ради этого схема
+ * разрезана на два SVG — сетку и полосу номеров — внутри одной флекс-дорожки: полоса
+ * стоит `position: sticky` с `right: 0`, то есть на месте, пока схема прокручена вправо,
+ * и прилипает к краю окна, когда сетку увели влево. Подпись обязана быть непрозрачной:
+ * сетка проезжает **под** ней. Одним SVG это не делается — `sticky` на узлы внутри SVG
+ * не действует, а держать номера скриптом значило бы гонять их на каждый кадр прокрутки.
+ *
  * **Шторка прогресса (тикет #9, §8)** несёт два слоя, и путать их нельзя (перенос
  * из `prototypes/row-progress.html`, вариант E):
  * - контур текущего ряда рисует сама сетка — обычный `<rect>` в SVG, часть содержимого,
@@ -73,9 +84,12 @@ const cellSize = computed(() => cellSizeAt(zoomStep.value))
 const canZoomOut = computed(() => zoomStep.value > 0)
 const canZoomIn = computed(() => zoomStep.value < CHART_CELL_SIZES.length - 1)
 
-const viewWidth = computed(() => cols.value + CHART_LABEL_WIDTH)
 const viewHeight = computed(() => rowsCount.value)
-const pixelWidth = computed(() => Math.round(viewWidth.value * cellSize.value))
+/** Сетка и полоса номеров — два SVG, поэтому и ширины две (см. шапку про прибитые номера). */
+const gridWidthPx = computed(() => Math.round(cols.value * cellSize.value))
+const labelWidthPx = computed(() => Math.round(CHART_LABEL_WIDTH * cellSize.value))
+/** Вся схема поперёк — сетка плюс полоса номеров; по ней меряется бумага шторки. */
+const pixelWidth = computed(() => gridWidthPx.value + labelWidthPx.value)
 const pixelHeight = computed(() => Math.round(viewHeight.value * cellSize.value))
 
 const guideLines = computed(() => chartGuideLines(cols.value))
@@ -391,14 +405,18 @@ onUnmounted(() => {
         class="chartscroll overflow-x-auto rounded border border-slate-200"
         data-testid="toe-chart-scroll"
       >
-        <svg
-          ref="svgEl"
-          :viewBox="`0 0 ${viewWidth} ${viewHeight}`"
-          :width="pixelWidth"
-          :height="pixelHeight"
-          style="display: block"
-          data-testid="toe-chart-svg"
-        >
+        <!-- Дорожка держит сетку и полосу номеров одной строкой. `w-max` — ширина по
+             содержимому, `mx-auto` центрует её, когда схема уже окна (§7); при
+             переполнении автополя обнуляются сами, и левый край остаётся достижим. -->
+        <div class="mx-auto flex w-max" data-testid="toe-chart-track">
+          <svg
+            ref="svgEl"
+            :viewBox="`0 0 ${cols} ${viewHeight}`"
+            :width="gridWidthPx"
+            :height="pixelHeight"
+            style="display: block"
+            data-testid="toe-chart-svg"
+          >
           <template v-for="layer in grid" :key="layer.row.n">
             <rect
               v-for="cell in layer.cells"
@@ -439,15 +457,6 @@ onUnmounted(() => {
               :data-stitch="dec.p"
               :data-symbol="`dec-${dec.dir}`"
             />
-            <text
-              :x="cols + 0.35"
-              :y="layer.y + 0.7"
-              font-size="0.55"
-              :fill="layer.row.type === 'dec' ? CHART_COLORS.decRowLabel : CHART_COLORS.plainRowLabel"
-              :font-weight="layer.row.type === 'dec' ? 600 : 400"
-              data-testid="toe-chart-row-label"
-              :data-row="layer.row.n"
-            >{{ layer.row.n }}</text>
           </template>
 
           <line
@@ -485,16 +494,53 @@ onUnmounted(() => {
             stroke-width="0.12"
             data-testid="toe-chart-current-row"
           />
-        </svg>
+          </svg>
+
+          <!-- Полоса номеров рядов (§7 «номера рядов справа»). Прилипает к правому краю
+               окна: сетка проезжает под ней, поэтому фон непрозрачный, а левая грань
+               отчёркнута — иначе номера висели бы прямо на клетках. -->
+          <svg
+            class="sticky right-0 shrink-0 bg-white"
+            :viewBox="`0 0 ${CHART_LABEL_WIDTH} ${viewHeight}`"
+            :width="labelWidthPx"
+            :height="pixelHeight"
+            style="display: block"
+            data-testid="toe-chart-row-labels"
+          >
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              :y2="viewHeight"
+              :stroke="CHART_COLORS.guideLine"
+              :stroke-width="CHART_STROKE.gridBorder"
+            />
+            <text
+              v-for="layer in grid"
+              :key="`label-${layer.row.n}`"
+              x="0.35"
+              :y="layer.y + 0.7"
+              font-size="0.55"
+              :fill="layer.row.type === 'dec' ? CHART_COLORS.decRowLabel : CHART_COLORS.plainRowLabel"
+              :font-weight="layer.row.type === 'dec' ? 600 : 400"
+              data-testid="toe-chart-row-label"
+              :data-row="layer.row.n"
+            >{{ layer.row.n }}</text>
+          </svg>
+        </div>
       </div>
 
       <!-- Бумага шторки: затенение связанного (§8). Снаружи скроллера, потому что закрывать
            она должна видимую ширину схемы независимо от горизонтальной прокрутки, а не
            ширину содержимого. Вертикаль теперь совпадает с содержимым один в один:
-           схема не прокручивается вниз, она вся на странице. -->
+           схема не прокручивается вниз, она вся на странице.
+
+           Ширина — `min(сетка, окно)` с теми же автополями, что у самой сетки: схема уже
+           окна стоит по центру (§7), и бумага в полную ширину тонировала бы пустые поля
+           по бокам. Схема шире окна — `min` возвращает 100%, то есть прежнее поведение. -->
       <div
-        class="pointer-events-none absolute inset-x-0 bottom-0 bg-slate-900/30"
-        :style="{ top: `${shutterPaperTopPx}px` }"
+        class="pointer-events-none absolute inset-x-0 bottom-0 mx-auto bg-slate-900/30"
+        :style="{ top: `${shutterPaperTopPx}px`, width: `min(${pixelWidth}px, 100%)` }"
         data-testid="toe-chart-shutter-paper"
       />
     </div>

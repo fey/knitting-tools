@@ -55,6 +55,42 @@ test('на дефолтном расчёте схема помещается в 
   expect(metrics.scrollWidth).toBe(metrics.clientWidth)
 })
 
+test('схема уже окна встаёт по центру, а не жмётся влево (§7)', async ({ page }) => {
+  // На 1280 колонка схемы шире дефолтной сетки: 702 px сетки в окне около 800 px.
+  // Прижатая влево схема оставляла бы белое поле справа от номеров рядов — тем более
+  // заметное на мелком шаге зума, где сетка всего 510 px.
+  const gaps = await page.getByTestId('toe-chart-scroll').evaluate((el) => {
+    // Центруется дорожка целиком — сетка вместе с полосой номеров, а не сетка отдельно.
+    const track = el.querySelector('[data-testid="toe-chart-track"]')!
+    const box = el.getBoundingClientRect()
+    const grid = track.getBoundingClientRect()
+    return {
+      left: grid.left - box.left,
+      right: box.right - grid.right,
+      fits: el.scrollWidth === el.clientWidth,
+    }
+  })
+
+  expect(gaps.fits).toBe(true) // предпосылка: схема действительно уже окна
+  expect(gaps.left).toBeGreaterThan(1)
+  expect(Math.abs(gaps.left - gaps.right)).toBeLessThan(2)
+})
+
+test('шторка прогресса не тонирует пустые поля по бокам центрованной схемы (§8)', async ({
+  page,
+}) => {
+  const widths = await page.getByTestId('toe-chart-box').evaluate((el) => {
+    const track = el.querySelector('[data-testid="toe-chart-track"]')!
+    const paper = el.querySelector('[data-testid="toe-chart-shutter-paper"]')!
+    return {
+      grid: track.getBoundingClientRect().width,
+      paper: paper.getBoundingClientRect().width,
+    }
+  })
+  // Бумага шторки шириной в схему, а не в окно: иначе затенение ложилось бы на белое.
+  expect(Math.abs(widths.paper - widths.grid)).toBeLessThan(2)
+})
+
 test('крупный шаг зума возвращает прокрутку и на широком экране — это выбор, а не поломка (§6.2)', async ({
   page,
 }) => {
