@@ -65,3 +65,95 @@ test('вводка называет половины круга и связь с
   await expect(intro).toContainText('снимает четыре петли')
   await expect(intro).toContainText('по две с верха стопы и по две с подошвы')
 })
+
+// Тикет #16, §6.1: вводка нужна на первом заходе и мешает на десятом. Решение «видна
+// всегда и не сворачивается» отменено (§14); выбор переживает заход второй записью
+// в `localStorage` (§10.2), отдельной от прогресса.
+
+test('вводка открывается развёрнутой, кнопка внизу её сворачивает', async ({ page }) => {
+  await page.goto('./')
+
+  const body = page.getByTestId('intro-body')
+  const collapse = page.getByTestId('intro-collapse')
+  await expect(body).toBeVisible()
+  await expect(collapse).toBeVisible()
+
+  // Кнопка стоит внизу вводки — под текстом, а не над ним.
+  const bodyBox = (await body.boundingBox())!
+  const collapseBox = (await collapse.boundingBox())!
+  expect(collapseBox.y).toBeGreaterThan(bodyBox.y)
+
+  await collapse.click()
+
+  await expect(body).toBeHidden()
+  // Выход из свёрнутого состояния всегда на виду — прятать его нельзя.
+  const expand = page.getByTestId('intro-expand')
+  await expect(expand).toBeVisible()
+  await expect(expand).toHaveText('Как этим пользоваться')
+  await expect(expand).toBeInViewport()
+})
+
+test('строка-кнопка разворачивает вводку обратно', async ({ page }) => {
+  await page.goto('./')
+
+  await page.getByTestId('intro-collapse').click()
+  await expect(page.getByTestId('intro-body')).toBeHidden()
+
+  await page.getByTestId('intro-expand').click()
+
+  await expect(page.getByTestId('intro-body')).toBeVisible()
+  await expect(page.getByTestId('intro-collapse')).toBeVisible()
+  await expect(page.getByTestId('intro-expand')).toHaveCount(0)
+})
+
+test('свёрнутость переживает перезагрузку', async ({ page }) => {
+  await page.goto('./')
+  await page.getByTestId('intro-collapse').click()
+
+  await page.reload()
+
+  await expect(page.getByTestId('intro-expand')).toBeVisible()
+  await expect(page.getByTestId('intro-body')).toBeHidden()
+
+  // И обратно: развёрнутое состояние переживает заход так же.
+  await page.getByTestId('intro-expand').click()
+  await page.reload()
+  await expect(page.getByTestId('intro-body')).toBeVisible()
+})
+
+test('свёрнутость не попадает в hash и не сбрасывается сменой расчёта', async ({ page }) => {
+  await page.goto('./')
+  await page.getByTestId('intro-collapse').click()
+
+  // Прогресс привязан к расчёту, свёрнутость — к человеку: смена петель её не трогает.
+  await page.getByTestId('initial-plus').click()
+  await expect(page.getByTestId('intro-expand')).toBeVisible()
+
+  // Делятся расчётом, а не тем, читал ли отправитель вводку (§10.5).
+  const hash = await page.evaluate(() => location.hash)
+  expect(hash).toBe('#s=64&e=20&k=1&r=even')
+})
+
+test('недоступное localStorage не роняет страницу — вводка просто развёрнута', async ({ page }) => {
+  // Приватная вкладка и заблокированные данные сайта: у Chrome сам доступ к свойству
+  // кидает SecurityError, поэтому падать не вправе ни чтение, ни `typeof`-проверка.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage denied')
+      },
+    })
+  })
+
+  await page.goto('./')
+
+  await expect(page.getByTestId('intro-body')).toBeVisible()
+  await expect(page.getByTestId('intro-collapse')).toBeVisible()
+  // Страница жива целиком, а не только вводка: расчёт на экране посчитан.
+  await expect(page.getByTestId('summary-total-rows')).toHaveText('19 рядов всего')
+
+  // Свернуть по-прежнему можно — выбор просто не переживёт заход.
+  await page.getByTestId('intro-collapse').click()
+  await expect(page.getByTestId('intro-expand')).toBeVisible()
+})

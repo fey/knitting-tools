@@ -124,3 +124,49 @@ describe('счёт ряда (тикет #9)', () => {
     setStitches({ initial: 60, final: 20, edge: 1 })
   })
 })
+
+// Тикет #16, §6.1: вводка нужна на первом заходе и мешает на десятом. Свёрнутость —
+// вторая запись в `localStorage` (§10.2), и она привязана к человеку, а не к расчёту.
+// `localStorage` в node-окружении недоступен (см. vite.config.ts) — переживание
+// перезагрузки и фолбэк при недоступном хранилище проверяют браузерные спеки (§12.2).
+describe('свёрнутость вводки (тикет #16)', () => {
+  it('первый заход — вводка развёрнута', () => {
+    const { introCollapsed, setIntroCollapsed } = useToeCalculator()
+    setIntroCollapsed(false)
+    expect(introCollapsed.value).toBe(false)
+  })
+
+  it('переключатель сворачивает и разворачивает обратно', () => {
+    const { introCollapsed, toggleIntro, setIntroCollapsed } = useToeCalculator()
+    setIntroCollapsed(false)
+
+    toggleIntro()
+    expect(introCollapsed.value).toBe(true)
+
+    toggleIntro()
+    expect(introCollapsed.value).toBe(false)
+  })
+
+  it('свёрнутость не трогает ни расчёт, ни отмеченный ряд: смена расчёта её не сбрасывает', () => {
+    const { params, progressRow, markRow, resetProgress, setStitches, introCollapsed, toggleIntro, setIntroCollapsed } =
+      useToeCalculator()
+    resetProgress()
+    setStitches({ initial: 60, final: 20, edge: 1 })
+    params.rhythm = { kind: 'preset', name: 'even' }
+
+    setIntroCollapsed(false)
+    toggleIntro()
+    markRow()
+    expect(introCollapsed.value).toBe(true)
+    expect(progressRow.value).toBe(1)
+
+    // Прогресс привязан к расчёту и при его смене подтягивается; свёрнутость привязана
+    // к человеку и живёт независимо от того, какие петли на экране.
+    setStitches({ initial: 40, final: 36 })
+    expect(introCollapsed.value).toBe(true)
+
+    resetProgress()
+    setIntroCollapsed(false)
+    setStitches({ initial: 60, final: 20, edge: 1 })
+  })
+})
