@@ -22,7 +22,9 @@ test('вводка называет конструкцию и её границ�
 
   const intro = page.getByTestId('intro')
   await expect(intro).toContainText('ленточный мысок')
-  await expect(intro).toContainText('трикотажным швом')
+  // Закрытие названо выбором, а не частью зафиксированной конструкции (тикет #15, §1).
+  await expect(intro).toContainText('трикотажным швом или стягиванием')
+  await expect(intro).toContainText('выбор мастера')
   await expect(intro).toContainText('toe-up')
 })
 

@@ -79,8 +79,14 @@ test('поля петель несут подсказки словарём сп�
   await expect(page.getByTestId('initial-hint')).toHaveText('чётное')
   await expect(page.getByTestId('final-hint')).toContainText('20 (шаг 4: 16, 20, 24)')
   await expect(page.getByTestId('final-hint')).toContainText('обычно 16–24')
-  await expect(page.getByTestId('final-explainer')).toContainText('трикотажный шов')
-  await expect(page.getByTestId('final-explainer')).toContainText('8 петлями')
+  // Тикет #15: подпись называет оба закрытия с их числами. Мысок один и тот же —
+  // различается только то, чем он кончается, и выбор за мастером.
+  const explainer = page.getByTestId('final-explainer')
+  await expect(explainer).toContainText('трикотажный шов оставляют 16–24')
+  await expect(explainer).toContainText('около 8')
+  await expect(explainer).toContainText('решает мастер')
+  // Восьмёрка — обычное значение, а не другая конструкция: §9.6 её нормой и называет.
+  await expect(explainer).not.toContainText('другой мысок')
 })
 
 // Тикет #14: кнопки ходят шагом 4 (§4), но на самих кнопках об этом не было сказано —
