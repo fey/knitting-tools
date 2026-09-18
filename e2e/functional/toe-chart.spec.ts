@@ -28,8 +28,9 @@ test.describe('схема мыска', () => {
     await page.goto('./')
 
     const svg = page.getByTestId('toe-chart-svg')
-    // cols = 30, LBL = 1.9, CELL = 22 → ширина ≈ 702 px; rows = 19 → высота = 418 px.
-    await expect(svg).toHaveAttribute('width', '702')
+    // cols = 30, CELL = 22 → сетка 660 px; полоса номеров (LBL = 1.9) стоит отдельным
+    // SVG рядом, вместе те же 702 px. rows = 19 → высота 418 px.
+    await expect(svg).toHaveAttribute('width', '660')
     await expect(svg).toHaveAttribute('height', '418')
 
     // Кадра в 420 px больше нет (§6): окно схемы вмещает всю сетку по высоте, и внутри
@@ -51,6 +52,47 @@ test.describe('схема мыска', () => {
     }))
     expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth) // схема реально шире окна
     expect(metrics.scrollLeft + metrics.clientWidth).toBeGreaterThanOrEqual(metrics.scrollWidth - 1)
+  })
+
+  test('схема шире окна никуда не центруется — левый край достижим прокруткой', async ({
+    page,
+  }) => {
+    await page.goto('./')
+    const scroll = page.getByTestId('toe-chart-scroll')
+    await scroll.evaluate((el) => {
+      el.scrollLeft = 0
+    })
+
+    // Центрирование узкой схемы не вправе обрезать широкую: край сетки обязан встать
+    // ровно на край окна, а не уехать за него вместе с первой колонкой петель.
+    const gap = await scroll.evaluate((el) => {
+      const svg = el.querySelector('svg')!
+      return svg.getBoundingClientRect().left - el.getBoundingClientRect().left
+    })
+    expect(Math.abs(gap)).toBeLessThan(2)
+  })
+
+  test('номера рядов прибиты к правому краю окна и вбок не едут', async ({ page }) => {
+    await page.goto('./')
+    const scroll = page.getByTestId('toe-chart-scroll')
+
+    // Отступ правой грани полосы от правой грани окна; 1 px — рамка скроллера.
+    const offsetFromRight = () =>
+      scroll.evaluate((el) => {
+        const strip = el.querySelector('[data-testid="toe-chart-row-labels"]')!
+        return el.getBoundingClientRect().right - strip.getBoundingClientRect().right
+      })
+
+    // Схема открыта на правом краю: полоса стоит на своём месте, оно же — край окна.
+    expect(await offsetFromRight()).toBeLessThan(3)
+
+    // Уводим сетку влево. Номера обязаны остаться там же: ряд без номера не читается.
+    await scroll.evaluate((el) => {
+      el.scrollLeft = 0
+    })
+    expect(await offsetFromRight()).toBeLessThan(3)
+
+    await expect(scroll.locator('[data-testid="toe-chart-row-label"]')).toHaveCount(19)
   })
 
   test('ширина сетки постоянна и равна половине начальных петель — 30 колонок на 19 рядов', async ({
@@ -133,10 +175,14 @@ test.describe('схема мыска', () => {
     const svg = page.getByTestId('toe-chart-svg')
 
     await expect(svg.locator('[data-testid="toe-chart-guide"]')).toHaveCount(5)
-    await expect(svg.locator('[data-testid="toe-chart-row-label"]')).toHaveCount(19)
-    await expect(svg.locator('[data-testid="toe-chart-row-label"][data-row="1"]')).toHaveText('1')
 
-    const label = (n: number) => svg.locator(`[data-testid="toe-chart-row-label"][data-row="${n}"]`)
+    // Номера рядов живут не в сетке, а в прибитой полосе рядом с ней.
+    const labels = page.getByTestId('toe-chart-row-labels')
+    await expect(labels.locator('[data-testid="toe-chart-row-label"]')).toHaveCount(19)
+    await expect(labels.locator('[data-testid="toe-chart-row-label"][data-row="1"]')).toHaveText('1')
+
+    const label = (n: number) =>
+      labels.locator(`[data-testid="toe-chart-row-label"][data-row="${n}"]`)
     // Ряд 1 — убавочный (жирнее и темнее), ряд 2 — промежуточный (§7).
     await expect(label(1)).toHaveAttribute('font-weight', '600')
     await expect(label(2)).toHaveAttribute('font-weight', '400')

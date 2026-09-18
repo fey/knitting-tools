@@ -11,6 +11,25 @@
  * отразить всю схему — ловит это только скриншот, поэтому геометрия и её отсчёт
  * зафиксированы константами в `core/constants.ts`, а не пересчитаны здесь на глаз.
  *
+ * **Масштаб (§7)** — шаг из `CHART_CELL_SIZES`, дефолт 22 px. Меняются только атрибуты
+ * `width`/`height` у SVG: `viewBox` остаётся в клетках, поэтому сетка, значки, номера
+ * рядов и обводка текущего ряда растут сами, править внутри SVG нечего. Легенда живёт
+ * на своём `LEGEND_CELL_SIZE` и за сеткой не тянется — подписи вне SVG (§7).
+ *
+ * Масштаб — состояние экрана, а не расчёта: в hash не попадает (§10.5) и в `localStorage`
+ * не хранится, схема открывается на дефолтном шаге всегда.
+ *
+ * **Схема уже окна встаёт по центру** (§7) — автополями на дорожке, а не `justify-content`:
+ * у флексбокса центрированное содержимое, переросшее контейнер, вылезает в обе стороны,
+ * и левый край становится недостижим прокруткой. Автополя при переполнении честно обнуляются.
+ *
+ * **Номера рядов прибиты к правому краю окна и вбок не едут** (§7). Ради этого схема
+ * разрезана на два SVG — сетку и полосу номеров — внутри одной флекс-дорожки: полоса
+ * стоит `position: sticky` с `right: 0`, то есть на месте, пока схема прокручена вправо,
+ * и прилипает к краю окна, когда сетку увели влево. Подпись обязана быть непрозрачной:
+ * сетка проезжает **под** ней. Одним SVG это не делается — `sticky` на узлы внутри SVG
+ * не действует, а держать номера скриптом значило бы гонять их на каждый кадр прокрутки.
+ *
  * **Шторка прогресса (тикет #9, §8)** несёт два слоя, и путать их нельзя (перенос
  * из `prototypes/row-progress.html`, вариант E):
  * - контур текущего ряда рисует сама сетка — обычный `<rect>` в SVG, часть содержимого,
@@ -22,16 +41,19 @@
  *   `shutterTopPx` в пикселях содержимого: вертикального `scrollTop`, за которым
  *   пришлось бы следить, у скроллера больше нет.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import type { Row } from '../core/types'
 import {
-  CELL_SIZE,
+  CHART_CELL_SIZES,
   CHART_COLORS,
   CHART_LABEL_WIDTH,
   CHART_STROKE,
+  DEFAULT_ZOOM_STEP,
   LEGEND_CELL_SIZE,
+  cellSizeAt,
   chartGuideLines,
+  clampZoomStep,
   pageScrollTargetPx,
   shutterTopPx,
   stitchLinePoints,
@@ -53,10 +75,22 @@ const edge = computed(() => calculation.value.edge)
 const displayRows = computed(() => calculation.value.rows.slice().reverse())
 const rowsCount = computed(() => displayRows.value.length)
 
-const viewWidth = computed(() => cols.value + CHART_LABEL_WIDTH)
+/**
+ * Шаг масштаба (§7) — индекс в `CHART_CELL_SIZES`, не размер клетки: на краях набора
+ * кнопка заглушается, а для этого надо знать, где край.
+ */
+const zoomStep = ref(DEFAULT_ZOOM_STEP)
+const cellSize = computed(() => cellSizeAt(zoomStep.value))
+const canZoomOut = computed(() => zoomStep.value > 0)
+const canZoomIn = computed(() => zoomStep.value < CHART_CELL_SIZES.length - 1)
+
 const viewHeight = computed(() => rowsCount.value)
-const pixelWidth = computed(() => Math.round(viewWidth.value * CELL_SIZE))
-const pixelHeight = computed(() => Math.round(viewHeight.value * CELL_SIZE))
+/** Сетка и полоса номеров — два SVG, поэтому и ширины две (см. шапку про прибитые номера). */
+const gridWidthPx = computed(() => Math.round(cols.value * cellSize.value))
+const labelWidthPx = computed(() => Math.round(CHART_LABEL_WIDTH * cellSize.value))
+/** Вся схема поперёк — сетка плюс полоса номеров; по ней меряется бумага шторки. */
+const pixelWidth = computed(() => gridWidthPx.value + labelWidthPx.value)
+const pixelHeight = computed(() => Math.round(viewHeight.value * cellSize.value))
 
 const guideLines = computed(() => chartGuideLines(cols.value))
 
@@ -177,6 +211,32 @@ let dragging = false
 let startX = 0
 let startLeft = 0
 
+/**
+ * Ставит горизонтальную прокрутку на правый край — там начало ряда (§7). Зовётся ровно
+ * дважды: на открытии и на смене масштаба. Отметка ряда прокрутку не трогает намеренно
+ * (тикет #8: схема, возвращающаяся вправо на каждое «связала», читается как свойство
+ * отметки). Смена расчёта её тоже не трогает — тот же тикет называл и этот повод, но
+ * на экране его не было никогда, и зум ничего здесь не менял (§7).
+ */
+function scrollChartToRowStart(): void {
+  const el = scrollEl.value
+  if (el) el.scrollLeft = el.scrollWidth
+}
+
+/**
+ * Шаг масштаба вверх или вниз (§7). На краю набора выходит холостым — `clampZoomStep`
+ * вернёт то же значение, и прокрутка зря не дёрнется.
+ *
+ * `nextTick` не роскошь: правый край считается от `scrollWidth`, а тот обновится
+ * только после перерисовки SVG с новой шириной.
+ */
+function zoomBy(delta: number): void {
+  const next = clampZoomStep(zoomStep.value + delta)
+  if (next === zoomStep.value) return
+  zoomStep.value = next
+  void nextTick(scrollChartToRowStart)
+}
+
 function onPointerDown(e: PointerEvent) {
   const el = scrollEl.value
   if (!el) return
@@ -203,9 +263,19 @@ function stopDragging() {
   scrollEl.value?.classList.remove('dragging')
 }
 
+/**
+ * Колесо: `ctrl` (и щипок по тачпаду, который браузер шлёт тем же событием) меняет
+ * масштаб, shift и горизонтальное колесо — прокручивают. `preventDefault` на ветке
+ * масштаба обязателен: без него браузер вдобавок зумит страницу целиком.
+ */
 function onWheel(e: WheelEvent) {
   const el = scrollEl.value
   if (!el) return
+  if (e.ctrlKey) {
+    e.preventDefault()
+    zoomBy(e.deltaY < 0 ? 1 : -1)
+    return
+  }
   const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0
   if (!delta) return
   el.scrollLeft += delta
@@ -218,7 +288,10 @@ function onWheel(e: WheelEvent) {
  * и без зажима бумага заходила бы на полосу, затеняя её вместе со схемой.
  */
 const shutterPaperTopPx = computed(() =>
-  Math.max(0, Math.min(shutterTopPx(rowsCount.value, progressRow.value), pixelHeight.value)),
+  Math.max(
+    0,
+    Math.min(shutterTopPx(rowsCount.value, progressRow.value, cellSize.value), pixelHeight.value),
+  ),
 )
 
 /**
@@ -255,6 +328,7 @@ function scrollPageToCurrentRow(): void {
     progressRow.value,
     window.innerHeight,
     dockHeight,
+    cellSize.value,
   )
   requestAnimationFrame(() => window.scrollTo(0, target))
 }
@@ -262,7 +336,7 @@ function scrollPageToCurrentRow(): void {
 onMounted(() => {
   const el = scrollEl.value
   if (!el) return
-  el.scrollLeft = el.scrollWidth
+  scrollChartToRowStart()
 
   scrollPageToCurrentRow()
 
@@ -286,9 +360,41 @@ onUnmounted(() => {
 
 <template>
   <section class="rounded border border-slate-200 p-3" data-testid="toe-chart">
-    <p class="text-sm text-slate-600" data-testid="toe-chart-caption-top">
-      ↑ {{ finalReal }} петель на закрытие
-    </p>
+    <!-- Подпись и масштаб стоят одной строкой над сеткой: кнопки нужны у самой схемы,
+         а подпись обязана оставаться вплотную к её верхнему краю (§7). Внутрь
+         `toe-chart-box` их класть нельзя — там бумага шторки на `absolute inset-x-0`
+         накрыла бы мишени. -->
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-sm text-slate-600" data-testid="toe-chart-caption-top">
+        ↑ {{ finalReal }} петель на закрытие
+      </p>
+
+      <!-- Мишень 44 px — тем же узором, что степперы конструктора ритма (§6.3). -->
+      <div class="flex shrink-0 items-center gap-1" data-testid="toe-chart-zoom">
+        <button
+          type="button"
+          class="h-11 w-11 rounded border border-slate-300 text-xl leading-none text-slate-700 disabled:opacity-40"
+          :disabled="!canZoomOut"
+          aria-label="Схема мельче"
+          title="Схема мельче"
+          data-testid="toe-chart-zoom-out"
+          @click="zoomBy(-1)"
+        >
+          −
+        </button>
+        <button
+          type="button"
+          class="h-11 w-11 rounded border border-slate-300 text-xl leading-none text-slate-700 disabled:opacity-40"
+          :disabled="!canZoomIn"
+          aria-label="Схема крупнее"
+          title="Схема крупнее"
+          data-testid="toe-chart-zoom-in"
+          @click="zoomBy(1)"
+        >
+          +
+        </button>
+      </div>
+    </div>
 
     <!-- Обёртка со `position: relative` — докует шторку прогресса (тикет #9), сама схема её не рисует. -->
     <div class="relative mt-2" data-testid="toe-chart-box">
@@ -299,56 +405,120 @@ onUnmounted(() => {
         class="chartscroll overflow-x-auto rounded border border-slate-200"
         data-testid="toe-chart-scroll"
       >
-        <svg
-          ref="svgEl"
-          :viewBox="`0 0 ${viewWidth} ${viewHeight}`"
-          :width="pixelWidth"
-          :height="pixelHeight"
-          style="display: block"
-          data-testid="toe-chart-svg"
-        >
-          <template v-for="layer in grid" :key="layer.row.n">
-            <rect
-              v-for="cell in layer.cells"
-              :key="`cell-${layer.row.n}-${cell.j}`"
-              :x="cell.j"
-              :y="layer.y"
-              width="1"
-              height="1"
-              :fill="cell.fill"
-              :stroke="cell.stroke"
-              :stroke-width="cell.strokeWidth"
-              :data-row="layer.row.n"
-              :data-col="cell.j"
-              :data-empty="cell.empty ? '' : null"
-            />
+        <!-- Дорожка держит сетку и полосу номеров одной строкой. `w-max` — ширина по
+             содержимому, `mx-auto` центрует её, когда схема уже окна (§7); при
+             переполнении автополя обнуляются сами, и левый край остаётся достижим. -->
+        <div class="mx-auto flex w-max" data-testid="toe-chart-track">
+          <svg
+            ref="svgEl"
+            :viewBox="`0 0 ${cols} ${viewHeight}`"
+            :width="gridWidthPx"
+            :height="pixelHeight"
+            style="display: block"
+            data-testid="toe-chart-svg"
+          >
+            <template v-for="layer in grid" :key="layer.row.n">
+              <rect
+                v-for="cell in layer.cells"
+                :key="`cell-${layer.row.n}-${cell.j}`"
+                :x="cell.j"
+                :y="layer.y"
+                width="1"
+                height="1"
+                :fill="cell.fill"
+                :stroke="cell.stroke"
+                :stroke-width="cell.strokeWidth"
+                :data-row="layer.row.n"
+                :data-col="cell.j"
+                :data-empty="cell.empty ? '' : null"
+              />
+              <line
+                v-for="stitch in layer.stitches"
+                :key="`stitch-${layer.row.n}-${stitch.j}`"
+                :x1="stitch.line.x1"
+                :y1="stitch.line.y1"
+                :x2="stitch.line.x2"
+                :y2="stitch.line.y2"
+                :stroke="CHART_COLORS.stitchStroke"
+                :stroke-width="CHART_STROKE.stitch"
+                stroke-linecap="round"
+                :data-row="layer.row.n"
+                :data-col="stitch.j"
+                :data-stitch="stitch.p"
+                data-symbol="stitch"
+              />
+              <polygon
+                v-for="dec in layer.decorations"
+                :key="`dec-${layer.row.n}-${dec.j}`"
+                :points="dec.points"
+                :fill="CHART_COLORS.decorFill"
+                :data-row="layer.row.n"
+                :data-col="dec.j"
+                :data-stitch="dec.p"
+                :data-symbol="`dec-${dec.dir}`"
+              />
+            </template>
+
             <line
-              v-for="stitch in layer.stitches"
-              :key="`stitch-${layer.row.n}-${stitch.j}`"
-              :x1="stitch.line.x1"
-              :y1="stitch.line.y1"
-              :x2="stitch.line.x2"
-              :y2="stitch.line.y2"
-              :stroke="CHART_COLORS.stitchStroke"
-              :stroke-width="CHART_STROKE.stitch"
-              stroke-linecap="round"
-              :data-row="layer.row.n"
-              :data-col="stitch.j"
-              :data-stitch="stitch.p"
-              data-symbol="stitch"
+              v-for="x in guideLines"
+              :key="`guide-${x}`"
+              :x1="x"
+              y1="0"
+              :x2="x"
+              :y2="viewHeight"
+              :stroke="CHART_COLORS.guideLine"
+              :stroke-width="CHART_STROKE.guideLine"
+              data-testid="toe-chart-guide"
+              :data-x="x"
             />
-            <polygon
-              v-for="dec in layer.decorations"
-              :key="`dec-${layer.row.n}-${dec.j}`"
-              :points="dec.points"
-              :fill="CHART_COLORS.decorFill"
-              :data-row="layer.row.n"
-              :data-col="dec.j"
-              :data-stitch="dec.p"
-              :data-symbol="`dec-${dec.dir}`"
+            <rect
+              x="0"
+              y="0"
+              :width="cols"
+              :height="viewHeight"
+              fill="none"
+              :stroke="CHART_COLORS.guideLine"
+              :stroke-width="CHART_STROKE.gridBorder"
+            />
+
+            <!-- Контур текущего ряда (тикет #9, §8) — часть содержимого схемы, поэтому
+                 переживает и горизонтальную, и вертикальную прокрутку сама, без JS. -->
+            <rect
+              v-if="hasCurrentRow"
+              x="0"
+              :y="currentRowY"
+              :width="cols"
+              height="1"
+              fill="none"
+              :stroke="SHUTTER_ACCENT"
+              stroke-width="0.12"
+              data-testid="toe-chart-current-row"
+            />
+          </svg>
+
+          <!-- Полоса номеров рядов (§7 «номера рядов справа»). Прилипает к правому краю
+               окна: сетка проезжает под ней, поэтому фон непрозрачный, а левая грань
+               отчёркнута — иначе номера висели бы прямо на клетках. -->
+          <svg
+            class="sticky right-0 shrink-0 bg-white"
+            :viewBox="`0 0 ${CHART_LABEL_WIDTH} ${viewHeight}`"
+            :width="labelWidthPx"
+            :height="pixelHeight"
+            style="display: block"
+            data-testid="toe-chart-row-labels"
+          >
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              :y2="viewHeight"
+              :stroke="CHART_COLORS.guideLine"
+              :stroke-width="CHART_STROKE.gridBorder"
             />
             <text
-              :x="cols + 0.35"
+              v-for="layer in grid"
+              :key="`label-${layer.row.n}`"
+              x="0.35"
               :y="layer.y + 0.7"
               font-size="0.55"
               :fill="layer.row.type === 'dec' ? CHART_COLORS.decRowLabel : CHART_COLORS.plainRowLabel"
@@ -356,53 +526,21 @@ onUnmounted(() => {
               data-testid="toe-chart-row-label"
               :data-row="layer.row.n"
             >{{ layer.row.n }}</text>
-          </template>
-
-          <line
-            v-for="x in guideLines"
-            :key="`guide-${x}`"
-            :x1="x"
-            y1="0"
-            :x2="x"
-            :y2="viewHeight"
-            :stroke="CHART_COLORS.guideLine"
-            :stroke-width="CHART_STROKE.guideLine"
-            data-testid="toe-chart-guide"
-            :data-x="x"
-          />
-          <rect
-            x="0"
-            y="0"
-            :width="cols"
-            :height="viewHeight"
-            fill="none"
-            :stroke="CHART_COLORS.guideLine"
-            :stroke-width="CHART_STROKE.gridBorder"
-          />
-
-          <!-- Контур текущего ряда (тикет #9, §8) — часть содержимого схемы, поэтому
-               переживает и горизонтальную, и вертикальную прокрутку сама, без JS. -->
-          <rect
-            v-if="hasCurrentRow"
-            x="0"
-            :y="currentRowY"
-            :width="cols"
-            height="1"
-            fill="none"
-            :stroke="SHUTTER_ACCENT"
-            stroke-width="0.12"
-            data-testid="toe-chart-current-row"
-          />
-        </svg>
+          </svg>
+        </div>
       </div>
 
       <!-- Бумага шторки: затенение связанного (§8). Снаружи скроллера, потому что закрывать
            она должна видимую ширину схемы независимо от горизонтальной прокрутки, а не
            ширину содержимого. Вертикаль теперь совпадает с содержимым один в один:
-           схема не прокручивается вниз, она вся на странице. -->
+           схема не прокручивается вниз, она вся на странице.
+
+           Ширина — `min(сетка, окно)` с теми же автополями, что у самой сетки: схема уже
+           окна стоит по центру (§7), и бумага в полную ширину тонировала бы пустые поля
+           по бокам. Схема шире окна — `min` возвращает 100%, то есть прежнее поведение. -->
       <div
-        class="pointer-events-none absolute inset-x-0 bottom-0 bg-slate-900/30"
-        :style="{ top: `${shutterPaperTopPx}px` }"
+        class="pointer-events-none absolute inset-x-0 bottom-0 mx-auto bg-slate-900/30"
+        :style="{ top: `${shutterPaperTopPx}px`, width: `min(${pixelWidth}px, 100%)` }"
         data-testid="toe-chart-shutter-paper"
       />
     </div>

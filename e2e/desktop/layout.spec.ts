@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test'
 
 // §6: от 1240 px страница раскладывается в две колонки — слева ручки и «Итог», справа
 // схема. Вьюпорт проекта 1280×900. Порог считается от ширины схемы: дефолтный расчёт
-// 60 → 20 — это сетка в 702 px, и две колонки честны только там, где она встаёт целиком.
+// 60 → 20 — это схема в 702 px (сетка 660 плюс полоса номеров 42), и две колонки честны
+// только там, где она встаёт целиком.
 
 test.beforeEach(async ({ page }) => {
   await page.goto('./')
@@ -53,6 +54,64 @@ test('на дефолтном расчёте схема помещается в 
     clientWidth: el.clientWidth,
   }))
   expect(metrics.scrollWidth).toBe(metrics.clientWidth)
+})
+
+test('схема уже окна встаёт по центру, а не жмётся влево (§7)', async ({ page }) => {
+  // На 1280 колонка шире дефолтной схемы: 702 px схемы в окне около 800 px.
+  // Прижатая влево схема оставляла бы белое поле справа от номеров рядов — тем более
+  // заметное на мелком шаге зума, где сетка всего 510 px.
+  const gaps = await page.getByTestId('toe-chart-scroll').evaluate((el) => {
+    // Центруется дорожка целиком — сетка вместе с полосой номеров, а не сетка отдельно.
+    const track = el.querySelector('[data-testid="toe-chart-track"]')!
+    const box = el.getBoundingClientRect()
+    const grid = track.getBoundingClientRect()
+    return {
+      left: grid.left - box.left,
+      right: box.right - grid.right,
+      fits: el.scrollWidth === el.clientWidth,
+    }
+  })
+
+  expect(gaps.fits).toBe(true) // предпосылка: схема действительно уже окна
+  expect(gaps.left).toBeGreaterThan(1)
+  expect(Math.abs(gaps.left - gaps.right)).toBeLessThan(2)
+})
+
+test('шторка прогресса не тонирует пустые поля по бокам центрованной схемы (§8)', async ({
+  page,
+}) => {
+  const widths = await page.getByTestId('toe-chart-box').evaluate((el) => {
+    const track = el.querySelector('[data-testid="toe-chart-track"]')!
+    const paper = el.querySelector('[data-testid="toe-chart-shutter-paper"]')!
+    return {
+      grid: track.getBoundingClientRect().width,
+      paper: paper.getBoundingClientRect().width,
+    }
+  })
+  // Бумага шторки шириной в схему, а не в окно: иначе затенение ложилось бы на белое.
+  expect(Math.abs(widths.paper - widths.grid)).toBeLessThan(2)
+})
+
+test('крупный шаг зума возвращает прокрутку и на широком экране — это выбор, а не поломка (§6.2)', async ({
+  page,
+}) => {
+  // Обещание раскладки — «без горизонтальной прокрутки» на дефолтном расчёте И дефолтном
+  // масштабе. Нажатый «+» его снимает осознанно, и проверяется это здесь: утверждение
+  // про раскладку живёт в десктопном проекте, а не в телефонном.
+  const metrics = () =>
+    page.getByTestId('toe-chart-scroll').evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }))
+
+  const before = await metrics()
+  expect(before.scrollWidth).toBe(before.clientWidth)
+
+  await page.getByTestId('toe-chart-zoom-in').click()
+
+  await expect.poll(async () => (await metrics()).scrollWidth > (await metrics()).clientWidth).toBe(
+    true,
+  )
 })
 
 test('схема шире колонки всё равно прокручивается вбок — это свойство задачи (§7)', async ({
