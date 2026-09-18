@@ -3,9 +3,12 @@
  * ПРОТОТИП, вариант B — панель схлопывается на месте.
  *
  * Режима «поверх страницы» нет вовсе: страница остаётся страницей. Кнопка убирает
- * вводку, ручки и «Итог», оставляя строку-сводку с числами расчёта. Строка стоит
- * наверху и не исчезает: кнопка показа-скрытия держится на одном месте в обоих
- * состояниях, иначе после каждого нажатия её ищут заново. Схема стоит там же, где стояла, в естественную высоту (§6),
+ * вводку, ручки и «Итог», оставляя строку-сводку с числами расчёта.
+ *
+ * **Кнопка показа-скрытия — часть панели настроек, а не полоса над страницей.**
+ * Развёрнуто она первая строка панели, свёрнуто — стоит в том, что от панели
+ * осталось, и на том же месте. Прятать себя умеет сама панель, тем же узором,
+ * что вводка прячет себя кнопкой «Свернуть инструкцию» (§6.1). Схема стоит там же, где стояла, в естественную высоту (§6),
  * и забирает освободившуюся ширину — на десктопе всю левую колонку в 400 px.
  *
  * Вложенной вертикальной прокрутки не появляется: страница листается одна, как §6
@@ -44,25 +47,6 @@ const summary = computed(() => {
         <ShareButton />
       </header>
 
-      <!-- Строка-сводка стоит наверху и не исчезает: кнопка показа-скрытия обязана
-           быть на одном месте в обоих состояниях, иначе её ищут заново после каждого
-           нажатия. Свёрнуто числа — единственное, что осталось от ручек; развёрнуто
-           они повторяют «Итог», и это цена постоянного места кнопки. -->
-      <div
-        class="flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-slate-50 px-3 py-2"
-        data-testid="proto-summary-strip"
-      >
-        <span class="text-sm tabular-nums text-slate-700">{{ summary }}</span>
-        <button
-          type="button"
-          class="ml-auto h-11 rounded border border-slate-300 px-3 text-sm text-slate-700"
-          data-testid="proto-focus-toggle"
-          @click="focus = !focus"
-        >
-          {{ focus ? 'Показать настройки' : 'Убрать настройки' }}
-        </button>
-      </div>
-
       <IntroNote v-if="!focus" />
 
       <div
@@ -72,13 +56,41 @@ const summary = computed(() => {
             : 'flex flex-col gap-4 min-[1240px]:grid min-[1240px]:grid-cols-[400px_minmax(0,1fr)] min-[1240px]:items-start min-[1240px]:gap-6'
         "
       >
+        <!-- Развёрнутая панель настроек: кнопка «Убрать» — её первая строка, а не
+             отдельная полоса над страницей. Прятать умеет сама панель. -->
         <div
           v-if="!focus"
           class="flex flex-col gap-4 min-[1240px]:col-start-1 min-[1240px]:row-start-1"
         >
+          <button
+            type="button"
+            class="h-11 self-start rounded border border-slate-300 px-3 text-sm text-slate-700"
+            data-testid="proto-focus-toggle"
+            @click="focus = true"
+          >
+            Убрать настройки
+          </button>
           <StitchFields />
           <RhythmPresets />
           <RhythmBuilder />
+        </div>
+
+        <!-- Свёрнутая панель настроек: от неё остаётся строка с числами расчёта
+             и кнопкой возврата, и стоит она там же, где стояла панель. -->
+        <div
+          v-else
+          class="flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-slate-50 px-3 py-2"
+          data-testid="proto-summary-strip"
+        >
+          <span class="text-sm tabular-nums text-slate-700">{{ summary }}</span>
+          <button
+            type="button"
+            class="ml-auto h-11 rounded border border-slate-300 px-3 text-sm text-slate-700"
+            data-testid="proto-focus-toggle"
+            @click="focus = false"
+          >
+            Показать настройки
+          </button>
         </div>
 
         <ToeChart
