@@ -10,11 +10,15 @@ import { expect, test } from '@playwright/test'
  */
 
 const CHANNEL = 'https://t.me/feycot_the_knitterman'
+const SOURCE = 'https://github.com/fey/knitting-tools'
 
-/** Ряды считаются по верхнему краю: у кнопок одной строки он общий. */
-async function rowTop(page: import('@playwright/test').Page, testId: string): Promise<number> {
+/**
+ * Ряды считаются по середине, а не по верхнему краю: значок исходного кода выше подписанных
+ * кнопок, элементы ряда выровнены по центру, и общая у них середина.
+ */
+async function rowMiddle(page: import('@playwright/test').Page, testId: string): Promise<number> {
   const box = await page.getByTestId(testId).boundingBox()
-  return box!.y
+  return box!.y + box!.height / 2
 }
 
 async function overflow(page: import('@playwright/test').Page): Promise<number> {
@@ -36,15 +40,41 @@ for (const [where, path] of [
     // Канал — внешний адрес: уход на него не обязан стирать открытый расчёт.
     await expect(link).toHaveAttribute('target', '_blank')
   })
+
+  test(`на ${where} шапка ведёт на исходный код`, async ({ page }) => {
+    await page.goto(path)
+
+    const link = page.getByTestId('source-link')
+    await expect(link).toBeVisible()
+    await expect(link).toHaveAttribute('href', SOURCE)
+    // Адрес чужой, как и у канала: уход на него не обязан стирать открытый расчёт.
+    await expect(link).toHaveAttribute('target', '_blank')
+    // Значок без подписи безымянен — имя ему даёт `aria-label` (§6.4).
+    await expect(link).toHaveAccessibleName('Исходный код на GitHub')
+
+    // Мера значка — под палец: 44 px по §6.4.
+    const box = await link.boundingBox()
+    expect(box!.width).toBeGreaterThanOrEqual(44)
+    expect(box!.height).toBeGreaterThanOrEqual(44)
+  })
 }
 
 test('канал стоит последним в ряду кнопок шапки (§6.4)', async ({ page }) => {
   await page.goto('./toe-band/')
 
+  // Имена, а не тексты: у значка исходного кода подписи нет, его имя — в `aria-label`.
   const actions = page.getByTestId('header-actions')
-  await expect(actions.getByRole('link').or(actions.getByRole('button'))).toHaveText([
+  const names = await actions
+    .getByRole('link')
+    .or(actions.getByRole('button'))
+    .evaluateAll((items) =>
+      items.map((item) => (item.getAttribute('aria-label') ?? item.textContent ?? '').trim()),
+    )
+
+  expect(names).toEqual([
     'Поделиться',
     'Оставить отзыв',
+    'Исходный код на GitHub',
     'Телеграм-канал',
   ])
 })
@@ -54,16 +84,19 @@ test('на телефоне шапка калькулятора встаёт в 
 }) => {
   await page.goto('./toe-band/')
 
-  // Замеры §6.4: 358 px под содержимое, «Поделиться» 115, «Оставить отзыв» 143,
-  // «Телеграм-канал» 142 — втроём с зазорами 424. Возврат первой строкой, ряд кнопок
-  // не влезает в одну и переносится сам: отзыв со «Поделиться» второй, канал третьей.
-  const back = await rowTop(page, 'back-to-home')
-  const share = await rowTop(page, 'share-button')
-  const feedback = await rowTop(page, 'feedback-button')
-  const channel = await rowTop(page, 'channel-link')
+  // Замеры §6.4: 358 px под содержимое, «Поделиться» 115, «Оставить отзыв» 143, значок
+  // кода 44, «Телеграм-канал» 142 — вчетвером с зазорами 480. Возврат первой строкой,
+  // ряд кнопок не влезает в одну и переносится сам: «Поделиться», отзыв и значок второй
+  // строкой (326 из 358), канал третьей.
+  const back = await rowMiddle(page, 'back-to-home')
+  const share = await rowMiddle(page, 'share-button')
+  const feedback = await rowMiddle(page, 'feedback-button')
+  const source = await rowMiddle(page, 'source-link')
+  const channel = await rowMiddle(page, 'channel-link')
 
   expect(back).toBeLessThan(share)
   expect(feedback).toBe(share)
+  expect(source).toBe(share)
   expect(channel).toBeGreaterThan(share)
 
   // Перенос затем и заведён, чтобы пополнение ряда не выталкивало страницу за экран.
@@ -77,7 +110,8 @@ test('на телефоне шапка калькулятора встаёт в 
 test('на витрине шапка остаётся в одну строку (§6.4)', async ({ page }) => {
   await page.goto('./')
 
-  // Слева пусто, кнопки две — «Оставить отзыв» и канал, вдвоём с зазором 297 из 358.
-  expect(await rowTop(page, 'channel-link')).toBe(await rowTop(page, 'feedback-button'))
+  // Слева пусто, в ряду трое — «Оставить отзыв», значок кода и канал, вместе 353 из 358.
+  expect(await rowMiddle(page, 'source-link')).toBe(await rowMiddle(page, 'feedback-button'))
+  expect(await rowMiddle(page, 'channel-link')).toBe(await rowMiddle(page, 'feedback-button'))
   expect(await overflow(page)).toBe(0)
 })
