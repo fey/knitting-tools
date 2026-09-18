@@ -77,6 +77,7 @@ test('вводка открывается развёрнутой, кнопка �
   const collapse = page.getByTestId('intro-collapse')
   await expect(body).toBeVisible()
   await expect(collapse).toBeVisible()
+  await expect(collapse).toHaveText('Свернуть инструкцию')
 
   // Кнопка стоит внизу вводки — под текстом, а не над ним.
   const bodyBox = (await body.boundingBox())!
@@ -89,7 +90,7 @@ test('вводка открывается развёрнутой, кнопка �
   // Выход из свёрнутого состояния всегда на виду — прятать его нельзя.
   const expand = page.getByTestId('intro-expand')
   await expect(expand).toBeVisible()
-  await expect(expand).toHaveText('Как этим пользоваться')
+  await expect(expand).toHaveText('Показать инструкцию')
   await expect(expand).toBeInViewport()
 
   // Порядок экрана свёрнутая вводка не ломает (§12.2 п.7): строка-кнопка встаёт

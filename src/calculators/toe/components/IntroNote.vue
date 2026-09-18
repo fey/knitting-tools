@@ -58,7 +58,7 @@ const TOGGLE_CLASS = 'flex h-11 items-center self-start rounded border border-sl
       data-testid="intro-expand"
       @click="toggleIntro"
     >
-      Как этим пользоваться
+      Показать инструкцию
     </button>
 
     <template v-else>
@@ -88,7 +88,7 @@ const TOGGLE_CLASS = 'flex h-11 items-center self-start rounded border border-sl
         data-testid="intro-collapse"
         @click="toggleIntro"
       >
-        Свернуть
+        Свернуть инструкцию
       </button>
     </template>
   </section>
