@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/fey/knitting-tools/compare/v1.0.0...v1.1.0) (2026-09-22)
+
+
+### Новое
+
+* «Что нового» в подвале — версия и заметки к релизам ([a941aab](https://github.com/fey/knitting-tools/commit/a941aabbb60e7a8f642aa591674d1f56647f453c))
+
 ## 1.0.0 (2026-09-22)
 
 
