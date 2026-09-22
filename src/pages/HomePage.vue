@@ -20,6 +20,7 @@
  */
 import AppHeader from '../shared/AppHeader.vue'
 import FeedbackButton from '../shared/feedback/FeedbackButton.vue'
+import AppFooter from '../shared/AppFooter.vue'
 </script>
 
 <template>
@@ -58,6 +59,8 @@ import FeedbackButton from '../shared/feedback/FeedbackButton.vue'
         Круглый мысок, звёздочка и вязание от мыска пока не считаются — под них встанут
         отдельные калькуляторы.
       </p>
+
+      <AppFooter />
     </main>
   </div>
 </template>

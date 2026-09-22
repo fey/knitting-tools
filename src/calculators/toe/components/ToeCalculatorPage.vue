@@ -40,6 +40,7 @@ import ShareButton from './ShareButton.vue'
 import GaugeDialog from './GaugeDialog.vue'
 import AppHeader from '../../../shared/AppHeader.vue'
 import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
+import AppFooter from '../../../shared/AppFooter.vue'
 
 /**
  * Ручки расчёта прячутся кнопкой (§6.2): досчитав, по схеме вяжут, и панель настроек
@@ -130,6 +131,10 @@ const settingsHidden = ref(false)
           <SummaryPanel />
         </div>
       </div>
+
+      <!-- Подвал — последним в потоке `main`: запас снизу под плашку прогресса
+           остаётся за ним, и плашка его не закрывает (§6.5). -->
+      <AppFooter class="mt-4" />
     </main>
 
     <div
