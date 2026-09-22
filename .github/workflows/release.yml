@@ -2,6 +2,9 @@
 # На каждый push в main release-please держит открытым PR «chore: Релиз X.Y.Z»:
 # версия в package.json, CHANGELOG.md, заметки из feat, fix и perf. Мерж этого PR
 # ставит тег vX.Y.Z и публикует релиз на GitHub. Деплой живёт отдельно, в deploy.yml.
+# PR релиза пересобирается от main на каждый push (always-update в конфиге), а не только
+# когда меняются заметки: иначе правка CHANGELOG.md или package.json в main оставляет его
+# собранным от старого main, и он встаёт в конфликт.
 name: Релиз
 
 on:
