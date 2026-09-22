@@ -187,17 +187,22 @@ const gostSize = (foot) =>
 const num = (v) => v === null ? '—' : String(v).replace('.', ',');
 
 // Что из мерок уезжает в калькулятор мыска. Доля 0,20 — decrease-rhythms.md §5.
-const toeBlock = (row) => `
+const half = (v) => Math.round(v * 2) / 2;
+
+const toeBlock = (sel) => {
+  const toe = half(sel.foot * 0.2);
+  return `
   <div class="toe">
     <b>Что уедет в мысок.</b>
-    Вязать след до <span class="f">${num(row.sole)}</span> см — это мерка стопы
-    <span class="f">${num(row.foot)}</span> см минус свобода по длине.
-    Мысок займёт примерно <span class="f">${num(Math.round(row.foot * 0.2 * 2) / 2)}</span> см,
-    то есть убавки начинаются за <span class="f">${num(Math.round((row.sole - row.foot * 0.2) * 2) / 2)}</span> см
-    от края следа.
+    Вязать след до <span class="f">${num(sel.sole)}</span> см — это мерка стопы
+    <span class="f">${num(sel.foot)}</span> см минус свобода по длине.
+    Мысок займёт примерно <span class="f">${num(toe)}</span> см: убавки начинают,
+    когда от пятки связано <span class="f">${num(half(sel.sole - toe))}</span> см,
+    то есть за <span class="f">${num(toe)}</span> см до конца следа.
     <p class="note">Число рядов мыска отсюда не берётся: для него нужна плотность по рядам,
     а поля плотности в калькуляторе пока нет. Начальные петли тоже не отсюда — они из обхвата.</p>
   </div>`;
+};
 
 // ── A. Справочник ─────────────────────────────────────────────────────────────
 function screenA() {
@@ -236,22 +241,34 @@ function screenA() {
 
 // ── B. Размер → мерки ─────────────────────────────────────────────────────────
 let scale = 'eur';
-let pickedIndex = 8; // US 10 / EUR 44
+let pickedIndex = 8;  // строка Atherley для обувных шкал: US 10 / EUR 44
+let pickedGost = 27;  // размер РФ, он же длина стопы в сантиметрах
+
+// Размеры РФ, которые покрывает мужская таблица.
+const GOST_IN_RANGE = GOST_MEN.filter((n) =>
+  n >= gostSize(ROWS[0].foot) && n <= gostSize(ROWS[ROWS.length - 1].foot));
+
+// Выбранное — не всегда строка таблицы. На шкале РФ длина стопы известна
+// из самого размера, а из строки берётся только длина следа.
+function selection() {
+  if (scale !== 'gost') {
+    const r = ROWS[pickedIndex];
+    return { foot: r.foot, sole: r.sole, circ: r.circ, src: r, exact: true };
+  }
+  const src = nearestRow(pickedGost);
+  return { foot: pickedGost, sole: src.sole, circ: src.circ, src, exact: src.foot === pickedGost };
+}
 
 function screenB() {
   const labels = { us: 'US муж.', eur: 'EUR', uk: 'UK', gost: 'Размер РФ' };
-  const valueOf = (r) => scale === 'gost' ? gostSize(r.foot) : r[scale];
-  const visible = ROWS.map((r, i) => ({ r, i })).filter(({ r }) => valueOf(r) !== null);
-  const seen = new Set();
-  const chips = visible.filter(({ r }) => {
-    const v = String(valueOf(r));
-    if (seen.has(v)) return false;
-    seen.add(v);
-    return true;
-  }).map(({ r, i }) => `
-    <button data-index="${i}" aria-pressed="${i === pickedIndex}">${num(valueOf(r))}</button>`).join('');
+  const chips = scale === 'gost'
+    ? GOST_IN_RANGE.map((n) => `
+        <button data-gost="${n}" aria-pressed="${n === pickedGost}">${n}</button>`).join('')
+    : ROWS.map((r, i) => ({ r, i })).filter(({ r }) => r[scale] !== null).map(({ r, i }) => `
+        <button data-index="${i}" aria-pressed="${i === pickedIndex}">${num(r[scale])}</button>`).join('');
 
-  const row = ROWS[pickedIndex];
+  const sel = selection();
+  const picked = scale === 'gost' ? pickedGost : ROWS[pickedIndex][scale];
   return `
     <div class="card">
       <div class="scalebar">
@@ -262,16 +279,19 @@ function screenB() {
       <div class="readout">
         <div class="lead">
           <div class="lab">Длина стопы</div>
-          <div class="val">${num(row.foot)} <span>см</span></div>
+          <div class="val">${num(sel.foot)} <span>см</span></div>
         </div>
         <div class="lead">
           <div class="lab">Вязать след до</div>
-          <div class="val">${num(row.sole)} <span>см</span></div>
+          <div class="val">${num(sel.sole)} <span>см</span></div>
         </div>
       </div>
-      <p class="note">Выбран размер <b>${labels[scale]} ${num(valueOf(row))}</b>.
-      Обхват стопы для этой строки — ${num(row.circ)} см, он в этом варианте намеренно не на виду.</p>
-      ${toeBlock(row)}
+      <p class="note">Выбран размер <b>${labels[scale]} ${num(picked)}</b>.
+      ${scale === 'gost'
+        ? `Длину стопы здесь не ищут по таблице: размер РФ <b>и есть</b> длина стопы в сантиметрах.
+           Длина следа взята из ближайшей строки Atherley${sel.exact ? '' : ` (длина стопы ${num(sel.src.foot)} см)`}.`
+        : `Обхват стопы для этой строки — ${num(sel.circ)} см, он в этом варианте намеренно не на виду.`}</p>
+      ${toeBlock(sel)}
     </div>`;
 }
 
@@ -307,7 +327,7 @@ function screenC() {
       Обувные строки идут через 0,5 см, поэтому мерка почти всегда ляжет между ними —
       расхождение показано честно, а не подогнано. EUR показан не у каждой строки:
       в источнике половина строк US его не имеет вовсе, и выдумывать пропуск нечем.</p>
-      ${toeBlock(row)}
+      ${toeBlock({ foot: measured, sole: row.sole })}
     </div>`;
 }
 
@@ -342,7 +362,9 @@ document.addEventListener('click', (e) => {
   const sc = e.target.closest('[data-scale]');
   if (sc) { scale = sc.dataset.scale; paint(); return; }
   const chip = e.target.closest('[data-index]');
-  if (chip) { pickedIndex = +chip.dataset.index; paint(); }
+  if (chip) { pickedIndex = +chip.dataset.index; paint(); return; }
+  const gost = e.target.closest('[data-gost]');
+  if (gost) { pickedGost = +gost.dataset.gost; paint(); }
 });
 
 document.addEventListener('input', (e) => {
