@@ -62,7 +62,7 @@
 Нода — **26**, версия прибита в `mise.toml` (`mise install` поднимет её); тот же мажор стоит в CI.
 
 ```
-make install    # зависимости из lock-файла
+make install    # зависимости из lock-файла и git-хуки
 make browsers   # Chromium под прогон страницы
 make dev        # стенд на 5173
 ```
@@ -147,6 +147,8 @@ VITE_FEEDBACK_PREFILL_URL=https://docs.google.com/forms/d/e/<ID>/viewform?entry.
   спеку тем же коммитом и неси номер раздела в сообщении.
 - **`.scratch/toe-calculator/`** — карта решений, восемь закрытых тикетов, research и прототипы.
   Законченный markdown-архив: новая работа заводится в GitHub Issues, а не дописывается туда.
+- **Коммиты** — Conventional Commits с описанием по-русски, хук `commit-msg` проверяет заголовок.
+  Правило и таблица типов — в `CLAUDE.md`, раздел «Коммиты».
 - **`docs/agents/`** — локальный стенд, работа с issues через `gh`, канонические метки триажа.
 
 ## Язык
