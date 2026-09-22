@@ -43,10 +43,11 @@ test-screens: ## Скриншоты схемы. В CI не гоняются на
 test-screens-update: ## Пересъёмка базлайнов после правки экрана
 	npm run test:screens:update
 
-# Хук commit-msg проверяет коммит в момент создания, эта цель — всю ветку разом:
-# перед PR, и на коммитах, сделанных до установки хуков.
-lint-commits: ## Заголовки коммитов ветки против main — Conventional Commits
-	npm run lint:commits
+# Заголовок PR при squash-мерже становится коммитом в main и записью в заметках
+# к релизу, поэтому проверяется именно он. Заголовок приходит переменной PR_TITLE:
+# в CI — из события pull_request, локально — `make lint-pr-title PR_TITLE='feat: …'`.
+lint-pr-title: ## Заголовок PR из PR_TITLE — Conventional Commits
+	printf '%s\n' "$$PR_TITLE" | npm run --silent lint:title
 
 # Карточка для соцсетей снимается с живой страницы, поэтому цель — рядом со съёмкой
 # базлайнов, а не со сборкой. Оставленный на 4173 preview подхватится и здесь
@@ -54,4 +55,4 @@ lint-commits: ## Заголовки коммитов ветки против mai
 og: ## Пересъёмка карточки для соцсетей в public/og.png
 	npm run og
 
-.PHONY: help install browsers dev build preview test test-unit test-e2e test-screens test-screens-update lint-commits og
+.PHONY: help install browsers dev build preview test test-unit test-e2e test-screens test-screens-update lint-pr-title og

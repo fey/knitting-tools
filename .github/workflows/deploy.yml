@@ -34,6 +34,15 @@ jobs:
       - name: Установка зависимостей
         run: make install
 
+      # Заголовок PR при squash-мерже становится коммитом в main и записью в заметках
+      # к релизу (CLAUDE.md, «Коммиты»). Заголовок идёт переменной окружения,
+      # а не подстановкой в команду: так кавычки в нём не ломают шелл.
+      - name: Заголовок PR
+        if: github.event_name == 'pull_request'
+        run: make lint-pr-title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+
       - name: Браузер для прогона страницы
         run: make browsers
 
