@@ -7,58 +7,17 @@
   "pull-request-title-pattern": "chore: Релиз ${version}",
   "pull-request-header": "Заметки к релизу собраны из заголовков `feat`, `fix` и `perf` с прошлого релиза. Мерж этого PR ставит тег и публикует релиз на GitHub.",
   "changelog-sections": [
-    {
-      "type": "feat",
-      "section": "Новое"
-    },
-    {
-      "type": "fix",
-      "section": "Исправлено"
-    },
-    {
-      "type": "perf",
-      "section": "Быстрее"
-    },
-    {
-      "type": "revert",
-      "section": "Отменено",
-      "hidden": true
-    },
-    {
-      "type": "refactor",
-      "section": "Переделка кода",
-      "hidden": true
-    },
-    {
-      "type": "test",
-      "section": "Тесты",
-      "hidden": true
-    },
-    {
-      "type": "docs",
-      "section": "Документы",
-      "hidden": true
-    },
-    {
-      "type": "build",
-      "section": "Сборка",
-      "hidden": true
-    },
-    {
-      "type": "ci",
-      "section": "CI",
-      "hidden": true
-    },
-    {
-      "type": "style",
-      "section": "Оформление кода",
-      "hidden": true
-    },
-    {
-      "type": "chore",
-      "section": "Служебное",
-      "hidden": true
-    }
+    { "type": "feat", "section": "Новое" },
+    { "type": "fix", "section": "Исправлено" },
+    { "type": "perf", "section": "Быстрее" },
+    { "type": "revert", "section": "Отменено", "hidden": true },
+    { "type": "refactor", "section": "Переделка кода", "hidden": true },
+    { "type": "test", "section": "Тесты", "hidden": true },
+    { "type": "docs", "section": "Документы", "hidden": true },
+    { "type": "build", "section": "Сборка", "hidden": true },
+    { "type": "ci", "section": "CI", "hidden": true },
+    { "type": "style", "section": "Оформление кода", "hidden": true },
+    { "type": "chore", "section": "Служебное", "hidden": true }
   ],
   "packages": {
     ".": {}
