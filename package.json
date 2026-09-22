@@ -13,7 +13,7 @@
     "test:screens": "playwright test --project=screens",
     "test:screens:update": "playwright test --project=screens -u",
     "og": "playwright test --project=social",
-    "lint:commits": "commitlint --from origin/main --to HEAD --verbose"
+    "lint:title": "commitlint --verbose"
   },
   "dependencies": {
     "vue": "^3.5.42"
