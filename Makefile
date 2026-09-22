@@ -43,10 +43,15 @@ test-screens: ## Скриншоты схемы. В CI не гоняются на
 test-screens-update: ## Пересъёмка базлайнов после правки экрана
 	npm run test:screens:update
 
+# Хук commit-msg проверяет коммит в момент создания, эта цель — всю ветку разом:
+# перед PR, и на коммитах, сделанных до установки хуков.
+lint-commits: ## Заголовки коммитов ветки против main — Conventional Commits
+	npm run lint:commits
+
 # Карточка для соцсетей снимается с живой страницы, поэтому цель — рядом со съёмкой
 # базлайнов, а не со сборкой. Оставленный на 4173 preview подхватится и здесь
 # (reuseExistingServer), и карточка снимется со вчерашнего dist — гасить перед съёмкой.
 og: ## Пересъёмка карточки для соцсетей в public/og.png
 	npm run og
 
-.PHONY: help install browsers dev build preview test test-unit test-e2e test-screens test-screens-update og
+.PHONY: help install browsers dev build preview test test-unit test-e2e test-screens test-screens-update lint-commits og

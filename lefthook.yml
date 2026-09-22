@@ -1,0 +1,6 @@
+# Git-хуки проекта. Ставятся сами на `make install`: postinstall пакета lefthook
+# разрешён в allowScripts package.json. На раннере (CI=true) установка пропускается.
+commit-msg:
+  commands:
+    commitlint:
+      run: npx commitlint --edit {1}
