@@ -128,6 +128,13 @@ VITE_FEEDBACK_PREFILL_URL=https://docs.google.com/forms/d/e/<ID>/viewform?entry.
 `.github/workflows/deploy.yml`: на каждый PR — тесты и сборка, на push в `main` — они же и деплой
 на GitHub Pages (официальный Pages-workflow, ветки `gh-pages` нет).
 
+## Релизы
+
+Что нового на странице, можно прочитать на <https://github.com/fey/knitting-tools/releases>
+и в `CHANGELOG.md`. Релизы собирает release-please из заголовков коммитов
+(`.github/workflows/release.yml`). Он держит открытым PR «chore: Релиз X.Y.Z», и мерж этого
+PR выпускает релиз. Правило — в `CLAUDE.md`, раздел «Релизы».
+
 ## Как устроен код
 
 | Где | Что там |
