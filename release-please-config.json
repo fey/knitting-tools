@@ -3,6 +3,7 @@
   "bootstrap-sha": "e42795fbdea65546ad753330ba2ea07e66e7f760",
   "release-type": "node",
   "include-component-in-tag": false,
+  "always-update": true,
   "pull-request-title-pattern": "chore: Релиз ${version}",
   "pull-request-header": "Заметки к релизу собраны из заголовков `feat`, `fix` и `perf` с прошлого релиза. Мерж этого PR ставит тег и публикует релиз на GitHub.",
   "changelog-sections": [
