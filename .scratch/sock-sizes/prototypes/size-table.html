@@ -19,12 +19,24 @@
     C — мерка → размер: померил стопу линейкой, ищешь строку
 
   ЧТО ЗДЕСЬ ДАННЫЕ ИСТОЧНИКА, А НЕ ПРЕДМЕТ ОЦЕНКИ:
-  - Все числа мужской таблицы — Kate Atherley, «Custom Socks» (Interweave, 2015),
-    таблицы выложены автором: kateatherley.com/2017/08/10/foot-size-tables/
-    Прочитаны дословно, перенесены без правки. Разбор — research §3.1.
+  - Длина стопы, длина следа, обхват — Kate Atherley, «Custom Socks» (Interweave,
+    2015), таблицы выложены автором: kateatherley.com/2017/08/10/foot-size-tables/
+    Прочитаны дословно (pdftotext), перенесены без правки. Разбор — research §3.1.
+  - EUR — ГОСТ 11373-88, приложение 1, мужская группа: метрический размер (он же
+    «длина стопы в миллиметрах», п. 2) → штихмассовый. 285 мм → 44.
   - «Размер РФ» = длина стопы в сантиметрах. Так в ГОСТ 8541-2014 п. 4.2.3
     («Размер чулочно-носочных изделий характеризуется длиной стопы
     в сантиметрах»), мужской ряд 23, 25, 27, 29, 31, 33. Разбор — research §2.3.
+
+  КОЛОНКА EUR У ATHERLEY ВЫБРОШЕНА НАМЕРЕННО, И ЭТО ГЛАВНАЯ ПРАВКА ФАЙЛА.
+  У неё EUR 44 стоит против длины стопы 27 см, а по ГОСТ 11373-88 штихмассовый 44
+  — это 285 мм, то есть 28,5 см. Расхождение около полутора сантиметров, и оно
+  не случайное: её колонка US самосогласована (US 10 = (10+22)/3 дюйма = 27,1 см,
+  формула Brannock), а ярлыки EUR на ней — североамериканский розничный пересчёт,
+  разошедшийся со штихмассовой арифметикой. В русском инструменте это ловушка:
+  мастер сверился бы с линейкой и связал носок на 1,5 см короче. Поэтому EUR
+  берётся из ГОСТа, а от Atherley остаётся то, чего больше нигде нет, — длина
+  следа и обхват.
   - Доля мыска 0,20 от длины стопы — ../../toe-calculator/research/decrease-rhythms.md §5.
 
   ДОПУЩЕНИЯ ПРОТОТИПА, НЕ РЕШЕНИЯ:
@@ -37,6 +49,10 @@
     ближайший нечётный номер, на равном расстоянии берётся больший. В источнике
     такого правила нет, длина следа по мужскому ряду не найдена вовсе
     (research, «Осталось непроверенным»).
+  - У Atherley две строки US могут делить одну длину стопы и расходиться по длине
+    следа (26 см: 24,5 и 25; 29 см: 27,5 и 28). Где выбирают по длине, берётся
+    МЕНЬШАЯ: короткий носок садится по ноге, длинный собирается складкой.
+    Это правило прототипа, в источнике его нет.
   - Обхват стопы показан только в справочнике и приглушён: мастер сказал, что
     ведущая величина — длина. Полный разбор обхвата остаётся в research §3, §5.1.
   - Стыковка с калькулятором показана одной строкой «что уедет в мысок»
@@ -145,10 +161,11 @@
   <p class="sub" id="subtitle"></p>
   <div id="screen"></div>
   <p class="src">
-    Мерки — <a href="https://kateatherley.com/2017/08/10/foot-size-tables/">Kate Atherley, «Custom Socks»</a>,
-    мужская таблица, дословно. Размер РФ = длина стопы в сантиметрах, ГОСТ 8541-2014 п. 4.2.3.
-    Шкала подписана как шкала обуви, а не как тот, кто носит: на общем EUR мужские и женские мерки
-    почти совпадают.
+    Длина стопы, длина следа, обхват — <a href="https://kateatherley.com/2017/08/10/foot-size-tables/">Kate
+    Atherley, «Custom Socks»</a>, мужская таблица, дословно. EUR — <a href="https://files.stroyinf.ru/Data2/1/4294839/4294839641.pdf">ГОСТ
+    11373-88</a>, приложение 1, мужская группа: «размер обуви определяют длиной стопы, выраженной
+    в миллиметрах» (п. 2), 285 мм → 44. Размер РФ = длина стопы в сантиметрах, ГОСТ 8541-2014 п. 4.2.3.
+    Шкала подписана как шкала обуви, а не как тот, кто носит.
   </p>
 </div>
 
@@ -158,37 +175,55 @@
 // ── Данные. Мужская таблица Atherley, дословно. Длины в сантиметрах. ──────────
 // foot — длина стопы (мерка живой ноги), sole — готовая длина следа носка,
 // circ — обхват стопы. Разница foot − sole и есть свобода по длине.
+// Колонки EUR у Atherley здесь НЕТ намеренно: см. шапку файла.
 const ROWS = [
-  { us: '6',    eur: null, uk: '5.5',  circ: 23,   foot: 24,   sole: 23   },
-  { us: '6.5',  eur: 39,   uk: '6',    circ: 23,   foot: 24,   sole: 23   },
-  { us: '7',    eur: 40,   uk: '6.5',  circ: 23.5, foot: 24.5, sole: 23.5 },
-  { us: '7.5',  eur: 41,   uk: '7',    circ: 23.5, foot: 25,   sole: 23.5 },
-  { us: '8',    eur: null, uk: '7.5',  circ: 24,   foot: 25.5, sole: 24   },
-  { us: '8.5',  eur: 42,   uk: '8',    circ: 25,   foot: 26,   sole: 24.5 },
-  { us: '9',    eur: 43,   uk: '8.5',  circ: 25,   foot: 26,   sole: 25   },
-  { us: '9.5',  eur: null, uk: '9',    circ: 25.5, foot: 26.5, sole: 25.5 },
-  { us: '10',   eur: 44,   uk: '9.5',  circ: 26,   foot: 27,   sole: 26   },
-  { us: '10.5', eur: null, uk: '10',   circ: 26,   foot: 27.5, sole: 26   },
-  { us: '11',   eur: 45,   uk: '10.5', circ: 26.5, foot: 28,   sole: 26.5 },
-  { us: '11.5', eur: null, uk: '11',   circ: 26.5, foot: 28.5, sole: 27   },
-  { us: '12',   eur: 46,   uk: '11.5', circ: 27.5, foot: 29,   sole: 27.5 },
-  { us: '12.5', eur: 47,   uk: '12',   circ: 28,   foot: 29,   sole: 28   },
-  { us: '13',   eur: null, uk: '12.5', circ: 28,   foot: 29.5, sole: 28.5 },
-  { us: '13.5', eur: 48,   uk: '13',   circ: 28.5, foot: 30,   sole: 29   },
+  { us: '6',    uk: '5.5',  circ: 23,   foot: 24,   sole: 23   },
+  { us: '6.5',  uk: '6',    circ: 23,   foot: 24,   sole: 23   },
+  { us: '7',    uk: '6.5',  circ: 23.5, foot: 24.5, sole: 23.5 },
+  { us: '7.5',  uk: '7',    circ: 23.5, foot: 25,   sole: 23.5 },
+  { us: '8',    uk: '7.5',  circ: 24,   foot: 25.5, sole: 24   },
+  { us: '8.5',  uk: '8',    circ: 25,   foot: 26,   sole: 24.5 },
+  { us: '9',    uk: '8.5',  circ: 25,   foot: 26,   sole: 25   },
+  { us: '9.5',  uk: '9',    circ: 25.5, foot: 26.5, sole: 25.5 },
+  { us: '10',   uk: '9.5',  circ: 26,   foot: 27,   sole: 26   },
+  { us: '10.5', uk: '10',   circ: 26,   foot: 27.5, sole: 26   },
+  { us: '11',   uk: '10.5', circ: 26.5, foot: 28,   sole: 26.5 },
+  { us: '11.5', uk: '11',   circ: 26.5, foot: 28.5, sole: 27   },
+  { us: '12',   uk: '11.5', circ: 27.5, foot: 29,   sole: 27.5 },
+  { us: '12.5', uk: '12',   circ: 28,   foot: 29,   sole: 28   },
+  { us: '13',   uk: '12.5', circ: 28,   foot: 29.5, sole: 28.5 },
+  { us: '13.5', uk: '13',   circ: 28.5, foot: 30,   sole: 29   },
 ];
 
-// Мужской ряд размеров по ГОСТ 8541-94 / 8541-2014.
+// ГОСТ 11373-88, приложение 1, мужская группа, дословно:
+// метрический размер (длина стопы, мм) → штихмассовый (он же EUR на обуви).
+const GOST_EUR = {
+  245: 38, 250: 39, 255: 40, 260: 40.5, 265: 41, 270: 42, 275: 43,
+  280: 43.5, 285: 44, 290: 45, 295: 46, 300: 46.5, 305: 47,
+};
+const eurOf = (foot) => GOST_EUR[Math.round(foot * 10)] ?? null;
+
+// Мужской ряд размеров носков по ГОСТ 8541-94 / 8541-2014.
 const GOST_MEN = [23, 25, 27, 29, 31, 33];
 
 // АРИФМЕТИКА ПРОТОТИПА, не цитата: ближайший номер ряда, на равном расстоянии — больший.
 const gostSize = (foot) =>
   GOST_MEN.reduce((best, n) => Math.abs(n - foot) <= Math.abs(best - foot) ? n : best);
 
-const num = (v) => v === null ? '—' : String(v).replace('.', ',');
-
-// Что из мерок уезжает в калькулятор мыска. Доля 0,20 — decrease-rhythms.md §5.
+const num = (v) => v === null || v === undefined ? '—' : String(v).replace('.', ',');
 const half = (v) => Math.round(v * 2) / 2;
 
+// Одна длина стопы — одна строка. Где источник даёт две, берётся меньшая длина
+// следа: короткий носок садится, длинный собирается складкой. Правило прототипа.
+const BY_FOOT = [...new Set(ROWS.map((r) => r.foot))].sort((a, b) => a - b)
+  .map((f) => ROWS.filter((r) => r.foot === f).reduce((a, b) => a.sole <= b.sole ? a : b));
+
+const EUR_CHIPS = BY_FOOT.map((r) => eurOf(r.foot)).filter((e) => e !== null);
+const footByEur = (eur) => BY_FOOT.find((r) => eurOf(r.foot) === eur);
+const nearestByFoot = (cm) =>
+  BY_FOOT.reduce((best, r) => Math.abs(r.foot - cm) < Math.abs(best.foot - cm) ? r : best);
+
+// Что из мерок уезжает в калькулятор мыска. Доля 0,20 — decrease-rhythms.md §5.
 const toeBlock = (sel) => {
   const toe = half(sel.foot * 0.2);
   return `
@@ -209,8 +244,8 @@ function screenA() {
   const body = ROWS.map((r) => `
     <tr>
       <td>${num(r.us)}</td>
-      <td>${num(r.eur)}</td>
       <td>${num(r.uk)}</td>
+      <td>${num(eurOf(r.foot))}</td>
       <td class="spine">${gostSize(r.foot)}</td>
       <td class="spine">${num(r.foot)}</td>
       <td>${num(r.sole)}</td>
@@ -221,7 +256,7 @@ function screenA() {
       <div class="scroller">
         <table>
           <thead><tr>
-            <th>US<br>муж.</th><th>EUR</th><th>UK</th>
+            <th>US<br>муж.</th><th>UK</th><th>EUR</th>
             <th class="spine">Размер<br>РФ</th>
             <th class="spine">Длина<br>стопы</th>
             <th>Длина<br>следа</th>
@@ -234,41 +269,72 @@ function screenA() {
       <b>длина следа</b> — сколько связать от мыска до середины пятки: она на 1–2 см меньше,
       и это не опечатка, а свобода облегания по длине. Обхват приглушён намеренно:
       ведущая величина здесь — длина.</p>
+      <p class="note"><b>EUR взят из ГОСТ 11373-88</b>, а не из таблицы Atherley. У неё EUR 44
+      стоит против 27 см, по ГОСТу штихмассовый 44 — это 285 мм, то есть <b>28,5 см</b>.
+      Расходятся примерно на полтора сантиметра: её колонка US самосогласована, а ярлыки EUR
+      на ней — розничный пересчёт. Линейка права, её колонка EUR — нет.</p>
       <p class="note">Столбец «Размер РФ» — арифметика прототипа: ближайший номер мужского ряда
-      ГОСТ (23, 25, 27, 29, 31, 33), на равном расстоянии берётся больший.</p>
+      ГОСТ 8541 (23, 25, 27, 29, 31, 33), на равном расстоянии берётся больший. Прочерк в EUR
+      у 24 см — мужская группа ГОСТ 11373-88 начинается с 245 мм. Две строки US с одной длиной
+      стопы (26 и 29 см) в источнике расходятся по длине следа; здесь показаны обе.</p>
     </div>`;
 }
 
 // ── B. Размер → мерки ─────────────────────────────────────────────────────────
 let scale = 'eur';
-let pickedIndex = 8;  // строка Atherley для обувных шкал: US 10 / EUR 44
-let pickedGost = 27;  // размер РФ, он же длина стопы в сантиметрах
+let pickedIndex = 8;  // строка Atherley для шкал US и UK: US 10
+let pickedEur = 44;   // штихмассовый размер по ГОСТ 11373-88
+let pickedGost = 27;  // размер носка РФ, он же длина стопы в сантиметрах
 
-// Размеры РФ, которые покрывает мужская таблица.
+// Размеры носков РФ, которые покрывает мужская таблица.
 const GOST_IN_RANGE = GOST_MEN.filter((n) =>
   n >= gostSize(ROWS[0].foot) && n <= gostSize(ROWS[ROWS.length - 1].foot));
 
 // Выбранное — не всегда строка таблицы. На шкале РФ длина стопы известна
 // из самого размера, а из строки берётся только длина следа.
 function selection() {
-  if (scale !== 'gost') {
-    const r = ROWS[pickedIndex];
+  if (scale === 'eur') {
+    const r = footByEur(pickedEur);
     return { foot: r.foot, sole: r.sole, circ: r.circ, src: r, exact: true };
   }
-  const src = nearestRow(pickedGost);
-  return { foot: pickedGost, sole: src.sole, circ: src.circ, src, exact: src.foot === pickedGost };
+  if (scale === 'gost') {
+    const src = nearestByFoot(pickedGost);
+    return { foot: pickedGost, sole: src.sole, circ: src.circ, src, exact: src.foot === pickedGost };
+  }
+  const r = ROWS[pickedIndex];
+  return { foot: r.foot, sole: r.sole, circ: r.circ, src: r, exact: true };
 }
 
 function screenB() {
-  const labels = { us: 'US муж.', eur: 'EUR', uk: 'UK', gost: 'Размер РФ' };
-  const chips = scale === 'gost'
-    ? GOST_IN_RANGE.map((n) => `
-        <button data-gost="${n}" aria-pressed="${n === pickedGost}">${n}</button>`).join('')
-    : ROWS.map((r, i) => ({ r, i })).filter(({ r }) => r[scale] !== null).map(({ r, i }) => `
-        <button data-index="${i}" aria-pressed="${i === pickedIndex}">${num(r[scale])}</button>`).join('');
+  const labels = { us: 'US муж.', uk: 'UK', eur: 'EUR', gost: 'Размер РФ' };
+  let chips;
+  if (scale === 'eur') {
+    chips = EUR_CHIPS.map((e) => `
+      <button data-eur="${e}" aria-pressed="${e === pickedEur}">${num(e)}</button>`).join('');
+  } else if (scale === 'gost') {
+    chips = GOST_IN_RANGE.map((n) => `
+      <button data-gost="${n}" aria-pressed="${n === pickedGost}">${n}</button>`).join('');
+  } else {
+    chips = ROWS.map((r, i) => `
+      <button data-index="${i}" aria-pressed="${i === pickedIndex}">${num(r[scale])}</button>`).join('');
+  }
 
   const sel = selection();
-  const picked = scale === 'gost' ? pickedGost : ROWS[pickedIndex][scale];
+  const picked = scale === 'eur' ? pickedEur
+    : scale === 'gost' ? pickedGost
+    : ROWS[pickedIndex][scale];
+
+  const explain = {
+    eur: `Длина стопы для этого EUR взята из <b>ГОСТ 11373-88</b>, приложение 1:
+          метрический размер там и есть длина стопы в миллиметрах. Длина следа — из таблицы
+          Atherley по этой длине стопы.`,
+    gost: `Длину стопы здесь не ищут по таблице: размер РФ <b>и есть</b> длина стопы
+           в сантиметрах. Длина следа взята из ближайшей строки Atherley${sel.exact ? '' :
+           ` (длина стопы ${num(sel.src.foot)} см)`}.`,
+    us: `Обхват стопы для этой строки — ${num(sel.circ)} см, он в этом варианте намеренно не на виду.`,
+    uk: `Обхват стопы для этой строки — ${num(sel.circ)} см, он в этом варианте намеренно не на виду.`,
+  }[scale];
+
   return `
     <div class="card">
       <div class="scalebar">
@@ -286,25 +352,17 @@ function screenB() {
           <div class="val">${num(sel.sole)} <span>см</span></div>
         </div>
       </div>
-      <p class="note">Выбран размер <b>${labels[scale]} ${num(picked)}</b>.
-      ${scale === 'gost'
-        ? `Длину стопы здесь не ищут по таблице: размер РФ <b>и есть</b> длина стопы в сантиметрах.
-           Длина следа взята из ближайшей строки Atherley${sel.exact ? '' : ` (длина стопы ${num(sel.src.foot)} см)`}.`
-        : `Обхват стопы для этой строки — ${num(sel.circ)} см, он в этом варианте намеренно не на виду.`}</p>
+      <p class="note">Выбран размер <b>${labels[scale]} ${num(picked)}</b>. ${explain}</p>
       ${toeBlock(sel)}
     </div>`;
 }
 
 // ── C. Мерка → размер ─────────────────────────────────────────────────────────
-let measured = 26.5;
-
-function nearestRow(cm) {
-  return ROWS.reduce((best, r) =>
-    Math.abs(r.foot - cm) < Math.abs(best.foot - cm) ? r : best);
-}
+let measured = 28.5;
 
 function screenC() {
-  const row = nearestRow(measured);
+  const row = nearestByFoot(measured);
+  const eur = eurOf(measured) ?? eurOf(row.foot);
   const off = Math.round((measured - row.foot) * 10) / 10;
   const drift = off === 0
     ? 'ровно в строку'
@@ -314,19 +372,19 @@ function screenC() {
       <div class="measure">
         <div class="lab" style="color:var(--muted);font-size:12.5px">Длина стопы по линейке</div>
         <output>${num(measured)} <span>см</span></output>
-        <input type="range" id="slider" min="23" max="31" step="0.5" value="${measured}">
-        <div class="ruler"><span>23</span><span>27</span><span>31</span></div>
+        <input type="range" id="slider" min="24" max="30" step="0.5" value="${measured}">
+        <div class="ruler"><span>24</span><span>27</span><span>30</span></div>
       </div>
       <div class="hit">
-        <div class="big">Размер РФ ${gostSize(measured)}${row.eur ? ' · EUR ' + row.eur : ''} · US ${num(row.us)}</div>
-        <div class="row"><span>Ближайшая строка таблицы</span><span>${num(row.foot)} см, ${drift}</span></div>
+        <div class="big">Размер РФ ${gostSize(measured)} · EUR ${num(eur)} · US ${num(row.us)}</div>
+        <div class="row"><span>Длина следа взята из строки</span><span>${num(row.foot)} см, ${drift}</span></div>
         <div class="row"><span>Вязать след до</span><span><b>${num(row.sole)} см</b></span></div>
       </div>
       <p class="note">Этот ход — основной, когда стопа под рукой: мерка точнее любого номера.
-      Размер здесь показан не чтобы по нему вязать, а чтобы было чем назвать результат.
-      Обувные строки идут через 0,5 см, поэтому мерка почти всегда ляжет между ними —
-      расхождение показано честно, а не подогнано. EUR показан не у каждой строки:
-      в источнике половина строк US его не имеет вовсе, и выдумывать пропуск нечем.</p>
+      EUR здесь считается по ГОСТ 11373-88, где метрический размер и есть длина стопы:
+      28,5 см — это 44, ровно как на линейке. Строки Atherley идут через 0,5 см,
+      поэтому длину следа почти всегда берут с соседней — расхождение показано честно,
+      а не подогнано.</p>
       ${toeBlock({ foot: measured, sole: row.sole })}
     </div>`;
 }
@@ -363,6 +421,8 @@ document.addEventListener('click', (e) => {
   if (sc) { scale = sc.dataset.scale; paint(); return; }
   const chip = e.target.closest('[data-index]');
   if (chip) { pickedIndex = +chip.dataset.index; paint(); return; }
+  const eur = e.target.closest('[data-eur]');
+  if (eur) { pickedEur = +eur.dataset.eur; paint(); return; }
   const gost = e.target.closest('[data-gost]');
   if (gost) { pickedGost = +gost.dataset.gost; paint(); }
 });
