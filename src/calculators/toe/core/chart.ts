@@ -1,10 +1,15 @@
 /**
- * Константы схемы мыска. Спека держит их единым источником в ядре, а не числами
- * в Tailwind-классах: геометрия значков и размер клетки понадобятся и схеме, и легенде,
- * и расчёту прокрутки страницы к текущему ряду.
+ * Модель схемы мыска (§7): масштаб, геометрия значков и раскладка рядов в координаты
+ * SVG. Здесь решается всё, в чём ошибиться проще всего, — нумерация петель справа
+ * налево, место каждой убавки, кромка, развороты засечек, — чтобы зеркальную схему
+ * ловил юнит-тест, а не только скриншот. Компонент (`ToeChart.vue`) берёт готовую
+ * модель и привязывает её к SVG; палитра и толщины — у него (`chartStyle.ts`).
  *
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
+import type { Row, ToeCalculation } from './types'
+import type { Gauge } from './gauge'
+import { centimetreView } from './centimetres'
 
 /**
  * Шаги масштаба схемы — сторона клетки в px (§7). Набор, а не непрерывная величина:
@@ -73,27 +78,10 @@ export const CHART_RULER_LABEL_WIDTH = 1.7
 export const CHART_RULER_BAND_HEIGHT = 1.1
 /** Длина засечки. */
 export const CHART_RULER_TICK = 0.42
-/** Кегль подписи сантиметров — тот же, что у номера ряда. */
-export const CHART_RULER_FONT = 0.5
-
-/**
- * Цвет линейки. В палитру §7.1 не входит намеренно: «Вязаный.рф» — это цвета условных
- * обозначений, а линейка обозначением не является и обязана от них отличаться, иначе
- * засечка читается значком.
- */
-export const CHART_RULER_COLOR = '#2f6f8f'
-
-/**
- * Сторона клетки значка в легенде, px. Размер клетки — величина спеки, а не число
- * в Tailwind-классе компонента (§11): легенда читает его отсюда тем же образом,
- * что сетка читает `CELL_SIZE`.
- */
-export const LEGEND_CELL_SIZE = 14
-
 /**
  * Геометрия значков — доли клетки (клетка = 1×1). Общий источник и для сетки схемы,
  * и для значков легенды: `trianglePoints` и координаты штриха принимают размер клетки
- * параметром, поэтому легенда (`LEGEND_CELL_SIZE`) и сетка (клетка 1 в единицах viewBox)
+ * параметром, поэтому легенда (своя клетка в px) и сетка (клетка 1 в единицах viewBox)
  * читают одни и те же доли, не заводя вторых чисел (§11 «единый источник этих величин»).
  */
 
@@ -104,44 +92,6 @@ export const CHART_ICON_TOP = 0.2
 export const CHART_ICON_BOTTOM = 0.8
 /** Штрих лицевой стоит по центру клетки, доля клетки. */
 export const CHART_STITCH_X = 0.5
-
-/** Толщины линий, доли клетки (§7.1). */
-export const CHART_STROKE = {
-  /** Штрих лицевой. */
-  stitch: 0.09,
-  /** Обводка обычной клетки (в т.ч. кромки). */
-  cell: 0.04,
-  /** Обводка клетки «нет петли». */
-  emptyCell: 0.03,
-  /** Жирные линии каждые 5 петель. */
-  guideLine: 0.07,
-  /** Рамка сетки. */
-  gridBorder: 0.09,
-} as const
-
-/** Палитра «Вязаный.рф» (§7.1). */
-export const CHART_COLORS = {
-  /** Штрих лицевой. */
-  stitchStroke: '#4a453d',
-  /** Заливка треугольников убавки и номера убавочного ряда. */
-  decorFill: '#1c1a17',
-  /** Клетка, обычная петля. */
-  cell: '#fff',
-  /** Клетка, петля кромки — тонирована, но несёт тот же штрих лицевой. */
-  edgeCell: '#f7f4ee',
-  /** Клетка «нет петли». */
-  emptyCell: '#e4dfd5',
-  /** Обводка клетки «нет петли». */
-  emptyCellStroke: '#d5cec2',
-  /** Обводка обычной клетки. */
-  cellStroke: '#c9c2b6',
-  /** Жирные линии каждые 5 петель и рамка сетки. */
-  guideLine: '#8f887c',
-  /** Номер убавочного ряда. */
-  decRowLabel: '#1c1a17',
-  /** Номер промежуточного ряда. */
-  plainRowLabel: '#9a948a',
-} as const
 
 /**
  * Точки залитого треугольника убавки в единицах viewBox: вертикальный катет со стороны
@@ -226,3 +176,189 @@ export function pageScrollTargetPx(
   const visibleBottom = viewportHeight - dockHeight - CHART_SCROLL_GAP
   return Math.max(0, Math.round(bottomOfCurrent - visibleBottom))
 }
+
+/** Что в клетке: обычная петля, петля кромки или «нет петли» (§7.1). Цвет — у отрисовки. */
+export type CellKind = 'plain' | 'edge' | 'empty'
+
+export type ChartCell = { j: number; kind: CellKind }
+/** Лицевая: `p` — номер живой петли от начала половины, то есть от правого края. */
+export type ChartStitch = { j: number; p: number; edge: boolean; line: ReturnType<typeof stitchLinePoints> }
+export type ChartDecoration = { j: number; p: number; dir: 'left' | 'right'; points: string }
+export type ChartRow = {
+  row: Row
+  /** Строка в развёрнутой сетке: кончик мыска сверху, ряд 1 — нижний. */
+  y: number
+  cells: ChartCell[]
+  stitches: ChartStitch[]
+  decorations: ChartDecoration[]
+}
+
+/**
+ * Раскладывает один ряд на клетки, штрихи и треугольники. Перенос тела из
+ * `prototypes/toe-visualization.html` (`renderD`) с единственной правкой
+ * задачи: жирные линии считаются от правого края (в `chartGuideLines`, не здесь).
+ */
+function layoutRow(row: Row, y: number, cols: number, edge: number): ChartRow {
+  const active = row.stitches / 2
+  // active = cols − 2r всегда чётно-выравнено с cols той же чётности, off — целое.
+  const off = (cols - active) / 2
+
+  const cells: ChartCell[] = []
+  const stitches: ChartStitch[] = []
+  const decorations: ChartDecoration[] = []
+
+  for (let j = 0; j < cols; j++) {
+    const inside = j >= off && j < off + active
+    if (!inside) {
+      cells.push({ j, kind: 'empty' })
+      continue
+    }
+
+    // Номер живой петли от начала половины — то есть от правого края (§7, круговое чтение).
+    const p = off + active - 1 - j
+    const isEdge = p < edge || p >= active - edge
+    const decStart = row.type === 'dec' && p === edge
+    // decStart/decEnd никогда не совпадают: minFinalStitches = 4 + 4×кромка держит
+    // active − 1 − edge ≥ edge + 1.
+    const decEnd = row.type === 'dec' && p === active - 1 - edge
+
+    cells.push({ j, kind: isEdge ? 'edge' : 'plain' })
+
+    if (decStart) {
+      decorations.push({ j, p, dir: 'left', points: trianglePoints('left', j, y) })
+    } else if (decEnd) {
+      decorations.push({ j, p, dir: 'right', points: trianglePoints('right', j, y) })
+    } else {
+      // Лицевая — вертикальный штрих; пустая клетка означала бы изнаночную (§7.1).
+      stitches.push({ j, p, edge: isEdge, line: stitchLinePoints(j, y) })
+    }
+  }
+
+  return { row, y, cells, stitches, decorations }
+}
+
+export type ChartModel = {
+  /** Ширина сетки в клетках — половина начальных петель, постоянна (§7). */
+  cols: number
+  /** Высота сетки в клетках — она же высота `viewBox`. */
+  rowsCount: number
+  /** Ряды кончиком вверх: индекс и есть `y`. */
+  rows: ChartRow[]
+  guideLines: number[]
+  /** Ширина полосы номеров в клетках: с линейкой она шире (§7). */
+  labelWidth: number
+  cellSize: number
+  gridWidthPx: number
+  labelWidthPx: number
+  /** Вся схема поперёк — сетка плюс полоса номеров; по ней меряется бумага шторки. */
+  pixelWidth: number
+  pixelHeight: number
+  rulerBandPx: number
+  zoom: { canZoomOut: boolean; canZoomIn: boolean }
+  /**
+   * Сантиметры — только с вписанной плотностью (§7, тикет #27). Засечки уже в координатах
+   * SVG: вдоль — `y` от верха сетки, отсчёт снизу, от ряда 1; поперёк — `x` от левого
+   * края, отсчёт справа, откуда читается ряд.
+   */
+  centimetres: {
+    length: string
+    rowTicks: { cm: number; y: number }[]
+    stitchTicks: { cm: number; x: number }[]
+  } | null
+}
+
+/**
+ * Модель схемы на данном расчёте, плотности и шаге масштаба (§7). Координаты — в клетках
+ * (`viewBox`), размеры — в пикселях: масштаб меняет только вторые, поэтому сетка, значки
+ * и номера растут сами.
+ */
+export function chartModel(
+  calculation: Pick<ToeCalculation, 'rows' | 'initial' | 'edge' | 'totalRows'>,
+  gauge: Gauge | null,
+  zoomStep: number,
+): ChartModel {
+  const cols = calculation.initial / 2
+  // Кончик мыска сверху — ряды идут развёрнутым массивом, индекс и есть `y`.
+  const rows = calculation.rows
+    .slice()
+    .reverse()
+    .map((row, y) => layoutRow(row, y, cols, calculation.edge))
+  const rowsCount = rows.length
+  const cellSize = cellSizeAt(zoomStep)
+  const cm = centimetreView(calculation, gauge).cm
+
+  /**
+   * Полоса номеров раздаётся под подписи сантиметров: засечки стоят **в ней**, правее
+   * номера. Своей полосой линейка встать не может — прибитых к правому краю окна полос
+   * не бывает двух, а на телефоне вторая полоса отъедала бы у сетки больше, чем раздача
+   * этой: замер прототипа на 390 px дал 84 px против 79.
+   */
+  const labelWidth = cm ? CHART_LABEL_WIDTH + CHART_RULER_LABEL_WIDTH : CHART_LABEL_WIDTH
+  const gridWidthPx = Math.round(cols * cellSize)
+  const labelWidthPx = Math.round(labelWidth * cellSize)
+  const step = clampZoomStep(zoomStep)
+
+  return {
+    cols,
+    rowsCount,
+    rows,
+    guideLines: chartGuideLines(cols),
+    labelWidth,
+    cellSize,
+    gridWidthPx,
+    labelWidthPx,
+    pixelWidth: gridWidthPx + labelWidthPx,
+    pixelHeight: Math.round(rowsCount * cellSize),
+    rulerBandPx: Math.round(CHART_RULER_BAND_HEIGHT * cellSize),
+    zoom: { canZoomOut: step > 0, canZoomIn: step < CHART_CELL_SIZES.length - 1 },
+    centimetres: cm && {
+      length: cm.length,
+      rowTicks: cm.rowTicks.map((tick) => ({ cm: tick.cm, y: rowsCount - tick.at })),
+      stitchTicks: cm.stitchTicks.map((tick) => ({ cm: tick.cm, x: cols - tick.at })),
+    },
+  }
+}
+
+/** То из события колеса, на что смотрит решение: модификаторы и сдвиг по осям. */
+export type WheelInput = { ctrlKey: boolean; shiftKey: boolean; deltaX: number; deltaY: number }
+
+export type WheelAction =
+  | { kind: 'zoom'; delta: 1 | -1 }
+  | { kind: 'scroll'; delta: number }
+  | { kind: 'none' }
+
+/**
+ * Что делает колесо над схемой (§7): `ctrl` (и щипок по тачпаду, который браузер шлёт
+ * тем же событием) меняет масштаб, shift и горизонтальное колесо — прокручивают вбок
+ * по преобладающей оси. Вертикальное колесо без shift схему не трогает: им листают
+ * страницу.
+ */
+export function wheelAction(e: WheelInput): WheelAction {
+  if (e.ctrlKey) return { kind: 'zoom', delta: e.deltaY < 0 ? 1 : -1 }
+  const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0
+  return delta ? { kind: 'scroll', delta } : { kind: 'none' }
+}
+
+export type LegendItem = {
+  key: string
+  label: string
+  cell: CellKind
+  symbol: 'stitch' | 'dec-left' | 'dec-right' | null
+}
+
+/**
+ * Легенда схемы — единственное место, где названы типы убавок (§7.2). Значка кромочной
+ * (точка в центре) здесь нет — он означает другое (§2).
+ */
+export const CHART_LEGEND: readonly LegendItem[] = [
+  { key: 'stitch', label: 'лицевая', cell: 'plain', symbol: 'stitch' },
+  { key: 'edge', label: 'петля кромки, тоже лицевая', cell: 'edge', symbol: 'stitch' },
+  {
+    key: 'dec-left',
+    label: '2 вместе лицевой с наклоном влево (протяжка)',
+    cell: 'plain',
+    symbol: 'dec-left',
+  },
+  { key: 'dec-right', label: '2 вместе лицевой с наклоном вправо', cell: 'plain', symbol: 'dec-right' },
+  { key: 'empty', label: 'нет петли', cell: 'empty', symbol: null },
+]

@@ -8,8 +8,8 @@
  * Ряд 1 — внизу, кончик мыска — сверху, поэтому ряды обходятся развёрнутым массивом.
  * Петли читаются справа налево (круговое вязание): `p` — порядковый номер живой петли
  * от начала половины, то есть от правого края. Перепутать сторону значило бы зеркально
- * отразить всю схему — ловит это только скриншот, поэтому геометрия и её отсчёт
- * зафиксированы константами в `core/constants.ts`, а не пересчитаны здесь на глаз.
+ * отразить всю схему, поэтому раскладка и её отсчёт живут в модели (`core/chart.ts`)
+ * под юнит-тестами, а не пересчитаны здесь на глаз.
  *
  * **Масштаб (§7)** — шаг из `CHART_CELL_SIZES`, дефолт 22 px. Меняются только атрибуты
  * `width`/`height` у SVG: `viewBox` остаётся в клетках, поэтому сетка, значки, номера
@@ -46,29 +46,29 @@
  */
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
-import type { Row } from '../core/types'
 import {
-  CHART_CELL_SIZES,
-  CHART_COLORS,
   CHART_LABEL_WIDTH,
+  CHART_LEGEND,
   CHART_RULER_BAND_HEIGHT,
-  CHART_RULER_COLOR,
-  CHART_RULER_FONT,
-  CHART_RULER_LABEL_WIDTH,
   CHART_RULER_TICK,
-  CHART_STROKE,
   DEFAULT_ZOOM_STEP,
-  LEGEND_CELL_SIZE,
-  cellSizeAt,
-  chartGuideLines,
+  chartModel,
   clampZoomStep,
   pageScrollTargetPx,
   shutterTopPx,
   stitchLinePoints,
   trianglePoints,
-} from '../core/constants'
-import { centimetreView } from '../core/centimetres'
+  wheelAction,
+} from '../core/chart'
 import { rowsWord, stitchesWord } from '../core/text'
+import {
+  CELL_STYLE,
+  CHART_COLORS,
+  CHART_RULER_COLOR,
+  CHART_RULER_FONT,
+  CHART_STROKE,
+  LEGEND_CELL_SIZE,
+} from './chartStyle'
 
 /** Цвет шторки — перенесён буквально из прототипа (`row-progress.html`), это выбор
  * акцента, а не геометрия: в палитру §7.1 «Вязаный.рф» не входит, у значков схемы
@@ -95,131 +95,28 @@ const ZOOM_LENS = {
   stroke: 2,
 } as const
 
-/** Ширина сетки постоянна и равна половине начальных петель (§7), сетка не сужается. */
-const cols = computed(() => calculation.value.initial / 2)
-const edge = computed(() => calculation.value.edge)
-
-/** Кончик мыска сверху — ряды идут развёрнутым массивом, индекс и есть `y`. */
-const displayRows = computed(() => calculation.value.rows.slice().reverse())
-const rowsCount = computed(() => displayRows.value.length)
-
 /**
  * Шаг масштаба (§7) — индекс в `CHART_CELL_SIZES`, не размер клетки: на краях набора
  * кнопка заглушается, а для этого надо знать, где край.
  */
 const zoomStep = ref(DEFAULT_ZOOM_STEP)
-const cellSize = computed(() => cellSizeAt(zoomStep.value))
-const canZoomOut = computed(() => zoomStep.value > 0)
-const canZoomIn = computed(() => zoomStep.value < CHART_CELL_SIZES.length - 1)
+
+/**
+ * Модель схемы (§7): ряды, клетки, значки, направляющие и засечки — уже в координатах
+ * SVG, и размеры в пикселях. Раскладка решается в ядре (`core/chart.ts`) и проверяется
+ * юнит-тестами; здесь — только привязка к SVG, указатель, прокрутка и замеры DOM.
+ *
+ * Линейка в сантиметрах (тикет #27) появляется только с вписанной плотностью: без неё
+ * схема остаётся ровно прежней — ни полоса номеров не раздаётся, ни полосы под сеткой
+ * не заводится.
+ */
+const model = computed(() => chartModel(calculation.value, gauge.value, zoomStep.value))
 
 /** Две кнопки одним списком: рисунок у них общий, расходятся знаком внутри линзы и шагом. */
 const zoomButtons = computed(() => [
-  { testId: 'toe-chart-zoom-out', label: 'Схема мельче', delta: -1, enabled: canZoomOut.value },
-  { testId: 'toe-chart-zoom-in', label: 'Схема крупнее', delta: 1, enabled: canZoomIn.value },
+  { testId: 'toe-chart-zoom-out', label: 'Схема мельче', delta: -1, enabled: model.value.zoom.canZoomOut },
+  { testId: 'toe-chart-zoom-in', label: 'Схема крупнее', delta: 1, enabled: model.value.zoom.canZoomIn },
 ])
-
-const viewHeight = computed(() => rowsCount.value)
-/** Сетка и полоса номеров — два SVG, поэтому и ширины две (см. шапку про прибитые номера). */
-const gridWidthPx = computed(() => Math.round(cols.value * cellSize.value))
-
-/**
- * Линейка в сантиметрах (§7, тикет #27). Появляется только с вписанной плотностью:
- * дефолта у неё нет, и без неё схема остаётся ровно прежней — ни полоса номеров
- * не раздаётся, ни полосы под сеткой не заводится. Решает это `centimetreView`,
- * одно на схему и «Итог».
- */
-const centimetres = computed(() => centimetreView(calculation.value, gauge.value).cm)
-const hasGauge = computed(() => centimetres.value !== null)
-
-/**
- * Полоса номеров раздаётся под подписи сантиметров: засечки стоят **в ней**, правее
- * номера. Своей полосой линейка встать не может — прибитых к правому краю окна полос
- * не бывает двух, а на телефоне вторая полоса отъедала бы у сетки больше, чем раздача
- * этой: замер прототипа на 390 px дал 84 px против 79.
- */
-const labelWidth = computed(() =>
-  hasGauge.value ? CHART_LABEL_WIDTH + CHART_RULER_LABEL_WIDTH : CHART_LABEL_WIDTH,
-)
-const labelWidthPx = computed(() => Math.round(labelWidth.value * cellSize.value))
-const rulerBandPx = computed(() => Math.round(CHART_RULER_BAND_HEIGHT * cellSize.value))
-
-/**
- * Засечки считаются в клетках и от **начала мыска**: по вертикали снизу, от ряда 1,
- * по горизонтали справа, откуда читается ряд (§7). Шаг у них разный — ряд ниже,
- * чем петля шире, — и это свойство вязания, а не расхождение схемы.
- */
-const verticalTicks = computed(() => centimetres.value?.rowTicks ?? [])
-const horizontalTicks = computed(() => centimetres.value?.stitchTicks ?? [])
-/** Вся схема поперёк — сетка плюс полоса номеров; по ней меряется бумага шторки. */
-const pixelWidth = computed(() => gridWidthPx.value + labelWidthPx.value)
-const pixelHeight = computed(() => Math.round(viewHeight.value * cellSize.value))
-
-const guideLines = computed(() => chartGuideLines(cols.value))
-
-type Cell = { j: number; fill: string; stroke: string; strokeWidth: number; empty: boolean }
-type Stitch = { j: number; p: number; edge: boolean; line: ReturnType<typeof stitchLinePoints> }
-type Decoration = { j: number; p: number; dir: 'left' | 'right'; points: string }
-type RowLayer = { row: Row; y: number; cells: Cell[]; stitches: Stitch[]; decorations: Decoration[] }
-
-/**
- * Раскладывает один ряд на клетки, штрихи и треугольники. Перенос тела из
- * `prototypes/toe-visualization.html` (`renderD`) с единственной правкой
- * задачи: жирные линии считаются от правого края (в `chartGuideLines`, не здесь).
- */
-function buildRowLayer(row: Row, y: number, colsN: number, edgeN: number): RowLayer {
-  const active = row.stitches / 2
-  // active = cols − 2r всегда чётно-выравнено с cols той же чётности, off — целое.
-  const off = (colsN - active) / 2
-
-  const cells: Cell[] = []
-  const stitches: Stitch[] = []
-  const decorations: Decoration[] = []
-
-  for (let j = 0; j < colsN; j++) {
-    const inside = j >= off && j < off + active
-    if (!inside) {
-      cells.push({
-        j,
-        fill: CHART_COLORS.emptyCell,
-        stroke: CHART_COLORS.emptyCellStroke,
-        strokeWidth: CHART_STROKE.emptyCell,
-        empty: true,
-      })
-      continue
-    }
-
-    // Номер живой петли от начала половины — то есть от правого края (§7, круговое чтение).
-    const p = off + active - 1 - j
-    const isEdge = p < edgeN || p >= active - edgeN
-    const decStart = row.type === 'dec' && p === edgeN
-    // decStart/decEnd никогда не совпадают: minFinalStitches = 4 + 4×кромка держит
-    // active − 1 − edge ≥ edge + 1.
-    const decEnd = row.type === 'dec' && p === active - 1 - edgeN
-
-    cells.push({
-      j,
-      fill: isEdge ? CHART_COLORS.edgeCell : CHART_COLORS.cell,
-      stroke: CHART_COLORS.cellStroke,
-      strokeWidth: CHART_STROKE.cell,
-      empty: false,
-    })
-
-    if (decStart) {
-      decorations.push({ j, p, dir: 'left', points: trianglePoints('left', j, y) })
-    } else if (decEnd) {
-      decorations.push({ j, p, dir: 'right', points: trianglePoints('right', j, y) })
-    } else {
-      // Лицевая — вертикальный штрих; пустая клетка означала бы изнаночную (§7.1).
-      stitches.push({ j, p, edge: isEdge, line: stitchLinePoints(j, y) })
-    }
-  }
-
-  return { row, y, cells, stitches, decorations }
-}
-
-const grid = computed(() =>
-  displayRows.value.map((row, i) => buildRowLayer(row, i, cols.value, edge.value)),
-)
 
 const finalReal = computed(() => calculation.value.finalReal)
 const initial = computed(() => calculation.value.initial)
@@ -235,48 +132,13 @@ const paramsLine = computed(() => {
   const head = `${c.initial} → ${stitchesWord(c.finalReal)} · кромка ${c.edge} · ${rowsWord(c.totalRows)}`
   // Длина дописывается сюда же, а не встаёт рядом: строка стоит у схемы всегда,
   // показаны ручки или убраны, и по ней вяжут (тикет #27).
-  return centimetres.value ? `${head} · ${centimetres.value.length}` : head
+  const cm = model.value.centimetres
+  return cm ? `${head} · ${cm.length}` : head
 })
 
-/** Строка контура текущего ряда в развёрнутой сетке — та же индексация, что у `displayRows`. */
-const currentRowY = computed(() => rowsCount.value - progressRow.value - 1)
-const hasCurrentRow = computed(() => progressRow.value < rowsCount.value)
-
-type LegendItem = {
-  key: string
-  label: string
-  box: string
-  kind: 'stitch' | 'dec' | 'none'
-  dir: 'left' | 'right' | null
-}
-
-// Ряд легенды — единственное место, где названы типы убавок (§7.2); значка кромочной
-// (точка в центре) здесь нет — он означает другое (§2).
-const legend: LegendItem[] = [
-  { key: 'stitch', label: 'лицевая', box: CHART_COLORS.cell, kind: 'stitch', dir: null },
-  {
-    key: 'edge',
-    label: 'петля кромки, тоже лицевая',
-    box: CHART_COLORS.edgeCell,
-    kind: 'stitch',
-    dir: null,
-  },
-  {
-    key: 'dec-left',
-    label: '2 вместе лицевой с наклоном влево (протяжка)',
-    box: CHART_COLORS.cell,
-    kind: 'dec',
-    dir: 'left',
-  },
-  {
-    key: 'dec-right',
-    label: '2 вместе лицевой с наклоном вправо',
-    box: CHART_COLORS.cell,
-    kind: 'dec',
-    dir: 'right',
-  },
-  { key: 'empty', label: 'нет петли', box: CHART_COLORS.emptyCell, kind: 'none', dir: null },
-]
+/** Строка контура текущего ряда в развёрнутой сетке — та же индексация, что у рядов модели. */
+const currentRowY = computed(() => model.value.rowsCount - progressRow.value - 1)
+const hasCurrentRow = computed(() => progressRow.value < model.value.rowsCount)
 
 // Горизонтальная прокрутка при открытии стоит на правом краю — там начало ряда (§7).
 // Перетаскивание мышью и shift+колесо переносятся из `wireChartScroll` того же прототипа.
@@ -340,22 +202,21 @@ function stopDragging() {
 }
 
 /**
- * Колесо: `ctrl` (и щипок по тачпаду, который браузер шлёт тем же событием) меняет
- * масштаб, shift и горизонтальное колесо — прокручивают. `preventDefault` на ветке
- * масштаба обязателен: без него браузер вдобавок зумит страницу целиком.
+ * Колесо (§7): что делать, решает `wheelAction`. `preventDefault` на ветке масштаба
+ * обязателен и ставится даже на краю набора: без него браузер вдобавок зумит страницу
+ * целиком. Прокрутка гасит родное колесо, только когда прокручивает сама.
  */
 function onWheel(e: WheelEvent) {
   const el = scrollEl.value
   if (!el) return
-  if (e.ctrlKey) {
+  const action = wheelAction(e)
+  if (action.kind === 'zoom') {
     e.preventDefault()
-    zoomBy(e.deltaY < 0 ? 1 : -1)
-    return
+    zoomBy(action.delta)
+  } else if (action.kind === 'scroll') {
+    el.scrollLeft += action.delta
+    e.preventDefault()
   }
-  const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0
-  if (!delta) return
-  el.scrollLeft += delta
-  e.preventDefault()
 }
 
 /**
@@ -367,7 +228,10 @@ function onWheel(e: WheelEvent) {
 const shutterPaperTopPx = computed(() =>
   Math.max(
     0,
-    Math.min(shutterTopPx(rowsCount.value, progressRow.value, cellSize.value), pixelHeight.value),
+    Math.min(
+      shutterTopPx(model.value.rowsCount, progressRow.value, model.value.cellSize),
+      model.value.pixelHeight,
+    ),
   ),
 )
 
@@ -401,11 +265,11 @@ function scrollPageToCurrentRow(): void {
 
   const target = pageScrollTargetPx(
     chartContentTopPx,
-    rowsCount.value,
+    model.value.rowsCount,
     progressRow.value,
     window.innerHeight,
     dockHeight,
-    cellSize.value,
+    model.value.cellSize,
   )
   requestAnimationFrame(() => window.scrollTo(0, target))
 }
@@ -525,13 +389,13 @@ onUnmounted(() => {
           <div class="flex">
             <svg
               ref="svgEl"
-              :viewBox="`0 0 ${cols} ${viewHeight}`"
-              :width="gridWidthPx"
-              :height="pixelHeight"
+              :viewBox="`0 0 ${model.cols} ${model.rowsCount}`"
+              :width="model.gridWidthPx"
+              :height="model.pixelHeight"
               style="display: block"
               data-testid="toe-chart-svg"
             >
-              <template v-for="layer in grid" :key="layer.row.n">
+              <template v-for="layer in model.rows" :key="layer.row.n">
                 <rect
                   v-for="cell in layer.cells"
                   :key="`cell-${layer.row.n}-${cell.j}`"
@@ -539,12 +403,12 @@ onUnmounted(() => {
                   :y="layer.y"
                   width="1"
                   height="1"
-                  :fill="cell.fill"
-                  :stroke="cell.stroke"
-                  :stroke-width="cell.strokeWidth"
+                  :fill="CELL_STYLE[cell.kind].fill"
+                  :stroke="CELL_STYLE[cell.kind].stroke"
+                  :stroke-width="CELL_STYLE[cell.kind].strokeWidth"
                   :data-row="layer.row.n"
                   :data-col="cell.j"
-                  :data-empty="cell.empty ? '' : null"
+                  :data-empty="cell.kind === 'empty' ? '' : null"
                 />
                 <line
                   v-for="stitch in layer.stitches"
@@ -574,12 +438,12 @@ onUnmounted(() => {
               </template>
 
               <line
-                v-for="x in guideLines"
+                v-for="x in model.guideLines"
                 :key="`guide-${x}`"
                 :x1="x"
                 y1="0"
                 :x2="x"
-                :y2="viewHeight"
+                :y2="model.rowsCount"
                 :stroke="CHART_COLORS.guideLine"
                 :stroke-width="CHART_STROKE.guideLine"
                 data-testid="toe-chart-guide"
@@ -588,8 +452,8 @@ onUnmounted(() => {
               <rect
                 x="0"
                 y="0"
-                :width="cols"
-                :height="viewHeight"
+                :width="model.cols"
+                :height="model.rowsCount"
                 fill="none"
                 :stroke="CHART_COLORS.guideLine"
                 :stroke-width="CHART_STROKE.gridBorder"
@@ -601,7 +465,7 @@ onUnmounted(() => {
                 v-if="hasCurrentRow"
                 x="0"
                 :y="currentRowY"
-                :width="cols"
+                :width="model.cols"
                 height="1"
                 fill="none"
                 :stroke="SHUTTER_ACCENT"
@@ -615,9 +479,9 @@ onUnmounted(() => {
                  отчёркнута — иначе номера висели бы прямо на клетках. -->
             <svg
               class="sticky right-0 shrink-0 bg-white"
-              :viewBox="`0 0 ${labelWidth} ${viewHeight}`"
-              :width="labelWidthPx"
-              :height="pixelHeight"
+              :viewBox="`0 0 ${model.labelWidth} ${model.rowsCount}`"
+              :width="model.labelWidthPx"
+              :height="model.pixelHeight"
               style="display: block"
               data-testid="toe-chart-row-labels"
             >
@@ -625,12 +489,12 @@ onUnmounted(() => {
                 x1="0"
                 y1="0"
                 x2="0"
-                :y2="viewHeight"
+                :y2="model.rowsCount"
                 :stroke="CHART_COLORS.guideLine"
                 :stroke-width="CHART_STROKE.gridBorder"
               />
               <text
-                v-for="layer in grid"
+                v-for="layer in model.rows"
                 :key="`label-${layer.row.n}`"
                 x="0.35"
                 :y="layer.y + 0.7"
@@ -644,18 +508,18 @@ onUnmounted(() => {
               <!-- Засечки сантиметров — правее номеров и только на круглых значениях
                    (§7): номер нужен у каждого ряда, сантиметр — для прикидки, и частота
                    у них разная. Отсчёт снизу, от ряда 1: там начало мыска. -->
-              <template v-for="tick in verticalTicks" :key="`cm-${tick.cm}`">
+              <template v-for="tick in model.centimetres?.rowTicks" :key="`cm-${tick.cm}`">
                 <line
                   :x1="CHART_LABEL_WIDTH"
-                  :y1="viewHeight - tick.at"
+                  :y1="tick.y"
                   :x2="CHART_LABEL_WIDTH + CHART_RULER_TICK"
-                  :y2="viewHeight - tick.at"
+                  :y2="tick.y"
                   :stroke="CHART_RULER_COLOR"
                   :stroke-width="CHART_STROKE.guideLine"
                 />
                 <text
                   :x="CHART_LABEL_WIDTH + CHART_RULER_TICK + 0.13"
-                  :y="viewHeight - tick.at + 0.2"
+                  :y="tick.y + 0.2"
                   :font-size="CHART_RULER_FONT"
                   :fill="CHART_RULER_COLOR"
                   data-testid="toe-chart-ruler-row"
@@ -669,32 +533,32 @@ onUnmounted(() => {
                под полосой номеров мерить нечего. Отсчёт справа — оттуда же
                читается ряд (§7). -->
           <svg
-            v-if="hasGauge"
-            :viewBox="`0 0 ${cols} ${CHART_RULER_BAND_HEIGHT}`"
-            :width="gridWidthPx"
-            :height="rulerBandPx"
+            v-if="model.centimetres"
+            :viewBox="`0 0 ${model.cols} ${CHART_RULER_BAND_HEIGHT}`"
+            :width="model.gridWidthPx"
+            :height="model.rulerBandPx"
             style="display: block"
             data-testid="toe-chart-ruler-bottom"
           >
             <line
               x1="0"
               y1="0.08"
-              :x2="cols"
+              :x2="model.cols"
               y2="0.08"
               :stroke="CHART_RULER_COLOR"
               :stroke-width="CHART_STROKE.emptyCell"
             />
-            <template v-for="tick in horizontalTicks" :key="`cm-x-${tick.cm}`">
+            <template v-for="tick in model.centimetres.stitchTicks" :key="`cm-x-${tick.cm}`">
               <line
-                :x1="cols - tick.at"
+                :x1="tick.x"
                 y1="0.08"
-                :x2="cols - tick.at"
+                :x2="tick.x"
                 :y2="CHART_RULER_TICK"
                 :stroke="CHART_RULER_COLOR"
                 :stroke-width="CHART_STROKE.cell"
               />
               <text
-                :x="cols - tick.at"
+                :x="tick.x"
                 y="0.95"
                 text-anchor="middle"
                 :font-size="CHART_RULER_FONT"
@@ -727,8 +591,8 @@ onUnmounted(() => {
         class="pointer-events-none absolute inset-x-0 mx-auto bg-slate-900/30"
         :style="{
           top: `${shutterPaperTopPx}px`,
-          height: `${pixelHeight - shutterPaperTopPx}px`,
-          width: `min(${pixelWidth}px, 100%)`,
+          height: `${model.pixelHeight - shutterPaperTopPx}px`,
+          width: `min(${model.pixelWidth}px, 100%)`,
         }"
         data-testid="toe-chart-shutter-paper"
       />
@@ -739,26 +603,26 @@ onUnmounted(() => {
     </p>
 
     <div class="mt-3 flex flex-col gap-1 text-sm text-slate-700" data-testid="toe-chart-legend">
-      <div v-for="item in legend" :key="item.key" class="flex items-center gap-2">
+      <div v-for="item in CHART_LEGEND" :key="item.key" class="flex items-center gap-2">
         <svg :width="LEGEND_CELL_SIZE" :height="LEGEND_CELL_SIZE" aria-hidden="true">
           <rect
             x="0.5"
             y="0.5"
             :width="LEGEND_CELL_SIZE - 1"
             :height="LEGEND_CELL_SIZE - 1"
-            :fill="item.box"
+            :fill="CELL_STYLE[item.cell].fill"
             :stroke="CHART_COLORS.cellStroke"
           />
           <line
-            v-if="item.kind === 'stitch'"
+            v-if="item.symbol === 'stitch'"
             v-bind="stitchLinePoints(0, 0, LEGEND_CELL_SIZE)"
             :stroke="CHART_COLORS.stitchStroke"
             stroke-width="1.4"
             stroke-linecap="round"
           />
           <polygon
-            v-if="item.kind === 'dec'"
-            :points="trianglePoints(item.dir!, 0, 0, LEGEND_CELL_SIZE)"
+            v-if="item.symbol === 'dec-left' || item.symbol === 'dec-right'"
+            :points="trianglePoints(item.symbol === 'dec-left' ? 'left' : 'right', 0, 0, LEGEND_CELL_SIZE)"
             :fill="CHART_COLORS.decorFill"
           />
         </svg>
@@ -770,7 +634,7 @@ onUnmounted(() => {
 
 <style scoped>
 /* Видимая полоса прокрутки (§7 требует её видимой); цвета — тема прокрутки, не палитра
-   клеток из core/constants.ts, поэтому живут здесь литералами. */
+   клеток из chartStyle.ts, поэтому живут здесь литералами. */
 .chartscroll {
   cursor: grab;
   overscroll-behavior-x: contain;
