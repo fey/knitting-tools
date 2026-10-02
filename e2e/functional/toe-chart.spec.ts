@@ -113,6 +113,26 @@ test.describe('схема мыска', () => {
     // проверяет модель схемы под Vitest (`core/chart.test.ts`).
   })
 
+  test('убавки на схеме — 2 треугольника на убавочный ряд, наклон не перепутан', async ({ page }) => {
+    await page.goto('./toe-band/')
+    const svg = page.getByTestId('toe-chart-svg')
+
+    // Место убавок считает модель (`core/chart.test.ts`); здесь — что шаблон привязал
+    // направление к значку, а не перепутал его. Скриншоты в CI не гоняются, поэтому
+    // перепутанную привязку иначе не поймал бы никто.
+    const decLeft = svg.locator('[data-row="1"][data-symbol="dec-left"]')
+    const decRight = svg.locator('[data-row="1"][data-symbol="dec-right"]')
+    await expect(decLeft).toHaveCount(1)
+    await expect(decRight).toHaveCount(1)
+
+    // Наклон влево — у начала половины, то есть правее (петли читаются справа налево, §7).
+    const [leftCol, rightCol] = await Promise.all([
+      decLeft.getAttribute('data-col'),
+      decRight.getAttribute('data-col'),
+    ])
+    expect(Number(leftCol)).toBeGreaterThan(Number(rightCol))
+  })
+
   test('пустой клеткой лицевая не обозначается ни в одном месте схемы', async ({ page }) => {
     await page.goto('./toe-band/')
     const svg = page.getByTestId('toe-chart-svg')
