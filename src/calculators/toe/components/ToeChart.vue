@@ -67,7 +67,7 @@ import {
   stitchLinePoints,
   trianglePoints,
 } from '../core/constants'
-import { cmPerRow, cmPerStitch, cmWord, rulerTicks, toeLengthCm } from '../core/gauge'
+import { centimetreView } from '../core/centimetres'
 import { rowsWord, stitchesWord } from '../core/text'
 
 /** Цвет шторки — перенесён буквально из прототипа (`row-progress.html`), это выбор
@@ -125,9 +125,11 @@ const gridWidthPx = computed(() => Math.round(cols.value * cellSize.value))
 /**
  * Линейка в сантиметрах (§7, тикет #27). Появляется только с вписанной плотностью:
  * дефолта у неё нет, и без неё схема остаётся ровно прежней — ни полоса номеров
- * не раздаётся, ни полосы под сеткой не заводится.
+ * не раздаётся, ни полосы под сеткой не заводится. Решает это `centimetreView`,
+ * одно на схему и «Итог».
  */
-const hasGauge = computed(() => gauge.value !== null)
+const centimetres = computed(() => centimetreView(calculation.value, gauge.value).cm)
+const hasGauge = computed(() => centimetres.value !== null)
 
 /**
  * Полоса номеров раздаётся под подписи сантиметров: засечки стоят **в ней**, правее
@@ -146,12 +148,8 @@ const rulerBandPx = computed(() => Math.round(CHART_RULER_BAND_HEIGHT * cellSize
  * по горизонтали справа, откуда читается ряд (§7). Шаг у них разный — ряд ниже,
  * чем петля шире, — и это свойство вязания, а не расхождение схемы.
  */
-const verticalTicks = computed(() =>
-  gauge.value ? rulerTicks(rowsCount.value, cmPerRow(gauge.value)) : [],
-)
-const horizontalTicks = computed(() =>
-  gauge.value ? rulerTicks(cols.value, cmPerStitch(gauge.value)) : [],
-)
+const verticalTicks = computed(() => centimetres.value?.rowTicks ?? [])
+const horizontalTicks = computed(() => centimetres.value?.stitchTicks ?? [])
 /** Вся схема поперёк — сетка плюс полоса номеров; по ней меряется бумага шторки. */
 const pixelWidth = computed(() => gridWidthPx.value + labelWidthPx.value)
 const pixelHeight = computed(() => Math.round(viewHeight.value * cellSize.value))
@@ -237,7 +235,7 @@ const paramsLine = computed(() => {
   const head = `${c.initial} → ${stitchesWord(c.finalReal)} · кромка ${c.edge} · ${rowsWord(c.totalRows)}`
   // Длина дописывается сюда же, а не встаёт рядом: строка стоит у схемы всегда,
   // показаны ручки или убраны, и по ней вяжут (тикет #27).
-  return gauge.value ? `${head} · ${cmWord(toeLengthCm(c.totalRows, gauge.value))}` : head
+  return centimetres.value ? `${head} · ${centimetres.value.length}` : head
 })
 
 /** Строка контура текущего ряда в развёрнутой сетке — та же индексация, что у `displayRows`. */

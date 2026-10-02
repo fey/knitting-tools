@@ -18,7 +18,7 @@
  * Обе плотности пустые — записи нет вовсе (§10.2), и сантиметров на экране нет.
  */
 import { ref, watch } from 'vue'
-import { DEFAULT_GAUGE_BASE, parseGaugeField } from '../core/gauge'
+import { DEFAULT_GAUGE_BASE, gaugeFromFields } from '../core/gauge'
 import { useToeCalculator } from '../useToeCalculator'
 
 const { gauge, setGauge, gaugeDialogOpen } = useToeCalculator()
@@ -36,16 +36,17 @@ watch(gaugeDialogOpen, (open) => {
 })
 
 /**
- * Собирает плотность из трёх полей. Сантиметры появляются **только при обеих
- * плотностях** (§4): по одной половине образца обе оси не переводятся, и показывать
- * длину без обхвата значило бы решить за мастера, что вторую он мерить не станет.
- * База пустая читается как база по умолчанию — её и так никто не меняет.
+ * Ставит плотность из трёх полей. Правило «обе плотности или ничего, пустая база —
+ * по умолчанию» — в ядре (`gaugeFromFields`), то же, что у записи хранилища.
  */
 function apply(): void {
-  const rows = parseGaugeField(rowsField.value)
-  const stitches = parseGaugeField(stitchesField.value)
-  const base = parseGaugeField(baseField.value) ?? DEFAULT_GAUGE_BASE
-  setGauge(rows && stitches ? { rows, stitches, base } : null)
+  setGauge(
+    gaugeFromFields({
+      rows: rowsField.value,
+      stitches: stitchesField.value,
+      base: baseField.value,
+    }),
+  )
 }
 
 watch([rowsField, stitchesField, baseField], apply)

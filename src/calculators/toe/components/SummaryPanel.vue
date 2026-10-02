@@ -28,8 +28,8 @@
 import { computed } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import { rhythmName } from '../core/presets'
-import { circumferenceCm, cmWord, toeLengthCm } from '../core/gauge'
-import { coverageNote, lengthNote, lengthNoteCm } from '../core/notes'
+import { centimetreView } from '../core/centimetres'
+import { coverageNote } from '../core/notes'
 import { decRowsWord, rowsWord } from '../core/text'
 import GaugeButton from './GaugeButton.vue'
 
@@ -38,24 +38,13 @@ const { calculation, gauge } = useToeCalculator()
 const coverage = computed(() => coverageNote(calculation.value))
 const finalShown = computed(() => calculation.value.finalReal)
 /**
- * Длина и обхват — только с плотностью. Обхват берётся от начальных петель и назван
- * обхватом, а не шириной: петли считаются в круге (§4), а схема показывает половину.
- * Нарисовать его линейкой поэтому нельзя, а назвать числом — можно.
+ * Сантиметры и замечание о длине — из одного вида (`centimetreView`): выбор «см или
+ * ряды» решается там, а не здесь. Обхват назван обхватом, а не шириной: петли
+ * считаются в круге (§4), а схема показывает половину.
  */
-const centimetres = computed(() => {
-  const g = gauge.value
-  if (!g) return null
-  return {
-    length: cmWord(toeLengthCm(calculation.value.totalRows, g)),
-    circumference: cmWord(circumferenceCm(calculation.value.initial, g)),
-  }
-})
-
-const length = computed(() =>
-  gauge.value
-    ? lengthNoteCm(toeLengthCm(calculation.value.totalRows, gauge.value))
-    : lengthNote(calculation.value.totalRows),
-)
+const view = computed(() => centimetreView(calculation.value, gauge.value))
+const centimetres = computed(() => view.value.cm)
+const length = computed(() => view.value.lengthNote)
 
 /** Имя ритма — общее правило ядра (§5.5), одно на итог и на текст «Поделиться». */
 const rhythm = computed(() => rhythmName(calculation.value.rhythm))

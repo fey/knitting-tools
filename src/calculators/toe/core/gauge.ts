@@ -69,6 +69,9 @@ export function cmWord(value: number): string {
   return `${formatCm(value)} см`
 }
 
+/** Засечка линейки: круглый сантиметр и сколько клеток до него от начала отсчёта. */
+export type RulerTick = { cm: number; at: number }
+
 /**
  * Засечки линейки на круглых сантиметрах (§7): сколько клеток от начала отсчёта
  * до каждого целого сантиметра. Клеток `cells`, в клетке `cmPerCell` сантиметров.
@@ -79,10 +82,10 @@ export function cmWord(value: number): string {
  * Шаг засечек по вертикали и горизонтали разный, и это не дефект: ряд ниже,
  * чем петля шире. Схема — сетка обозначений, а не картинка мыска в масштабе (§7).
  */
-export function rulerTicks(cells: number, cmPerCell: number): { cm: number; at: number }[] {
+export function rulerTicks(cells: number, cmPerCell: number): RulerTick[] {
   if (!(cmPerCell > 0)) return []
   const total = cells * cmPerCell
-  const ticks: { cm: number; at: number }[] = []
+  const ticks: RulerTick[] = []
   // Запас на погрешность деления: 4 ряда по 0.25 см обязаны дать засечку на 1 см.
   for (let cm = 1; cm <= Math.floor(total + 1e-9); cm++) {
     ticks.push({ cm, at: cm / cmPerCell })
@@ -101,14 +104,45 @@ export function parseGaugeField(raw: string): number | null {
   const normalized = raw.replace(',', '.').trim()
   if (!normalized) return null
   const value = Number(normalized)
-  return Number.isFinite(value) && value > 0 ? value : null
+  return isGaugeValue(value) ? value : null
+}
+
+/** Годное число плотности: конечное и положительное — делить можно только на такое. */
+function isGaugeValue(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+/**
+ * Правило «обе половины или ничего» (§4), одно на форму и на хранилище. Сантиметры
+ * появляются **только при обеих плотностях**: одна половина образца перевести обе оси
+ * не может, а показывать длину без обхвата значило бы молча решить за мастера, что
+ * вторую он мерить не станет.
+ */
+function gaugeOf(rows: unknown, stitches: unknown, base: unknown): Gauge | null {
+  if (!isGaugeValue(rows) || !isGaugeValue(stitches) || !isGaugeValue(base)) return null
+  return { rows, stitches, base }
+}
+
+/** Строки полей диалога плотности — как они набраны. */
+export type GaugeFields = { rows: string; stitches: string; base: string }
+
+/**
+ * Плотность из формы диалога, или `null` (§4). Правило то же, что у записи
+ * хранилища (`gaugeOf`), с одной законной разницей: **пустая база формы — база
+ * по умолчанию**, её и так никто не меняет. В записи хранилища база обязательна —
+ * её туда пишет только `formatGauge`, и без базы запись неполна.
+ */
+export function gaugeFromFields(fields: GaugeFields): Gauge | null {
+  return gaugeOf(
+    parseGaugeField(fields.rows),
+    parseGaugeField(fields.stitches),
+    parseGaugeField(fields.base) ?? DEFAULT_GAUGE_BASE,
+  )
 }
 
 /**
  * Плотность из записи `localStorage` (§10.2), или `null` — записи нет, она повреждена
- * либо неполна. Сантиметры появляются **только при обеих плотностях** (§4): одна
- * половина образца перевести обе оси не может, а показывать длину без обхвата значило бы
- * молча решить за мастера, что вторую он мерить не станет.
+ * либо неполна. Правило полноты — то же `gaugeOf`, что и у формы.
  */
 export function parseGauge(raw: string | null): Gauge | null {
   if (!raw) return null
@@ -123,12 +157,7 @@ export function parseGauge(raw: string | null): Gauge | null {
     stitches?: unknown
     base?: unknown
   } | null
-  const rows = record?.rows
-  const stitches = record?.stitches
-  const base = record?.base
-  const ok = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0
-  if (!ok(rows) || !ok(stitches) || !ok(base)) return null
-  return { rows, stitches, base }
+  return gaugeOf(record?.rows, record?.stitches, record?.base)
 }
 
 /** Запись плотности для `localStorage` (§10.2). */

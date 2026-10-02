@@ -7,6 +7,7 @@ import {
   cmWord,
   formatCm,
   formatGauge,
+  gaugeFromFields,
   parseGauge,
   parseGaugeField,
   rulerTicks,
@@ -93,6 +94,31 @@ describe('разбор поля плотности (§4)', () => {
     expect(parseGaugeField('0')).toBeNull()
     expect(parseGaugeField('-4')).toBeNull()
     expect(parseGaugeField('сорок')).toBeNull()
+  })
+})
+
+describe('плотность из формы (§4)', () => {
+  it('пустая форма плотности не даёт', () => {
+    expect(gaugeFromFields({ rows: '', stitches: '', base: '10' })).toBeNull()
+  })
+
+  it('одна половина образца — тоже нет: сантиметры только при обеих плотностях', () => {
+    expect(gaugeFromFields({ rows: '40', stitches: '', base: '10' })).toBeNull()
+    expect(gaugeFromFields({ rows: '', stitches: '31', base: '10' })).toBeNull()
+  })
+
+  it('полная форма даёт плотность, запятая — наравне с точкой', () => {
+    expect(gaugeFromFields({ rows: '40', stitches: '31', base: '10' })).toEqual(GAUGE)
+    expect(gaugeFromFields({ rows: '37,5', stitches: '31', base: '10' })).toEqual({
+      rows: 37.5,
+      stitches: 31,
+      base: 10,
+    })
+  })
+
+  it('пустая или негодная база — база по умолчанию, а не отказ', () => {
+    expect(gaugeFromFields({ rows: '40', stitches: '31', base: '' })).toEqual(GAUGE)
+    expect(gaugeFromFields({ rows: '40', stitches: '31', base: '0' })).toEqual(GAUGE)
   })
 })
 
