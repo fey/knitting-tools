@@ -104,39 +104,13 @@ test.describe('схема мыска', () => {
     const cellCount = await svg.locator('rect[data-row][data-col]').count()
     expect(cellCount).toBe(30 * 19)
 
-    // Верхний ряд (кончик мыска) — самый узкий, съеденные петли помечены «нет петли».
+    // Ширина у каждого ряда одна: съеденные петли — клетки «нет петли», а не пропуск.
     const topRowCells = svg.locator('rect[data-row="19"][data-col]')
     const bottomRowCells = svg.locator('rect[data-row="1"][data-col]')
     await expect(topRowCells).toHaveCount(30)
     await expect(bottomRowCells).toHaveCount(30)
-
-    const topLive = await svg.locator('[data-row="19"][data-stitch]').count()
-    const bottomLive = await svg.locator('[data-row="1"][data-stitch]').count()
-    expect(topLive).toBeLessThan(bottomLive) // клин сужается к кончику
-  })
-
-  test('лицевая — штрих, убавки — 2 треугольника на убавочный ряд, наклон не перепутан', async ({
-    page,
-  }) => {
-    await page.goto('./toe-band/')
-    const svg = page.getByTestId('toe-chart-svg')
-
-    // Ряд 1 — убавочный (дефолт: 10 убавочных рядов, ряд 1 первый из них).
-    const decLeft = svg.locator('[data-row="1"][data-symbol="dec-left"]')
-    const decRight = svg.locator('[data-row="1"][data-symbol="dec-right"]')
-    await expect(decLeft).toHaveCount(1) // 2 треугольника на половину, не 4 (§7)
-    await expect(decRight).toHaveCount(1)
-
-    // Наклон влево стоит у начала половины — то есть у правого края живых петель
-    // (петли читаются справа налево, §7). Перепутанный отсчёт зеркалил бы всю схему.
-    const [leftCol, rightCol] = await Promise.all([
-      decLeft.getAttribute('data-col'),
-      decRight.getAttribute('data-col'),
-    ])
-    expect(Number(leftCol)).toBeGreaterThan(Number(rightCol))
-
-    // Промежуточный ряд (ряд 2) убавок не несёт вовсе.
-    await expect(svg.locator('[data-row="2"][data-symbol^="dec"]')).toHaveCount(0)
+    // Раскладку внутри ряда — нумерацию справа налево, кромку и место убавок —
+    // проверяет модель схемы под Vitest (`core/chart.test.ts`).
   })
 
   test('пустой клеткой лицевая не обозначается ни в одном месте схемы', async ({ page }) => {
