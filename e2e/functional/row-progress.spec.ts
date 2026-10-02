@@ -195,36 +195,9 @@ test('не совпал paramsKey — прогресса нет, схема чи
   await expect(page.getByTestId('reset-progress')).toBeDisabled()
 })
 
-test('смена расчёта на ходу номер ряда сохраняет, пока рядов хватает', async ({ page }) => {
-  await page.goto('./toe-band/')
-
-  for (let i = 0; i < 15; i++) await page.getByTestId('row-progress-mark').click()
-  await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 16 из 19')
-
-  // 60 → 16 через ряд: 21 ряд, больше 19 — номер не трогается, просто хватает места.
-  await page.getByTestId('final-minus').click()
-  await expect(page.getByTestId('summary-params')).toContainText('60 → 16 петель')
-  await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 16 из 21')
-})
-
-test('смена расчёта на ходу: рядов стало меньше отмеченных — номер подтягивается к последнему', async ({ page }) => {
-  await page.goto('./toe-band/')
-
-  for (let i = 0; i < 15; i++) await page.getByTestId('row-progress-mark').click()
-  await expect(page.getByTestId('row-progress-current')).toHaveText('Ряд 16 из 19')
-
-  // Открыть конструктор и сжать один сегмент до {interval: 2, repeats: 1} — по правилу
-  // хвоста (§12.1 случай 7) это 1 ряд всего, заведомо меньше уже отмеченных 15 —
-  // зажим обязан сработать, и дальше отмечать нечего.
-  await page.getByTestId('rhythm-builder-toggle').click()
-  await page.getByTestId('rhythm-builder-step-0-interval-plus').click()
-  for (let i = 0; i < 9; i++) await page.getByTestId('rhythm-builder-step-0-repeats-minus').click()
-  await expect(page.getByTestId('summary-total-rows')).toContainText('1 ряд всего')
-
-  await expect(page.getByTestId('row-progress-current')).toHaveText('Готово')
-  await expect(page.getByTestId('row-progress-mark')).toBeDisabled()
-})
-
+// Зажим отмеченного ряда под новый расчёт — сохранить, подтянуть к последнему —
+// проверяют `core/progress.test.ts` и `useToeCalculator.test.ts`. Здесь остаётся
+// сквозной путь, где зажим идёт через настоящую починку поля на блюре.
 test('правка петель чинит пару целиком — ряд подтягивается, а не обнуляется', async ({ page }) => {
   await page.addInitScript(
     ({ key, value }) => localStorage.setItem(key, value),

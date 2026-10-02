@@ -136,22 +136,6 @@ export function chartGuideLines(cols: number): number[] {
 }
 
 /**
- * Положение кромки шторки прогресса (тикет #9, §8), в px содержимого схемы, считая
- * от верхнего края (кончик мыска): `(totalRows − done) × cellSize`. Отмеченные ряды
- * лежат ниже этой границы — схема перевёрнута, ряд 1 внизу. Формула одна на всё:
- * ей же ставится обводка текущего ряда в SVG (`y = totalRows − done − 1`) и разовая
- * прокрутка страницы при открытии (`pageScrollTargetPx`).
- *
- * `cellSize` — параметр обязательный, а не `CELL_SIZE` по умолчанию: бумага шторки
- * лежит снаружи скроллера и меряется экранными пикселями, поэтому забытый на дефолте
- * вызов не покраснел бы нигде — клетки уехали бы под зумом, а затенение осталось.
- */
-export function shutterTopPx(totalRows: number, done: number, cellSize: number): number {
-  const clamped = Math.max(0, Math.min(done, totalRows))
-  return (totalRows - clamped) * cellSize
-}
-
-/**
  * Куда прокрутить **страницу** при открытии, чтобы текущий ряд оказался над плашкой
  * прогресса (§8). Схема кадра больше не имеет и растёт в естественную высоту, поэтому
  * подъезжает страница целиком, а не окно схемы: считать это в компоненте нельзя —
@@ -161,18 +145,20 @@ export function shutterTopPx(totalRows: number, done: number, cellSize: number):
  * и `dockHeight` — замеры живой вёрстки: высота плашки зависит от того, сколько строк
  * текста в ней сейчас стоит, и константой быть не может.
  *
- * Низ текущего ряда — та же граница `shutterTopPx`, что и у шторки: одна формула
+ * Низ текущего ряда — кромка шторки (`shutterRow` из `progressView`): одна граница
  * на затенение, обводку и прокрутку.
+ *
+ * `cellSize` — параметр обязательный, а не `CELL_SIZE` по умолчанию: забытый на дефолте
+ * вызов не покраснел бы нигде — под зумом страница подъезжала бы не к тому ряду.
  */
 export function pageScrollTargetPx(
   chartContentTopPx: number,
-  totalRows: number,
-  done: number,
+  shutterRow: number,
   viewportHeight: number,
   dockHeight: number,
   cellSize: number,
 ): number {
-  const bottomOfCurrent = chartContentTopPx + shutterTopPx(totalRows, done, cellSize)
+  const bottomOfCurrent = chartContentTopPx + shutterRow * cellSize
   const visibleBottom = viewportHeight - dockHeight - CHART_SCROLL_GAP
   return Math.max(0, Math.round(bottomOfCurrent - visibleBottom))
 }

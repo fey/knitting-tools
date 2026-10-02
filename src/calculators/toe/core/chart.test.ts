@@ -9,7 +9,6 @@ import {
   chartModel,
   clampZoomStep,
   pageScrollTargetPx,
-  shutterTopPx,
   stitchLinePoints,
   trianglePoints,
   wheelAction,
@@ -94,31 +93,6 @@ describe('геометрия значков — один источник для
   })
 })
 
-describe('положение кромки шторки прогресса (тикет #9, §8)', () => {
-  it('ничего не отмечено — кромка у самого низа схемы', () => {
-    expect(shutterTopPx(19, 0, 22)).toBe(19 * 22)
-  })
-
-  it('формула одна: (totalRows − done) × CELL_SIZE', () => {
-    expect(shutterTopPx(19, 7, 22)).toBe((19 - 7) * 22)
-  })
-
-  it('масштаб ведёт кромку за клетками — иначе затенение отстаёт от схемы', () => {
-    // Клетка вдвое крупнее — та же граница вдвое ниже: шторка лежит снаружи скроллера
-    // и считается в экранных пикселях, а не в клетках.
-    expect(shutterTopPx(19, 7, 44)).toBe((19 - 7) * 44)
-  })
-
-  it('отмечены все ряды — кромка у самого верха', () => {
-    expect(shutterTopPx(19, 19, 22)).toBe(0)
-  })
-
-  it('зажимается в границы — лишнее сверху и снизу не даёт отрицательной высоты', () => {
-    expect(shutterTopPx(19, 30, 22)).toBe(0)
-    expect(shutterTopPx(19, -5, 22)).toBe(19 * 22)
-  })
-})
-
 describe('разовая прокрутка страницы к текущему ряду (§8)', () => {
   // Схема кадра не имеет: подъезжает страница целиком, и низ текущего ряда встаёт
   // над плашкой прогресса, а не над нижней кромкой окна схемы.
@@ -128,23 +102,23 @@ describe('разовая прокрутка страницы к текущему
 
   it('низ текущего ряда встаёт над плашкой, с зазором', () => {
     // 61 ряд, отмечено 10: низ текущего ряда — (61 − 10) × 22 = 1122 px от верха схемы.
-    const target = pageScrollTargetPx(CHART_TOP, 61, 10, VIEWPORT, DOCK, 22)
+    const target = pageScrollTargetPx(CHART_TOP, 61 - 10, VIEWPORT, DOCK, 22)
     expect(target).toBe(CHART_TOP + 1122 - (VIEWPORT - DOCK - CHART_SCROLL_GAP))
   })
 
   it('высокая плашка поднимает страницу выше — замер живой, не константа', () => {
-    const low = pageScrollTargetPx(CHART_TOP, 61, 10, VIEWPORT, 100, 22)
-    const high = pageScrollTargetPx(CHART_TOP, 61, 10, VIEWPORT, 180, 22)
+    const low = pageScrollTargetPx(CHART_TOP, 61 - 10, VIEWPORT, 100, 22)
+    const high = pageScrollTargetPx(CHART_TOP, 61 - 10, VIEWPORT, 180, 22)
     expect(high - low).toBe(80)
   })
 
   it('короткий мысок целиком помещается над плашкой — страница остаётся вверху', () => {
     // Дефолт 60 → 20: 19 рядов, ничего не отмечено — прокручивать не к чему.
-    expect(pageScrollTargetPx(0, 19, 0, VIEWPORT, DOCK, 22)).toBe(0)
+    expect(pageScrollTargetPx(0, 19, VIEWPORT, DOCK, 22)).toBe(0)
   })
 
   it('отмечены все ряды — граница у верха схемы, страница остаётся вверху', () => {
-    expect(pageScrollTargetPx(0, 61, 61, VIEWPORT, DOCK, 22)).toBe(0)
+    expect(pageScrollTargetPx(0, 0, VIEWPORT, DOCK, 22)).toBe(0)
   })
 })
 

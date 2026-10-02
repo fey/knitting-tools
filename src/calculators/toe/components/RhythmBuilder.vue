@@ -36,7 +36,7 @@ const INTERVAL_MAX = 6
 /** Пол повторов (§6.3): шаг 1, пола ниже 1 нет. */
 const REPEATS_MIN = 1
 
-const { params, calculation } = useToeCalculator()
+const { params, setParams, calculation } = useToeCalculator()
 
 /**
  * Сегменты, которые видит и правит конструктор. Читает всегда `calculation.segments` —
@@ -66,7 +66,7 @@ function copySegments(): Segment[] {
 }
 
 function commit(next: Segment[]): void {
-  params.rhythm = { kind: 'custom', segments: next }
+  setParams({ rhythm: { kind: 'custom', segments: next } })
 }
 
 function stepInterval(index: number, delta: number): void {

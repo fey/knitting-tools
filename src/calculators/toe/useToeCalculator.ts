@@ -6,11 +6,20 @@
  * Здесь проходит граница: этот файл про Vue (и про браузер — `location`,
  * `history`, `localStorage`), `core/` — про арифметику и чистый разбор строк.
  */
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, readonly, ref, watch } from 'vue'
 import { calculateToe } from './core/calc'
 import { formatHash, paramsKey as computeParamsKey, resolveParams } from './core/hash'
 import { formatGauge, parseGauge } from './core/gauge'
 import type { Gauge } from './core/gauge'
+import {
+  clampDone,
+  formatProgressRecord,
+  markDone,
+  parseProgressRecord,
+  progressView,
+  restoreDone,
+  undoDone,
+} from './core/progress'
 import type { ToeParams } from './core/types'
 // Доступ к хранилищу — один на проект (§10.2, `src/shared/storage.ts`): записей три,
 // а правило «падать не вправе» сформулировано один раз и на все.
@@ -24,33 +33,9 @@ import { readStored, writeStored } from '../../shared/storage'
  */
 export const PROGRESS_STORAGE_KEY = 'knitting-tools:toe-progress'
 
-/**
- * Запись `{ paramsKey, row }` из `localStorage`, или `null` — записи нет, она
- * повреждена, либо хранилище недоступно (`readStored`). Тихий фолбэк — ни приоритет
- * при загрузке (§10.3), ни восстановление ряда (тикет #9) не вправе падать из-за
- * недоступного хранилища.
- *
- * `try` здесь свой и про другое: он ловит разбор повреждённой записи, а не отказ
- * хранилища.
- */
-function readSavedProgress(): { paramsKey: string; row: number } | null {
-  const raw = readStored(PROGRESS_STORAGE_KEY)
-  if (!raw) return null
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    const record = parsed as { paramsKey?: unknown; row?: unknown } | null
-    const key = record?.paramsKey
-    const row = record?.row
-    if (typeof key !== 'string' || typeof row !== 'number' || !Number.isFinite(row)) return null
-    return { paramsKey: key, row }
-  } catch {
-    return null
-  }
-}
-
 /** `paramsKey` сохранённого расчёта, для фолбэка при пустом hash (§10.3). */
 function readSavedParamsKey(): string | null {
-  return readSavedProgress()?.paramsKey ?? null
+  return parseProgressRecord(readStored(PROGRESS_STORAGE_KEY))?.paramsKey ?? null
 }
 
 function loadInitialParams(): ToeParams {
@@ -61,7 +46,8 @@ function loadInitialParams(): ToeParams {
 /**
  * Параметры расчёта. Приоритет при загрузке — hash → `localStorage` → дефолты
  * (§10.3), разбор и починка несходящейся ссылки — `resolveParams`/`parseHash`
- * в `core/hash.ts`. Поля петель и кромки дальше правит `StitchFields.vue`.
+ * в `core/hash.ts`. Наружу они уходят только на чтение: правят их одним входом,
+ * `setParams`.
  */
 const params = reactive<ToeParams>(loadInitialParams())
 
@@ -97,93 +83,60 @@ if (typeof history !== 'undefined' && 'scrollRestoration' in history) {
 syncHash()
 
 // Дальше — живьём при любой правке (кнопки петель, кромка, конструктор ритма,
-// починка полей). Дефолтный `flush: 'pre'` — намеренно: правка полей идёт
-// в несколько присвоений подряд (см. `fieldRules.ts` → `apply`), и коалесинг
-// не даёт адресу на миг застыть на несходящемся промежуточном значении.
+// починка полей). Дефолтный `flush: 'pre'` — намеренно: правка пары полей идёт
+// в несколько присвоений подряд (`setParams`), и коалесинг не даёт адресу на миг
+// застыть на несходящемся промежуточном значении.
 watch(params, syncHash, { deep: true })
 
 /**
- * Прогресс ряда (тикет #9, §8, §10.2). Восстанавливается молча при загрузке —
+ * Прогресс ряда (тикет #9, §8, §10.2): отмечено рядов. Модель — `core/progress.ts`,
+ * здесь только связь с хранилищем и расчётом. Восстанавливается молча при загрузке —
  * только если `paramsKey` записи совпал с уже разрешёнными `params` (§10.3 уже
- * выбрал, из hash они или из `localStorage`); не совпал — прогресса нет, значение
- * остаётся нулевым, ровно как для расчёта, у которого записи не было вовсе.
+ * выбрал, из hash они или из `localStorage`); не совпал — прогресса нет.
  */
-function initialProgressRow(): number {
-  const saved = readSavedProgress()
-  if (!saved || saved.paramsKey !== computeParamsKey(params)) return 0
-  return Math.max(0, Math.min(saved.row, calculation.value.totalRows))
-}
+const done = ref(
+  restoreDone(readStored(PROGRESS_STORAGE_KEY), computeParamsKey(params), calculation.value.totalRows),
+)
 
-const progressRow = ref(initialProgressRow())
+/** Что прогресс показывает на экране: текущий ряд, «всё готово», строка, кромка шторки. */
+const progress = computed(() => progressView(calculation.value, done.value))
 
 /**
- * Пишет прогресс в `localStorage`, либо стирает запись при `row === 0`.
- *
- * Запись появляется только когда есть что хранить: до первой явной отметки
- * `row` всегда 0, и эта ветка стирает — что при пустом хранилище не более чем
- * холостой `removeItem` (§10.2 «кручение ритма мусора не создаёт»). Отмена до
- * нуля тем же путём убирает запись, а не оставляет в ней `row: 0` — так «ряд 0»
- * никогда не всплывает вторым источником правды для фолбэка на пустой hash (§10.3).
+ * Ставит отмеченный ряд и пишет его в `localStorage` под ключом текущего расчёта.
+ * Ряд 0 запись стирает (`formatProgressRecord`) — до первой отметки это холостой
+ * `removeItem`, мусора он не создаёт (§10.2).
  */
-function persistProgress(row: number): void {
-  writeStored(
-    PROGRESS_STORAGE_KEY,
-    row > 0 ? JSON.stringify({ paramsKey: computeParamsKey(params), row }) : null,
-  )
+function setDone(next: number): void {
+  done.value = next
+  writeStored(PROGRESS_STORAGE_KEY, formatProgressRecord(computeParamsKey(params), next))
 }
 
-/** Первое нажатие «Ряд 1 готов» и есть начало счёта — отдельного включения нет (§8). */
 function markRow(): void {
-  const total = calculation.value.totalRows
-  if (progressRow.value >= total) return
-  progressRow.value += 1
-  persistProgress(progressRow.value)
+  setDone(markDone(done.value, calculation.value.totalRows))
 }
 
-/** Отмена — «−1» (§8); автоповтор на удержании собирает `RowProgressBar.vue`. */
 function undoRow(): void {
-  if (progressRow.value <= 0) return
-  progressRow.value -= 1
-  persistProgress(progressRow.value)
+  setDone(undoDone(done.value))
 }
 
 /** Сброс — ряд возвращается к нулю, расчёт остаётся (§8); подтверждение — на экране. */
 function resetProgress(): void {
-  progressRow.value = 0
-  persistProgress(0)
+  setDone(0)
 }
 
 /**
- * Зажим прогресса по текущему расчёту (§8): номер ряда сохраняется, а если рядов
- * стало меньше — подтягивается к последнему.
+ * **Один вход правки расчёта** (§8, §9). Правка применяется целиком и только потом
+ * зажимает прогресс — один раз: починка пары полей (100 → 60 и начальные 40 приносят
+ * пару 40 → 36) — одна смена расчёта, а не две, и отмеченный ряд подтягивается
+ * к последнему, а не обнуляется на несходящемся промежуточном 40 → 60.
+ *
+ * Запись прогресса переписывается и при неизменном ряде: её `paramsKey` следует
+ * за расчётом, иначе после правки ряд не восстановился бы.
  */
-function clampProgress(): void {
-  const total = calculation.value.totalRows
-  if (progressRow.value > total) progressRow.value = total
-  persistProgress(progressRow.value)
+function setParams(patch: Partial<ToeParams>): void {
+  Object.assign(params, patch)
+  setDone(clampDone(done.value, calculation.value.totalRows))
 }
-
-/**
- * Идёт ли прямо сейчас правка пары полей (см. `setStitches`). Зажим на промежуточное
- * состояние не срабатывает: пара — одна смена расчёта, а не две.
- */
-let applyingFields = false
-
-// Смена расчёта на ходу (§8); автоматическая правка ввода (§9) идёт тем же путём —
-// она меняет `params`, а `calculation` пересчитывается сама. Пока не было ни одной
-// отметки, `row` остаётся 0, и `persistProgress` при каждой правке лишь холостит
-// `removeItem` — мусора это не создаёт (§10.2). `flush: 'sync'` — зажим случается тем же
-// тиком, что и правка `params`: `ToeChart.vue` не вправе на кадр увидеть `progressRow`,
-// отставший от уже усечённого расчёта. Синхронность и делает флаг нужным: при
-// отложенном `flush` промежуточное состояние пары схлопнулось бы само.
-watch(
-  calculation,
-  () => {
-    if (applyingFields) return
-    clampProgress()
-  },
-  { flush: 'sync' },
-)
 
 /**
  * Ключ свёрнутости вводки (тикет #16, §10.2) — **вторая** запись в `localStorage`
@@ -268,37 +221,15 @@ function setGauge(next: Gauge | null): void {
  */
 const gaugeDialogOpen = ref(false)
 
-/**
- * Правит петли одной сменой расчёта (§8). Присвоить `initial` и `final` двумя
- * шагами нельзя: между ними стоит пара, которая сама с собой не сходится
- * (60 → 20 и правка начальных на 40 проходит через 40 → 20), синхронный зажим
- * видит её как расчёт в один ряд и обнуляет отмеченный ряд. Прогресс при правке
- * обоих полей сразу обязан подтягиваться к последнему ряду, а не пропадать.
- *
- * Кромка правится здесь же: она меняет минимум конечных петель, то есть входит
- * в ту же пару.
- */
-function setStitches(next: { initial: number; final: number; edge?: number }): void {
-  applyingFields = true
-  try {
-    params.initial = next.initial
-    params.final = next.final
-    if (next.edge !== undefined) params.edge = next.edge
-  } finally {
-    applyingFields = false
-  }
-  clampProgress()
-}
-
 export function useToeCalculator() {
   return {
-    params,
+    params: readonly(params),
+    setParams,
     calculation,
-    progressRow,
+    progress,
     markRow,
     undoRow,
     resetProgress,
-    setStitches,
     introCollapsed,
     setIntroCollapsed,
     toggleIntro,

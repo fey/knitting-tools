@@ -60,13 +60,13 @@ import {
 
 const STEP = 4
 
-const { params, setStitches } = useToeCalculator()
+const { params, setParams } = useToeCalculator()
 
 /** Черновики полей: то, что реально набрано, может не совпадать со сходящимся `params`. */
 const initialDraft = ref(String(params.initial))
 const finalDraft = ref(String(params.final))
 
-// Кнопки, кромка и разбор ссылки меняют params напрямую — черновик подхватывает следом.
+// Кнопки и кромка правят расчёт мимо черновика — черновик подхватывает следом.
 watch(
   () => params.initial,
   (value) => {
@@ -87,7 +87,7 @@ const finalFix = ref<Fix | null>(null)
 function commitIfConverges(patch: Partial<{ initial: number; final: number }>): void {
   const next = { initial: params.initial, final: params.final, edge: params.edge, ...patch }
   if (!converges(next)) return
-  setStitches(next)
+  setParams(next)
 }
 
 function parseDraft(raw: string): number | null {
@@ -111,7 +111,7 @@ function parseDraft(raw: string): number | null {
 function apply(result: NormalizedFields): void {
   // Пара идёт одной сменой расчёта: два присвоения подряд провели бы расчёт через
   // несходящееся промежуточное состояние и стёрли бы отмеченный ряд (§8).
-  setStitches({ initial: result.initial, final: result.final })
+  setParams({ initial: result.initial, final: result.final })
   initialDraft.value = String(result.initial)
   finalDraft.value = String(result.final)
 
@@ -175,12 +175,12 @@ function onFinalInput(event: Event): void {
 
 function stepInitial(delta: number): void {
   clearFixes()
-  params.initial += delta
+  setParams({ initial: params.initial + delta })
 }
 
 function stepFinal(delta: number): void {
   clearFixes()
-  params.final += delta
+  setParams({ final: params.final + delta })
 }
 
 const canDecInitial = computed(() => params.initial - STEP > params.final)
@@ -208,7 +208,7 @@ function whyOff(value: EdgeValue): string | null {
 function setEdge(value: EdgeValue): void {
   if (whyOff(value)) return
   clearFixes()
-  params.edge = value
+  setParams({ edge: value })
 }
 </script>
 

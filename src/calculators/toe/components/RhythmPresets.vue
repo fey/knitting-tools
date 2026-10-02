@@ -27,7 +27,7 @@ import { PRESETS, presetRowCount, presetWhyOff, type Preset } from '../core/pres
 import { coverageNote } from '../core/notes'
 import { rowsWord } from '../core/text'
 
-const { params, calculation } = useToeCalculator()
+const { params, setParams, calculation } = useToeCalculator()
 
 /** Недобор — и только он — дублируется строкой у живого числа рядов (§9.5). */
 const coverage = computed(() => coverageNote(calculation.value))
@@ -42,7 +42,7 @@ function isSelected(preset: Preset): boolean {
 
 function select(preset: Preset): void {
   if (rows(preset) === null) return
-  params.rhythm = { kind: 'preset', name: preset.code }
+  setParams({ rhythm: { kind: 'preset', name: preset.code } })
 }
 </script>
 
