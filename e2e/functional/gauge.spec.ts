@@ -142,3 +142,41 @@ test('диалог закрывается Esc без подтверждения,
   await page.getByTestId('gauge-button').click()
   await expect(page.getByTestId('gauge-rows')).toHaveValue('40')
 })
+
+test('недоступное localStorage не отнимает плотность — она работает до перезагрузки (§10.2)', async ({
+  page,
+}) => {
+  // Тот же отказ, что в intro.spec.ts: у Chrome с заблокированными данными сайта кидает
+  // сам доступ к свойству. Плотность читается при загрузке модуля, и брошенное там
+  // уронило бы страницу целиком.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage denied')
+      },
+    })
+  })
+
+  // Брошенное в watcher записи Vue глотает и пишет в консоль, а экран живёт дальше:
+  // без этого счёта упавшая запись прошла бы прогон незамеченной.
+  const errors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+  page.on('pageerror', (error) => errors.push(error.message))
+
+  await page.goto('./toe-band/')
+
+  await expect(page.getByTestId('summary-total-rows')).toHaveText('19 рядов всего')
+  await expect(page.getByTestId('gauge-button')).toHaveText(/Сантиметры — впиши плотность/)
+
+  // Отказ касается записи, а не работы: вписанная плотность считает в этот заход,
+  // не переживёт она только перезагрузку.
+  await fillGauge(page)
+  await expect(page.getByTestId('summary-centimetres')).toHaveText(
+    'Длина мыска 4,75 см · обхват на начальных петлях 19,35 см',
+  )
+  await expect(page.getByTestId('toe-chart-ruler-row')).toHaveCount(4)
+  expect(errors).toEqual([])
+})
