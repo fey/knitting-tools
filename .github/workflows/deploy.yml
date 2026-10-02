@@ -13,10 +13,12 @@ permissions:
   pages: write
   id-token: write
 
-# Деплои не гоняются параллельно, но и не отменяют друг друга на полпути.
+# Прогон держит очередь своей ветки, а не общую: в общей группе ожидающий прогон
+# бывает только один, и PR, открытые подряд, отменяли проверки друг другу.
+# Новый push в PR гасит его устаревший прогон; прогоны main не гасятся никогда.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -74,6 +76,11 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Деплои не гоняются параллельно, но и не отменяют друг друга на полпути.
+    # Группа стоит на job'е деплоя, а не на всём прогоне: PR до деплоя не доходят.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
