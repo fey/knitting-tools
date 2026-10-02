@@ -10,7 +10,7 @@
  * фокус с поля раньше, чем срабатывает `@click` — родное поведение браузера
  * (`blur` целевого поля идёт перед `click` по кнопке), и починка §9.3 меняет
  * `params` синхронно. Отдельного кода на этот случай здесь нет и не нужно: `url`
- * строится из уже почтикнутых `params`, а не из `location.href` за спиной —
+ * строится из уже почтикнутого расчёта, а не из `location.href` за спиной —
  * если бы `location.href` ещё не догнал `params` (следующий тик `watch`),
  * ссылка успела бы уйти недосинхронизированной.
  *
@@ -26,7 +26,7 @@ import { useToeCalculator } from '../useToeCalculator'
 import { formatHash } from '../core/hash'
 import { shareText } from '../core/share'
 
-const { params, calculation } = useToeCalculator()
+const { calculation } = useToeCalculator()
 
 type Status = 'idle' | 'copied' | 'error'
 const status = ref<Status>('idle')
@@ -46,10 +46,13 @@ function showStatus(next: Status): void {
   }, 2000)
 }
 
-/** Адрес из уже почтикнутых `params`, а не из `location.href` (см. комментарий выше). */
+/**
+ * Адрес из уже почтикнутого расчёта, а не из `location.href` (см. комментарий выше).
+ * Расчёт несёт те же параметры и пересчитывается при чтении синхронно.
+ */
 function shareUrl(): string {
   const url = new URL(window.location.href)
-  url.hash = formatHash(params)
+  url.hash = formatHash(calculation.value)
   return url.toString()
 }
 

@@ -17,15 +17,12 @@
  */
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
-import { progressWhatText } from '../core/progress'
 
 const HOLD_DELAY = 400 // §8: задержка до старта автоповтора «−1»
 const HOLD_STEP = 120 // §8: шаг автоповтора
 
-const { calculation, progressRow, markRow, undoRow, resetProgress } = useToeCalculator()
-
-const current = () => Math.min(progressRow.value + 1, calculation.value.totalRows)
-const allDone = () => progressRow.value >= calculation.value.totalRows
+// Текущий ряд, «всё готово» и строка плашки — готовым видом из модели (`core/progress.ts`).
+const { calculation, progress, markRow, undoRow, resetProgress } = useToeCalculator()
 
 /* --- отмена «−1» с автоповтором на удержании --- */
 let holdTimer: ReturnType<typeof setTimeout> | undefined
@@ -56,12 +53,12 @@ function capturePointer(event: PointerEvent): void {
 
 function startUndoHold(event: PointerEvent): void {
   capturePointer(event)
-  if (progressRow.value <= 0) return
+  if (progress.value.done <= 0) return
   undoRow() // первое «−1» — сразу на pointerdown, короткий тап тоже должен отменять
   clearHold()
   holdTimer = setTimeout(() => {
     holdTick = setInterval(() => {
-      if (progressRow.value <= 0) {
+      if (progress.value.done <= 0) {
         clearHold()
         return
       }
@@ -88,7 +85,7 @@ onUnmounted(() => {
 const confirmingReset = ref(false)
 
 function askReset(): void {
-  if (progressRow.value <= 0) return
+  if (progress.value.done <= 0) return
   confirmingReset.value = true
 }
 function cancelReset(): void {
@@ -107,7 +104,7 @@ function confirmReset(): void {
         type="button"
         class="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-40"
         data-testid="reset-progress"
-        :disabled="progressRow === 0"
+        :disabled="progress.done === 0"
         @click="askReset"
       >
         Сбросить счёт
@@ -140,10 +137,10 @@ function confirmReset(): void {
     <div class="rounded-lg border border-slate-200 bg-white p-3" data-testid="row-progress-dock">
       <div class="flex items-baseline gap-2">
         <span class="text-xl font-bold tabular-nums" data-testid="row-progress-current">
-          {{ allDone() ? 'Готово' : `Ряд ${current()} из ${calculation.totalRows}` }}
+          {{ progress.allDone ? 'Готово' : `Ряд ${progress.current} из ${calculation.totalRows}` }}
         </span>
         <span class="ml-auto text-right text-sm text-slate-600" data-testid="row-progress-what">
-          {{ progressWhatText(calculation, progressRow) }}
+          {{ progress.text }}
         </span>
       </div>
       <div class="mt-2 flex gap-2">
@@ -151,7 +148,7 @@ function confirmReset(): void {
           type="button"
           class="h-11 w-16 rounded border border-slate-300 text-base leading-none disabled:opacity-40"
           data-testid="row-progress-undo"
-          :disabled="progressRow === 0"
+          :disabled="progress.done === 0"
           @pointerdown="startUndoHold($event)"
           @pointerup="stopUndoHold"
           @pointercancel="stopUndoHold"
@@ -162,10 +159,10 @@ function confirmReset(): void {
           type="button"
           class="h-11 flex-1 rounded bg-slate-900 text-base font-semibold text-white disabled:bg-slate-300"
           data-testid="row-progress-mark"
-          :disabled="allDone()"
+          :disabled="progress.allDone"
           @click="markRow"
         >
-          {{ allDone() ? 'Готово' : `Ряд ${current()} готов` }}
+          {{ progress.allDone ? 'Готово' : `Ряд ${progress.current} готов` }}
         </button>
       </div>
     </div>

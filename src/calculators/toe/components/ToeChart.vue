@@ -41,7 +41,7 @@
  *   `toe-chart-box` (со `position: relative`, приготовлена тикетом #3) рядом со
  *   скроллером, а не внутри него. Схема прокручивается только вбок, а в высоту растёт
  *   целиком (§6, кадр 420 px отменён), поэтому верхний край бумаги — прямо
- *   `shutterTopPx` в пикселях содержимого: вертикального `scrollTop`, за которым
+ *   кромка шторки (`shutterRow`) в пикселях содержимого: вертикального `scrollTop`, за которым
  *   пришлось бы следить, у скроллера больше нет.
  */
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
@@ -55,7 +55,6 @@ import {
   chartModel,
   clampZoomStep,
   pageScrollTargetPx,
-  shutterTopPx,
   stitchLinePoints,
   trianglePoints,
   wheelAction,
@@ -75,7 +74,7 @@ import {
  * своя роль. */
 const SHUTTER_ACCENT = '#b4472a'
 
-const { calculation, progressRow, gauge } = useToeCalculator()
+const { calculation, progress, gauge } = useToeCalculator()
 
 /**
  * Значок лупы на кнопках масштаба (§7). Сторона поля и доли внутри него — хром кнопки,
@@ -136,9 +135,12 @@ const paramsLine = computed(() => {
   return cm ? `${head} · ${cm.length}` : head
 })
 
-/** Строка контура текущего ряда в развёрнутой сетке — та же индексация, что у рядов модели. */
-const currentRowY = computed(() => model.value.rowsCount - progressRow.value - 1)
-const hasCurrentRow = computed(() => progressRow.value < model.value.rowsCount)
+/**
+ * Контур текущего ряда — строка над кромкой шторки, в той же развёрнутой индексации,
+ * что у рядов модели. Кромку и «всё готово» выводит модель прогресса (`progressView`).
+ */
+const currentRowY = computed(() => progress.value.shutterRow - 1)
+const hasCurrentRow = computed(() => !progress.value.allDone)
 
 // Горизонтальная прокрутка при открытии стоит на правом краю — там начало ряда (§7).
 // Перетаскивание мышью и shift+колесо переносятся из `wireChartScroll` того же прототипа.
@@ -220,27 +222,19 @@ function onWheel(e: WheelEvent) {
 }
 
 /**
- * Верхний край бумаги шторки, в пикселях содержимого. Зажим сверху — по высоте сетки,
- * а не по высоте обёртки: обёртка ниже на полосу линейки (§7) и на полосу горизонтальной
- * прокрутки, и без зажима бумага заходила бы на них, затеняя их вместе со схемой. Низ
- * бумаги задан той же высотой сетки, см. разметку.
+ * Верхний край бумаги шторки, в пикселях содержимого. Кромка в рядах уже зажата
+ * в границы сетки моделью прогресса, поэтому бумага не заходит ни на полосу линейки
+ * (§7), ни на полосу горизонтальной прокрутки под сеткой. Низ бумаги задан той же
+ * высотой сетки, см. разметку.
  */
-const shutterPaperTopPx = computed(() =>
-  Math.max(
-    0,
-    Math.min(
-      shutterTopPx(model.value.rowsCount, progressRow.value, model.value.cellSize),
-      model.value.pixelHeight,
-    ),
-  ),
-)
+const shutterPaperTopPx = computed(() => progress.value.shutterRow * model.value.cellSize)
 
 /**
  * Разовая прокрутка **страницы** к текущему ряду при открытии (§8). Кадра у схемы нет,
  * она стоит под ручками расчёта, поэтому подъезжает страница, а не окно схемы.
  *
  * Случается только тогда, когда прогресс восстановлен из `localStorage` при загрузке:
- * `progressRow` на монтаже больше нуля ровно в этом случае — починенная ссылка даёт
+ * отмеченный ряд на монтаже больше нуля ровно в этом случае — починенная ссылка даёт
  * другой `paramsKey`, и прогресс не подхватывается вовсе (§10.4). Чистый заход
  * открывается сверху, на вводке, ради которой порядок экрана и переставлен.
  *
@@ -255,7 +249,7 @@ const shutterPaperTopPx = computed(() =>
  * в `pageScrollTargetPx`, чтобы правило проверялось швом ядра, а не только браузером.
  */
 function scrollPageToCurrentRow(): void {
-  if (progressRow.value <= 0) return
+  if (progress.value.done <= 0) return
   const svg = svgEl.value
   if (!svg || typeof window === 'undefined') return
 
@@ -265,8 +259,7 @@ function scrollPageToCurrentRow(): void {
 
   const target = pageScrollTargetPx(
     chartContentTopPx,
-    model.value.rowsCount,
-    progressRow.value,
+    progress.value.shutterRow,
     window.innerHeight,
     dockHeight,
     model.value.cellSize,
