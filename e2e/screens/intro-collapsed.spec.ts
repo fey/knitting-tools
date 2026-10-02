@@ -17,5 +17,9 @@ test('первый экран со свёрнутой вводкой', async ({ 
   await page.goto('./toe-band/')
 
   await expect(page.getByTestId('intro-expand')).toHaveText('Показать инструкцию')
-  await expect(page).toHaveScreenshot('intro-collapsed.png', { fullPage: true })
+  // Номер версии в подвале меняет каждый релиз — маска та же, что у `page.png`.
+  await expect(page).toHaveScreenshot('intro-collapsed.png', {
+    fullPage: true,
+    mask: [page.getByTestId('app-version')],
+  })
 })
