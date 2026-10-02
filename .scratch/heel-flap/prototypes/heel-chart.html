@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ПРОТОТИП — схема поворота пятки</title>
+<!--
+  ПРОТОТИП. Одноразовый код, отвечающий на один вопрос.
+
+  Вопрос: как показать на экране поворот французской пятки — «чашечку», где идут убавки.
+  Стенка и клинья в область не входят (решение мастера: «нужна чисто пятка»).
+  - A — постоянная сетка, как у мыска: ширина = петли пятки, съеденные петли — «нет петли».
+  - B — чашечка: в каждом ряду рисуются только петли на спице, сетка сужается к верху.
+  - C — построчно: у каждого ряда текст, под ним мини-полоска ряда.
+  - D — только центр: в ряду нарисовано то, что вяжется, а ждущие по краям петли
+    свёрнуты в числа. Влезает в телефон без прокрутки.
+  Переключение через ?variant=A|B|C|D, стрелки внизу и клавиши ←/→.
+
+  Допущения прототипа, НЕ решения (research ещё не сделан):
+  - «Французская пятка» здесь — round heel из англоязычных источников: центр растёт
+    на петлю за ряд, пока не съест края. Русское название и формулы проверит research.
+  - Петли пятки = половина начальных петель. Ряд 1 — сн. 1, (H/2 + 1) лиц., протяжка, 1 лиц.,
+    поверни; ряд 2 — сн. 1, 5 изн., 2 вм. изн., 1 изн., поверни; дальше «до петли перед
+    просветом, убавка, 1 петля, поверни». Ширина центра — не ручка, хотя в источниках бывает.
+  - Схема — вид с лицевой стороны: изнаночная на изнаночном ряду рисуется как лицевая.
+  - Значки убавок — из §7.1 спеки мыска; «снять», «не вяжется в этом ряду» и отметка
+    поворота придуманы здесь.
+-->
+<style>
+  :root {
+    --bg: #fbfaf8; --fg: #1c1a17; --muted: #6f6a62; --line: #e2ddd5;
+    --ws: #e3edf7; --wsfg: #2f5d8a; --accent: #b4472a; --accent-soft: #f4ded6; --none: #cfcac2; --idle: #f1ece3;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0 0 96px; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .topbar { border-bottom: 1px solid var(--line); background: #fff; padding: 10px 16px;
+    font-size: 13px; color: var(--muted); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 16px 16px 0; }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .protobadge { display: inline-block; background: #1c1a17; color: #fff; font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px;
+    margin-bottom: 10px; }
+  .knobs { background: #f2efe9; border: 1px dashed var(--line); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 14px; }
+  .knobs-title { font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); margin-bottom: 8px; }
+  .knob label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .knob input { width: 100%; padding: 7px 8px; font-size: 16px; border: 1px solid var(--line);
+    border-radius: 6px; background: #fff; font-variant-numeric: tabular-nums; }
+  .warn { color: var(--accent); font-size: 12px; margin-top: 6px; }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); background: #fff;
+    border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .summary div { padding: 8px; text-align: center; border-right: 1px solid var(--line); }
+  .summary { grid-template-columns: repeat(2, 1fr); }
+  .summary div:nth-child(2n) { border-right: 0; }
+  .summary div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  .summary b { display: block; font-size: 19px; font-variant-numeric: tabular-nums; }
+  .summary span { font-size: 11px; color: var(--muted); }
+  .chartbox { overflow-x: auto; background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 0; }
+  .chartbox svg { display: block; margin: 0 auto; }
+  .cap { font-size: 13px; color: var(--muted); margin: 6px 2px; }
+  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 13px;
+    margin: 12px 0; }
+  .legend div { display: flex; align-items: center; gap: 8px; }
+  .legend svg { flex-shrink: 0; }
+
+  /* C */
+  .rowlist { background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+  .rowitem { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .rowitem:last-child { border-bottom: 0; }
+  .rowitem .hd { font-size: 12px; color: var(--muted); }
+  .rowitem .tx { font-size: 16px; margin: 2px 0 6px; }
+  .rowitem svg { display: block; }
+  h2 { font-size: 16px; margin: 20px 0 6px; }
+  ol.words { margin: 0; padding-left: 28px; font-size: 16px; }
+  ol.words li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .side { font-weight: 600; white-space: nowrap; }
+  .side.ws { color: var(--wsfg); }
+  .side.rs { color: var(--fg); }
+  ol.words li.ws, .rowitem.ws, .drow.ws { background: var(--ws); }
+  ol.words li { padding: 4px 6px; }
+
+  /* D */
+  .drow { display: grid; grid-template-columns: 28px 1fr 28px 36px; align-items: center;
+    gap: 6px; height: 26px; }
+  .drow .wait { font-size: 12px; color: var(--muted); text-align: center;
+    background: var(--idle); border-radius: 4px; font-variant-numeric: tabular-nums; }
+  .drow .wait.zero { background: none; }
+  .drow .mid { display: flex; justify-content: center; }
+  .drow { height: auto; padding: 4px 0 8px; border-bottom: 1px solid var(--line); }
+  .drow:last-child { border-bottom: 0; }
+  .drow .dtext { grid-column: 1 / -1; font-size: 14px; text-align: center; }
+  .drow .num { font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .dhead { display: grid; grid-template-columns: 28px 1fr 28px 36px; gap: 6px; font-size: 11px;
+    color: var(--muted); text-align: center; margin-bottom: 4px; }
+
+  .switcher { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    background: #111; color: #fff; border-radius: 999px; display: flex; align-items: center;
+    gap: 6px; padding: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.3); z-index: 10; font-size: 14px; }
+  .switcher button { background: #333; color: #fff; border: 0; border-radius: 999px;
+    width: 40px; height: 40px; font-size: 18px; cursor: pointer; }
+  .switcher span { padding: 0 10px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="topbar">Калькуляторы для вязания</div>
+<div class="wrap">
+  <span class="protobadge">Прототип · вариант <span id="vkey"></span></span>
+  <h1>Французская пятка</h1>
+  <p class="sub">Поворот пятки · носок cuff-down</p>
+
+  <div class="knobs">
+    <div class="knobs-title">Ручка прототипа</div>
+    <div class="knob"><label for="n">Начальные петли (весь круг, на пятку — половина)</label>
+      <input id="n" type="number" min="24" max="120" step="2" value="60"></div>
+    <div class="knob" style="margin-top:8px"><label for="c">Петель на центральную часть</label>
+      <input id="c" type="number" min="2" max="40" step="2" value="10"></div>
+    <div class="warn" id="warn"></div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+  <div id="view"></div>
+</div>
+
+<div class="switcher">
+  <button id="prev" aria-label="Предыдущий вариант">‹</button>
+  <span id="vlabel"></span>
+  <button id="next" aria-label="Следующий вариант">›</button>
+</div>
+
+<script>
+const VARIANTS = { A: 'Постоянная сетка', B: 'Чашечка', C: 'Построчно', D: 'Только центр' }
+const KEYS = Object.keys(VARIANTS)
+let variant = new URLSearchParams(location.search).get('variant')
+if (!KEYS.includes(variant)) variant = 'A'
+
+/* ---------- расчёт (прототипный) ---------- */
+
+// Каждый ряд несёт:
+//  cells — по колонкам исходной пятки (0 = правый край), для постоянной сетки;
+//  seq   — по петлям на спице в начале ряда (справа налево), для чашечки;
+//  ops   — что вяжется, в порядке вязания; waitR / waitL — сколько петель ждёт по краям.
+function simulateTurn(H, C) {
+  const live = Array.from({ length: H }, (_, c) => ({ c, w: false }))
+  const dead = new Set()
+  const rows = []
+  function exec(dir, start, ops) {
+    const cells = Array(H).fill(null)
+    const sym = new Map()
+    const removed = []
+    let i = start, last = null, endCol = null
+    const touched = []
+    for (const op of ops) {
+      if (op === 'ssk' || op === 'p2tog') {
+        const a = live[i], b = live[i + dir]
+        sym.set(a, op); sym.set(b, 'none'); a.w = b.w = true
+        removed.push(b); touched.push(i, i + dir); last = a; endCol = b.c; i += 2 * dir
+      } else {
+        const s = live[i]; sym.set(s, op); s.w = true; touched.push(i); last = s; endCol = s.c; i += dir
+      }
+    }
+    const lo = Math.min(...touched), hi = Math.max(...touched)
+    const seq = live.map(s => sym.get(s) || 'idle')
+    live.forEach(s => { cells[s.c] = sym.get(s) || 'idle' })
+    for (let c = 0; c < H; c++) if (cells[c] === null) cells[c] = 'none'
+    const turnIdx = live.indexOf(last) + (dir === 1 ? 1 : 0) // для чашечки: граница после последней петли
+    const endIdx = dir === 1 ? hi : lo
+    for (const b of removed) live.splice(live.indexOf(b), 1)
+    for (const b of removed) dead.add(b.c)
+    rows.push({ n: rows.length + 1, dir, cells, seq, ops, turnCol: endCol, endIdx,
+      waitR: lo, waitL: seq.length - 1 - hi })
+    return live.indexOf(last)
+  }
+  // Пятка делится на три части: край · центр · край. Ряд 1 доходит до конца центра,
+  // последнюю петлю центра провязывает протяжкой с первой петлёй края; ряд 2 — зеркально.
+  const side = (H - C) / 2
+  let T = exec(1, 0, ['sl', ...Array(side + C - 2).fill('k'), 'ssk', 'k'])
+  // Ряд 1 идёт от правого края, но правый край в поворот ещё не взят: центр задаёт ряд 2.
+  live.forEach(s => s.w = false)
+  T = exec(-1, T, ['sl', ...Array(C - 1).fill('p'), 'p2tog', 'p'])
+  let dir = 1
+  for (let guard = 0; guard < 200; guard++) {
+    if (dir === 1) {
+      let GL = -1
+      for (let j = T + 1; j < live.length; j++) if (!live[j].w) { GL = j; break }
+      if (GL < 0) break
+      const ops = ['sl', ...Array(GL - 2 - T).fill('k'), 'ssk']
+      if (GL + 1 < live.length) ops.push('k')
+      T = exec(1, T, ops)
+    } else {
+      let GR = -1
+      for (let j = T - 1; j >= 0; j--) if (!live[j].w) { GR = j; break }
+      if (GR < 0) break
+      const ops = ['sl', ...Array(T - GR - 2).fill('p'), 'p2tog']
+      if (GR - 1 >= 0) ops.push('p')
+      T = exec(-1, T, ops)
+    }
+    dir = -dir
+  }
+  const last = rows[rows.length - 1]
+  rows.forEach(r => r.text = opsText(r.ops) + (r === last ? '' : ', поверни'))
+  last.turnCol = null; last.endIdx = null
+  return { rows, left: live.length }
+}
+
+function opsText(ops) {
+  const name = { k: 'лиц.', p: 'изн.', ssk: 'протяжка', p2tog: '2 вм. изн.' }
+  const out = []
+  for (let i = 0; i < ops.length;) {
+    let j = i; while (j < ops.length && ops[j] === ops[i]) j++
+    const n = j - i, op = ops[i]
+    if (op === 'ssk' || op === 'p2tog') out.push(name[op])
+    else out.push(op === 'sl' ? `сн. ${n}` : `${n} ${name[op]}`)
+    i = j
+  }
+  return out.join(', ')
+}
+
+function compute() {
+  const N = +document.getElementById('n').value || 60
+  const H = Math.floor(N / 2)
+  const warn = []
+  if (N < 24) warn.push('Меньше 24 петель прототип не считает.')
+  if (H % 2) warn.push('Нечётные петли пятки: поворот выйдет несимметричным.')
+  let C = +document.getElementById('c').value || 10
+  if ((H - C) % 2) { C += 1; warn.push(`Центр подогнан до ${C}: края должны выйти поровну.`) }
+  if ((H - C) / 2 < 2) { C = H - 4 - (H % 2); warn.push(`Центр урезан до ${C}: на каждый край нужно хотя бы 2 петли.`) }
+  const side = (H - C) / 2
+  return { N, H, C, side, turn: simulateTurn(H, C), warn }
+}
+
+/* ---------- рисование ---------- */
+
+const S = 22
+const DEFS = `<defs><pattern id="idle" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+  <rect width="6" height="6" fill="var(--idle)"/><line x1="0" y1="0" x2="0" y2="6" stroke="#ddd5c8" stroke-width="2"/></pattern></defs>`
+
+// ws — ряд изнаночной стороны: клетки на голубом, чтобы сторона читалась без подписи
+function cellSvg(t, x, y, s, ws = false) {
+  const st = `stroke="#1c1a17" stroke-width="${s < 14 ? 1.2 : 1.6}" fill="none" stroke-linecap="round"`
+  let g = ''
+  if (t === 'none') g += `<rect x="${x}" y="${y}" width="${s}" height="${s}" fill="var(--none)"/>`
+  else if (t === 'idle') g += `<rect x="${x}" y="${y}" width="${s}" height="${s}" fill="url(#idle)"/>`
+  else g += `<rect x="${x}" y="${y}" width="${s}" height="${s}" fill="${ws ? 'var(--ws)' : '#fff'}"/>`
+  if (t === 'k' || t === 'p') g += `<line x1="${x + s / 2}" y1="${y + s * .2}" x2="${x + s / 2}" y2="${y + s * .8}" ${st}/>`
+  if (t === 'sl') g += `<polyline points="${x + s * .28},${y + s * .25} ${x + s / 2},${y + s * .78} ${x + s * .72},${y + s * .25}" ${st}/>`
+  if (t === 'ssk') g += `<polygon points="${x + s * .25},${y + s * .2} ${x + s * .25},${y + s * .8} ${x + s * .75},${y + s * .8}" fill="var(--accent)"/>`
+  if (t === 'p2tog') g += `<polygon points="${x + s * .75},${y + s * .2} ${x + s * .75},${y + s * .8} ${x + s * .25},${y + s * .8}" fill="var(--accent)"/>`
+  g += `<rect x="${x}" y="${y}" width="${s}" height="${s}" fill="none" stroke="var(--line)"/>`
+  return g
+}
+
+const turnMark = (x, y, s) => `<rect x="${x - 1.5}" y="${y + 1}" width="3" height="${s - 2}" fill="var(--accent)"/>`
+const sideShort = row => row.dir === 1 ? 'лиц. ←' : 'изн. →'
+const numText = (row, x, y, s) => `<text x="${x}" y="${y + s * .7}" font-size="12" fill="${row.dir === 1 ? 'var(--fg)' : 'var(--wsfg)'}"
+  font-family="system-ui" font-variant-numeric="tabular-nums">${row.n} ${sideShort(row)}</text>`
+
+// A: колонки исходной пятки, ряд 1 внизу
+function chartFixed(rows, W, s = S, numbers = true) {
+  const numW = numbers ? 72 : 0
+  let g = DEFS
+  rows.forEach((row, i) => {
+    const y = (rows.length - 1 - i) * s
+    row.cells.forEach((t, c) => g += cellSvg(t, (W - 1 - c) * s, y, s, row.dir === -1))
+    if (row.turnCol != null) g += turnMark(row.dir === 1 ? (W - 1 - row.turnCol) * s : (W - row.turnCol) * s, y, s)
+    if (numbers) g += numText(row, W * s + 6, y, s)
+  })
+  return `<svg width="${W * s + numW}" height="${rows.length * s}">${g}</svg>`
+}
+
+// B: только петли на спице, ряд центрирован — сетка сужается к верху
+// подпись частей под рядом 1: край · центр · край, справа налево, как читается ряд
+function partsBand(W, side, C, s, y) {
+  const parts = [[0, side, `край ${side}`], [side, C, `центр ${C}`], [side + C, side, `край ${side}`]]
+  return parts.map(([from, n, label]) => {
+    const x1 = (W - from - n) * s + 2, x2 = (W - from) * s - 2
+    return `<path d="M${x1} ${y + 2} V${y + 8} H${x2} V${y + 2}" fill="none" stroke="${label.startsWith('центр') ? 'var(--accent)' : 'var(--muted)'}" stroke-width="1.5"/>
+      <text x="${(x1 + x2) / 2}" y="${y + 22}" font-size="12" text-anchor="middle" font-family="system-ui"
+        fill="${label.startsWith('центр') ? 'var(--accent)' : 'var(--muted)'}">${label}</text>`
+  }).join('')
+}
+
+function chartCup(rows, W, side, C) {
+  const s = S
+  let g = DEFS
+  rows.forEach((row, i) => {
+    const y = (rows.length - 1 - i) * s
+    const len = row.seq.length
+    const ox = (W - len) * s / 2
+    row.seq.forEach((t, j) => g += cellSvg(t, ox + (len - 1 - j) * s, y, s, row.dir === -1))
+    if (row.endIdx != null) {
+      const j = row.endIdx
+      g += turnMark(row.dir === 1 ? ox + (len - 1 - j) * s : ox + (len - j) * s, y, s)
+    }
+    g += numText(row, W * s + 6, y, s)
+  })
+  g += partsBand(W, side, C, s, rows.length * s)
+  return `<svg width="${W * s + 72}" height="${rows.length * s + 28}">${g}</svg>`
+}
+
+// D: одна полоска — только то, что вяжется, в порядке чтения справа налево
+function stripOps(row, s) {
+  // убавка — одна клетка: две петли стали одной
+  const seq = row.seq.slice(row.waitR, row.seq.length - row.waitL).filter(t => t !== 'none')
+  let g = DEFS
+  seq.forEach((t, j) => g += cellSvg(t, (seq.length - 1 - j) * s, 0, s, row.dir === -1))
+  if (row.endIdx != null) g += turnMark(row.dir === 1 ? 1.5 : seq.length * s - 1.5, 0, s)
+  return `<svg width="${seq.length * s}" height="${s}">${g}</svg>`
+}
+
+function legendHtml() {
+  const item = (t, label) => `<div><svg width="22" height="22">${DEFS}${cellSvg(t, 0, 0, 22)}</svg>${label}</div>`
+  return `<div class="legend">
+    ${item('k', 'лицевая; на изнаночном ряду — изнаночная')}
+    ${item('sl', 'снять петлю, не провязывая')}
+    ${item('ssk', '2 вместе лицевой с наклоном влево (протяжка)')}
+    ${item('p2tog', '2 вместе изнаночной')}
+    ${item('idle', 'петля на спице, в этом ряду не вяжется')}
+    ${item('none', 'нет петли')}
+    <div><svg width="22" height="22"><rect x="9.5" y="2" width="3" height="18" fill="var(--accent)"/></svg>здесь повернуть работу</div>
+    <div><svg width="22" height="22"><rect width="22" height="22" fill="#fff" stroke="var(--line)"/></svg>лицевой ряд: читается справа налево ←</div>
+    <div><svg width="22" height="22"><rect width="22" height="22" fill="var(--ws)" stroke="var(--line)"/></svg>изнаночный ряд: слева направо →</div>
+  </div>`
+}
+
+/* ---------- варианты ---------- */
+
+const sideLabel = r => r.dir === 1 ? '<b class="side rs">Лицевой ряд ←</b>' : '<b class="side ws">Изнаночный ряд →</b>'
+
+function rowsTextHtml(m) {
+  const items = m.turn.rows.map(r => `<li class="${r.dir === 1 ? '' : 'ws'}">${sideLabel(r)}: ${r.text}</li>`).join('')
+  return `<h2>Как вязать по рядам</h2>
+    <p>Раздели ${m.H} петель пятки на три части: ${m.side} · ${m.C} · ${m.side}. Центральная часть — ${m.C} петель.</p>
+    <ol class="words">${items}</ol>
+    <p class="cap">На спице ${m.turn.left} петель пятки.</p>`
+}
+
+function variantA(m) {
+  return `
+    <p class="cap">Вверху: ${m.turn.left} петель пятки</p>
+    <div class="chartbox">${chartFixed(m.turn.rows, m.H)}</div>
+    <p class="cap">Внизу: ${m.H} петель пятки. Ряд 1 — лицевой, читается справа налево.</p>
+    ${legendHtml()}${rowsTextHtml(m)}`
+}
+
+function variantB(m) {
+  return `
+    <p class="cap">Вверху: ${m.turn.left} петель пятки</p>
+    <div class="chartbox">${chartCup(m.turn.rows, m.H, m.side, m.C)}</div>
+    <p class="cap">Внизу: ${m.H} петель пятки. В каждом ряду — петли, которые на спице к его началу.</p>
+    ${legendHtml()}${rowsTextHtml(m)}`
+}
+
+function variantC(m) {
+  const items = m.turn.rows.map(r => `
+    <div class="rowitem ${r.dir === 1 ? '' : 'ws'}">
+      <div class="hd">Ряд ${r.n} · ${sideLabel(r)}</div>
+      <div class="tx">${r.text}</div>
+      ${chartFixed([r], m.H, 9, false)}
+    </div>`).join('')
+  return `<div class="rowlist">${items}
+    <div class="rowitem"><div class="hd">Итог</div><div class="tx">На спице ${m.turn.left} петель пятки.</div></div>
+  </div>${legendHtml()}`
+}
+
+function variantD(m) {
+  // клетка подгоняется так, чтобы самый длинный ряд влез в колонку на телефоне
+  const widest = Math.max(...m.turn.rows.map(r => r.seq.length - r.waitR - r.waitL))
+  const midPx = Math.min(document.querySelector('.wrap').clientWidth, 760) - 32 - 20 - 28 * 2 - 36 - 18
+  const s = Math.max(8, Math.min(16, Math.floor(midPx / widest)))
+  const rows = [...m.turn.rows].reverse().map(r => `
+    <div class="drow ${r.dir === 1 ? '' : 'ws'}">
+      <div class="wait ${r.waitL ? '' : 'zero'}">${r.waitL || ''}</div>
+      <div class="mid">${stripOps(r, s)}</div>
+      <div class="wait ${r.waitR ? '' : 'zero'}">${r.waitR || ''}</div>
+      <div class="num">${r.n}</div>
+      <div class="dtext">${sideLabel(r)}: ${r.text}</div>
+    </div>`).join('')
+  return `
+    <p class="cap">Вверху: ${m.turn.left} петель пятки</p>
+    <div class="chartbox dbox" style="padding:10px">
+      <div class="dhead"><div>ждут</div><div>вяжется в ряду</div><div>ждут</div><div>ряд</div></div>
+      ${rows}
+    </div>
+    <p class="cap">Внизу: ${m.H} петель пятки. Серые числа — петли по краям, до которых ряд ещё не дошёл.</p>
+    ${legendHtml()}`
+}
+
+/* ---------- склейка ---------- */
+
+function render() {
+  const m = compute()
+  document.getElementById('warn').textContent = m.warn.join(' ')
+  const box = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`
+  document.getElementById('summary').innerHTML =
+    box(m.H, 'петли пятки') + box(`${m.side} · ${m.C} · ${m.side}`, 'край · центр · край')
+    + box(m.turn.rows.length, 'рядов поворота') + box(m.turn.left, 'петель после поворота')
+  document.getElementById('view').innerHTML = { A: variantA, B: variantB, C: variantC, D: variantD }[variant](m)
+  document.getElementById('vkey').textContent = variant
+  document.getElementById('vlabel').textContent = `${variant} · ${VARIANTS[variant]}`
+  document.querySelectorAll('.chartbox:not(.dbox)').forEach(b => b.scrollLeft = b.scrollWidth)
+  console.log('PROTOTYPE state', { variant, N: m.N, H: m.H, turnRows: m.turn.rows.length, afterTurn: m.turn.left })
+}
+
+function go(step) {
+  variant = KEYS[(KEYS.indexOf(variant) + step + KEYS.length) % KEYS.length]
+  const u = new URL(location.href); u.searchParams.set('variant', variant)
+  history.replaceState(null, '', u)
+  render()
+}
+document.getElementById('prev').onclick = () => go(-1)
+document.getElementById('next').onclick = () => go(1)
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return
+  if (e.key === 'ArrowLeft') go(-1)
+  if (e.key === 'ArrowRight') go(1)
+})
+document.getElementById('n').oninput = render
+document.getElementById('c').oninput = render
+render()
+</script>
+</body>
+</html>
