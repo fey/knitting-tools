@@ -1,12 +1,35 @@
 # Сборка, тесты и деплой страницы на GitHub Pages.
-# По push в main прогон доезжает до деплоя, по pull_request — останавливается на сборке.
+# На Pages уезжает только выпущенный релиз. Push в main и pull_request останавливаются
+# на сборке и тестах, а деплой запускают два пути:
+#   - release.yml зовёт этот файл как reusable workflow, когда release-please поставил
+#     тег (workflow_call: ref — тег, deploy — true). Тег от GITHUB_TOKEN другие workflow
+#     не заводит, поэтому `on: push: tags` не сработало бы, а звать надо напрямую;
+#   - workflow_dispatch — запасной путь: передеплоить релиз руками (по умолчанию —
+#     последний, либо тег из поля ref).
+# Оба пути идут из контекста main (github.ref), поэтому окружение github-pages с политикой
+# «только main» их пускает, а собирается при этом код тега — через checkout по ref.
 name: Сборка и деплой
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: Тег релиза, который собрать и выкатить
+        type: string
+        default: ''
+      deploy:
+        description: Выкатывать ли собранное на Pages
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Тег релиза для передеплоя; пусто — последний релиз
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -21,16 +44,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Тег образа Playwright для job'а build читается из lock-файла, а не пишется
-  # руками: браузер в образе собран под ровно ту версию @playwright/test, и стоит
-  # им разъехаться — прогон страницы не найдёт свой браузер. Отдельный job нужен
+  # Что собираем и какого Playwright. Ветка и PR собираются как есть (ref пуст —
+  # checkout берёт сам событие), релиз — по тегу. Ручной запуск без ref берёт последний
+  # релиз. Тег образа Playwright для job'а build читается из lock-файла того же ref,
+  # а не пишется руками: браузер в образе собран под ровно ту версию @playwright/test,
+  # и стоит им разъехаться — прогон страницы не найдёт свой браузер. Отдельный job нужен
   # потому, что образ выбирается до первого шага, а версию надо прочесть заранее.
-  playwright-version:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
+      ref: ${{ steps.target.outputs.ref }}
       version: ${{ steps.lockfile.outputs.version }}
     steps:
+      # Значения идут переменными окружения, а не подстановкой в команду:
+      # поле ref вводит человек, и кавычки в нём не должны ломать шелл.
+      - id: target
+        name: Что собирать
+        run: |
+          ref="$INPUT_REF"
+          if [ -z "$ref" ] && [ "$EVENT_NAME" = workflow_dispatch ]; then
+            ref="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.target.outputs.ref }}
 
       # Обёртка вокруг цели — не команда в шаге: версию надо отдать в $GITHUB_OUTPUT,
       # а это делает только шелл.
@@ -44,10 +87,10 @@ jobs:
   # (#69). Кэш тут не спасает: Playwright не советует кэшировать браузеры, а apt-пакеты
   # ложатся в систему раннера. `make browsers` остаётся для локальной установки.
   build:
-    needs: playwright-version
+    needs: prepare
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
+      image: mcr.microsoft.com/playwright:v${{ needs.prepare.outputs.version }}-noble
     steps:
       # make в образе нет, а шаги ниже зовут цели. Это один маленький пакет из apt,
       # а не десятки библиотек браузера — от зеркала прогон зависит куда меньше.
@@ -55,6 +98,8 @@ jobs:
         run: apt-get update && apt-get install -y --no-install-recommends make
 
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
 
       # Мажор тот же, на котором гоняют локально: разойдись раннер с локалью
       # версией ноды — и зелёный прогон здесь перестал бы что-либо обещать там.
@@ -102,7 +147,9 @@ jobs:
 
   deploy:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Только релиз: вызов из release.yml с deploy: true или ручной запуск. Push в main
+    # и PR сюда не доходят — страница не меняется, пока не выпущен релиз.
+    if: inputs.deploy || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     # Деплои не гоняются параллельно, но и не отменяют друг друга на полпути.
     # Группа стоит на job'е деплоя, а не на всём прогоне: PR до деплоя не доходят.
