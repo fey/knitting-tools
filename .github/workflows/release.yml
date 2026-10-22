@@ -1,7 +1,11 @@
 # Релизы из заголовков коммитов (раздел «Коммиты» в CLAUDE.md).
 # На каждый push в main release-please держит открытым PR «chore: Релиз X.Y.Z»:
 # версия в package.json, CHANGELOG.md, заметки из feat, fix и perf. Мерж этого PR
-# ставит тег vX.Y.Z и публикует релиз на GitHub. Деплой живёт отдельно, в deploy.yml.
+# ставит тег vX.Y.Z, публикует релиз на GitHub, и тут же, вторым job'ом, выкатывает
+# страницу с этого тега. Деплой не на `on: push: tags` в deploy.yml: тег поставлен под
+# GITHUB_TOKEN, а события от него другие workflow не заводят. Поэтому deploy.yml зовётся
+# отсюда как reusable workflow, и деплой идёт в контексте main — окружение github-pages
+# с политикой «только main» его пускает без правки настроек.
 # PR релиза пересобирается от main на каждый push (always-update в конфиге), а не только
 # когда меняются заметки: иначе правка CHANGELOG.md или package.json в main оставляет его
 # собранным от старого main, и он встаёт в конфликт.
@@ -19,5 +23,25 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@v5
+      - id: release
+        uses: googleapis/release-please-action@v5
+
+  # Срабатывает только на мерж PR релиза: на прочих push в main release_created пуст.
+  deploy:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      ref: ${{ needs.release-please.outputs.tag_name }}
+      deploy: true
+    # Вызываемому workflow права задаёт вызывающий job, а не он сам.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # Секрет формы обратной связи нужен сборке (VITE_FEEDBACK_PREFILL_URL).
+    secrets: inherit

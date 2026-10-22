@@ -982,8 +982,9 @@ Pinia нет — состояние живёт в одном composable.
 пока мысок был один; со звёздочкой и круглым такой заголовок перестаёт отличать страницы друг
 от друга. Слово «калькулятор» осталось в `<title>` — там его читают в списке вкладок и в выдаче,
 где жанр и нужен. Деплой — официальный Pages-workflow на Actions (`configure-pages` →
-`upload-pages-artifact` → `deploy-pages`) по push в `main`, source = GitHub Actions, без ветки
-`gh-pages`.
+`upload-pages-artifact` → `deploy-pages`) по выпущенному релизу, source = GitHub Actions, без
+ветки `gh-pages`. Push в `main` и PR только собирают и тестируют; на Pages уезжает код тега
+`vX.Y.Z`, который поставил release-please (деплой — второй job прогона «Релиз», #51).
 
 **Раскладка**: `src/calculators/toe/` — ядро и компоненты калькулятора, включая оболочку его
 страницы (`components/ToeCalculatorPage.vue`); общее — `src/shared/`: шапка (§6.4), доступ
