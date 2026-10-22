@@ -89,6 +89,7 @@ VITE_FEEDBACK_PREFILL_URL=https://docs.google.com/forms/d/e/<ID>/viewform?entry.
 |---|---|
 | `make install` | Зависимости из lock-файла |
 | `make browsers` | Chromium под прогон страницы |
+| `make playwright-version` | Версия Playwright из lock-файла — тег образа CI |
 | `make dev` | Локальный стенд на 5173 |
 | `make build` | Проверка типов и сборка в `dist` |
 | `make preview` | Собранная страница на 4173. Под прогон e2e, стенд поднимают через `dev` |
