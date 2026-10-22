@@ -32,6 +32,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Обёртка вокруг цели — не команда в шаге: версию надо отдать в $GITHUB_OUTPUT,
+      # а это делает только шелл.
       - id: lockfile
         name: Версия Playwright из lock-файла
         run: echo "version=$(make -s playwright-version)" >> "$GITHUB_OUTPUT"
@@ -49,7 +51,7 @@ jobs:
     steps:
       # make в образе нет, а шаги ниже зовут цели. Это один маленький пакет из apt,
       # а не десятки библиотек браузера — от зеркала прогон зависит куда меньше.
-      - name: make
+      - name: Установка make
         run: apt-get update && apt-get install -y --no-install-recommends make
 
       - uses: actions/checkout@v7
