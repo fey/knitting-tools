@@ -18,6 +18,7 @@ describe('сантиметровый вид расчёта (§4, §7, §9.6)', (
   it('с плотностью — длина, обхват и засечки обеих линеек', () => {
     const view = centimetreView(DEFAULT, GAUGE)
     expect(view.lengthNote).toBeNull()
+    expect(view.cm?.startHint).toBe('Мысок займёт 4,75 см — начинай его за столько до конца носка')
     expect(view.cm?.length).toBe('4,75 см')
     expect(view.cm?.circumference).toBe('19,35 см')
     // Вдоль — 19 рядов по 0,25 см; поперёк — половина круга, 30 петель по 0,32 см.
@@ -25,10 +26,13 @@ describe('сантиметровый вид расчёта (§4, §7, §9.6)', (
     expect(view.cm?.stitchTicks).toHaveLength(9)
   })
 
-  it('с плотностью замечание о длине меряет в сантиметрах, а не в рядах', () => {
+  it('с плотностью замечание о длине меряет в сантиметрах и влито в строку указания', () => {
     // 19 рядов внутри коридора в рядах, но на рыхлой плотности это 9,5 см.
-    expect(centimetreView(DEFAULT, { rows: 20, stitches: 16, base: 10 }).lengthNote).toBe(
-      'Больше 7 см — мысок выйдет длинным, проверь ритм',
+    const view = centimetreView(DEFAULT, { rows: 20, stitches: 16, base: 10 })
+    expect(view.cm?.startHint).toBe(
+      'Мысок займёт 9,50 см — начинай его за столько до конца носка. Длинноват, проверь ритм',
     )
+    // Отдельной строки замечания с плотностью нет: два текста про одну величину не стоят рядом.
+    expect(view.lengthNote).toBeNull()
   })
 })

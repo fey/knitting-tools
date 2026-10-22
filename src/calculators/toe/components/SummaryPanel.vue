@@ -18,8 +18,9 @@
  *
  * Замечание о длине — **не красным: это замечание, а не ошибка** (§9.6). Запрета
  * за ним нет, расчёт не придерживается. С вписанной плотностью оно меряет
- * в сантиметрах: коридор в рядах — сам перевод по предполагаемой плотности,
- * и известная плотность это допущение снимает (тикет #27).
+ * в сантиметрах и вливается в строку указания «Мысок займёт … — начинай его за столько
+ * до конца носка» (тикеты #27, #36); без плотности стоит отдельной строкой в рядах.
+ * Ориентир по ноге стоит всегда, вторым планом.
  *
  * **Сантиметры и кнопка плотности стоят здесь, и только здесь.** Дефолта у плотности
  * нет, первый экран о сантиметрах не говорит ничем — без зацепки в теле страницы
@@ -28,7 +29,7 @@
 import { computed } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import { centimetreView } from '../core/centimetres'
-import { coverageNote } from '../core/notes'
+import { FOOT_CHECK, coverageNote } from '../core/notes'
 import { decRowsWord, rowsWord } from '../core/plural'
 import { summaryLine } from '../core/text'
 import GaugeButton from './GaugeButton.vue'
@@ -60,14 +61,17 @@ const params = computed(() => summaryLine(calculation.value))
       ·
       <span data-testid="summary-total-rows">{{ rowsWord(calculation.totalRows) }} всего</span>
     </p>
-    <p v-if="centimetres" class="mt-1 text-slate-900 tabular-nums" data-testid="summary-centimetres">
-      Длина мыска {{ centimetres.length }} · обхват на начальных петлях
-      {{ centimetres.circumference }}
-    </p>
+    <template v-if="centimetres">
+      <p class="mt-1 text-slate-900 tabular-nums" data-testid="summary-start-hint">{{ centimetres.startHint }}</p>
+      <p class="mt-1 text-slate-900 tabular-nums" data-testid="summary-circumference">
+        Обхват на начальных петлях {{ centimetres.circumference }}
+      </p>
+    </template>
     <p v-if="coverage.kind !== 'ok'" class="mt-1 text-sm text-amber-700" data-testid="summary-coverage">
       {{ coverage.text }}
     </p>
     <p v-if="length" class="mt-1 text-sm text-amber-700" data-testid="summary-length-note">{{ length }}</p>
+    <p class="mt-1 text-sm text-slate-600" data-testid="summary-foot-check">{{ FOOT_CHECK }}</p>
 
     <!-- Зацепка: без неё плотность не нашли бы вовсе — дефолта у неё нет,
          и первый экран о сантиметрах не говорит ничем (тикет #27). -->

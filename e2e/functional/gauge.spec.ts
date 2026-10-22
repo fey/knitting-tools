@@ -28,7 +28,7 @@ test('без плотности сантиметров нет нигде, и к�
     '60 → 20 петель · кромка 1 · 19 рядов',
   )
 
-  await expect(page.getByTestId('summary-centimetres')).toHaveCount(0)
+  await expect(page.getByTestId('summary-start-hint')).toHaveCount(0)
   await expect(page.getByTestId('toe-chart-ruler-bottom')).toHaveCount(0)
   await expect(page.getByTestId('toe-chart-ruler-row')).toHaveCount(0)
 
@@ -40,9 +40,10 @@ test('вписанная плотность называет длину и об�
   await page.goto('./toe-band/')
   await fillGauge(page)
 
-  await expect(page.getByTestId('summary-centimetres')).toHaveText(
-    'Длина мыска 4,75 см · обхват на начальных петлях 19,35 см',
+  await expect(page.getByTestId('summary-start-hint')).toHaveText(
+    'Мысок займёт 4,75 см — начинай его за столько до конца носка',
   )
+  await expect(page.getByTestId('summary-circumference')).toHaveText('Обхват на начальных петлях 19,35 см')
   // Длина дописана в строку у схемы: по ней вяжут с убранными ручками (§7).
   await expect(page.getByTestId('toe-chart-params')).toHaveText(
     '60 → 20 петель · кромка 1 · 19 рядов · 4,75 см',
@@ -59,10 +60,10 @@ test('обе плотности нужны: одна половина образ
 
   await page.getByTestId('gauge-button').click()
   await page.getByTestId('gauge-rows').fill('40')
-  await expect(page.getByTestId('summary-centimetres')).toHaveCount(0)
+  await expect(page.getByTestId('summary-start-hint')).toHaveCount(0)
 
   await page.getByTestId('gauge-stitches').fill('31')
-  await expect(page.getByTestId('summary-centimetres')).toBeVisible()
+  await expect(page.getByTestId('summary-start-hint')).toBeVisible()
 })
 
 test('плотность живёт в localStorage и в hash не попадает (§10.1, §10.2)', async ({ page }) => {
@@ -80,7 +81,7 @@ test('плотность живёт в localStorage и в hash не попада
   })
 
   await page.reload()
-  await expect(page.getByTestId('summary-centimetres')).toContainText('4,75 см')
+  await expect(page.getByTestId('summary-start-hint')).toContainText('4,75 см')
 })
 
 test('смена плотности не сбрасывает отмеченный ряд — она не параметр расчёта (§8)', async ({
@@ -111,7 +112,7 @@ test('«Убрать плотность» возвращает экран к с�
   await page.getByTestId('gauge-clear').click()
   await page.getByTestId('gauge-done').click()
 
-  await expect(page.getByTestId('summary-centimetres')).toHaveCount(0)
+  await expect(page.getByTestId('summary-start-hint')).toHaveCount(0)
   await expect(page.getByTestId('toe-chart-ruler-bottom')).toHaveCount(0)
   expect(await page.evaluate((key) => localStorage.getItem(key), GAUGE_KEY)).toBeNull()
 })
@@ -122,11 +123,24 @@ test('замечание о длине при известной плотнос�
   // 19 рядов внутри коридора 12–30, замечания нет и в рядах.
   await expect(page.getByTestId('summary-length-note')).toHaveCount(0)
 
-  // Та же схема на рыхлой плотности — 19 рядов это уже 9,5 см.
+  // Та же схема на рыхлой плотности — 19 рядов это уже 9,5 см. Замечание вливается
+  // в строку указания, а отдельной строки в рядах больше нет (#36).
   await fillGauge(page, '20', '16')
-  await expect(page.getByTestId('summary-length-note')).toHaveText(
-    'Больше 7 см — мысок выйдет длинным, проверь ритм',
+  await expect(page.getByTestId('summary-start-hint')).toHaveText(
+    'Мысок займёт 9,50 см — начинай его за столько до конца носка. Длинноват, проверь ритм',
   )
+  await expect(page.getByTestId('summary-length-note')).toHaveCount(0)
+})
+
+test('ориентир по ноге стоит и без плотности, и с ней (#36)', async ({ page }) => {
+  await page.goto('./toe-band/')
+  const check = page.getByTestId('summary-foot-check')
+  await expect(check).toHaveText('Проверка по ноге: начинай, когда мизинец уже скрыт вязанием')
+  await expect(page.getByTestId('summary-start-hint')).toHaveCount(0)
+
+  await fillGauge(page)
+  await expect(check).toBeVisible()
+  await expect(page.getByTestId('summary-start-hint')).toBeVisible()
 })
 
 test('диалог закрывается Esc без подтверждения, вписанное остаётся (§6.4)', async ({ page }) => {
@@ -174,9 +188,10 @@ test('недоступное localStorage не отнимает плотност
   // Отказ касается записи, а не работы: вписанная плотность считает в этот заход,
   // не переживёт она только перезагрузку.
   await fillGauge(page)
-  await expect(page.getByTestId('summary-centimetres')).toHaveText(
-    'Длина мыска 4,75 см · обхват на начальных петлях 19,35 см',
+  await expect(page.getByTestId('summary-start-hint')).toHaveText(
+    'Мысок займёт 4,75 см — начинай его за столько до конца носка',
   )
+  await expect(page.getByTestId('summary-circumference')).toHaveText('Обхват на начальных петлях 19,35 см')
   await expect(page.getByTestId('toe-chart-ruler-row')).toHaveCount(4)
   expect(errors).toEqual([])
 })
