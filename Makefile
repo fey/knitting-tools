@@ -17,6 +17,12 @@ install: ## Зависимости из lock-файла
 browsers: ## Chromium под прогон страницы
 	npm run browsers
 
+# Версия @playwright/test из lock-файла, а не из package.json: тильда там пускает патч,
+# а образ CI (.github/workflows/deploy.yml) должен совпасть с тем, что реально стоит.
+# Вывод — одна строка с версией, без эха команды и баннера npm: его читает шаг CI.
+playwright-version: ## Версия Playwright из lock-файла — тег образа CI
+	@npm run --silent playwright:version
+
 # Порты стенда и preview разведены намеренно (docs/agents/local-stand.md):
 # стенд — dev на 5173, прогон страницы — preview на 4173. Оставленный preview
 # подхватится следующим прогоном e2e вместо своей сборки, и тот проверит вчерашний dist.
@@ -55,4 +61,4 @@ lint-pr-title: ## Заголовок PR из PR_TITLE — Conventional Commits
 og: ## Пересъёмка карточки для соцсетей в public/og.png
 	npm run og
 
-.PHONY: help install browsers dev build preview test test-unit test-e2e test-screens test-screens-update lint-pr-title og
+.PHONY: help install browsers playwright-version dev build preview test test-unit test-e2e test-screens test-screens-update lint-pr-title og

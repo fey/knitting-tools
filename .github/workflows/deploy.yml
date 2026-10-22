@@ -21,13 +21,42 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
+  # Тег образа Playwright для job'а build читается из lock-файла, а не пишется
+  # руками: браузер в образе собран под ровно ту версию @playwright/test, и стоит
+  # им разъехаться — прогон страницы не найдёт свой браузер. Отдельный job нужен
+  # потому, что образ выбирается до первого шага, а версию надо прочесть заранее.
+  playwright-version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.lockfile.outputs.version }}
     steps:
+      - uses: actions/checkout@v7
+
+      - id: lockfile
+        name: Версия Playwright из lock-файла
+        run: echo "version=$(make -s playwright-version)" >> "$GITHUB_OUTPUT"
+
+  # Сборка идёт в официальном образе Playwright: браузер и его системные пакеты уже
+  # в нём. Раньше их ставил `make browsers` через apt на каждом прогоне, и когда
+  # зеркало Ubuntu отдавало пакеты по минутам на файл, деплой стоял больше 10 минут
+  # (#69). Кэш тут не спасает: Playwright не советует кэшировать браузеры, а apt-пакеты
+  # ложатся в систему раннера. `make browsers` остаётся для локальной установки.
+  build:
+    needs: playwright-version
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
+    steps:
+      # make в образе нет, а шаги ниже зовут цели. Это один маленький пакет из apt,
+      # а не десятки библиотек браузера — от зеркала прогон зависит куда меньше.
+      - name: make
+        run: apt-get update && apt-get install -y --no-install-recommends make
+
       - uses: actions/checkout@v7
 
       # Мажор тот же, на котором гоняют локально: разойдись раннер с локалью
       # версией ноды — и зелёный прогон здесь перестал бы что-либо обещать там.
+      # В образе Playwright своя нода, setup-node ставит нашу поверх неё.
       - uses: actions/setup-node@v7
         with:
           node-version: 26
@@ -44,9 +73,6 @@ jobs:
         run: make lint-pr-title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-
-      - name: Браузер для прогона страницы
-        run: make browsers
 
       - name: Тесты ядра
         run: make test-unit

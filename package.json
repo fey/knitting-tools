@@ -8,6 +8,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "browsers": "playwright install --with-deps chromium",
+    "playwright:version": "node -p \"require('./package-lock.json').packages['node_modules/@playwright/test'].version\"",
     "test:unit": "vitest run",
     "test:e2e": "playwright test --project=functional --project=desktop",
     "test:screens": "playwright test --project=screens",
