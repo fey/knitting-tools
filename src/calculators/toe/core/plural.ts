@@ -7,14 +7,15 @@
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
 
-/** Русское числительное: 1 ряд, 2 ряда, 5 рядов. */
+const RU_PLURAL = new Intl.PluralRules('ru')
+
+/**
+ * Русское числительное: 1 ряд, 2 ряда, 5 рядов. Форму выбирает платформа
+ * (`Intl.PluralRules`); числа здесь целые, так что `other` (дроби) не встречается.
+ */
 export function plural(n: number, one: string, few: string, many: string): string {
-  const a = Math.abs(n) % 100
-  const b = a % 10
-  if (a > 10 && a < 20) return many
-  if (b > 1 && b < 5) return few
-  if (b === 1) return one
-  return many
+  const form = RU_PLURAL.select(n)
+  return form === 'one' ? one : form === 'few' ? few : many
 }
 
 /** «19 рядов». */
