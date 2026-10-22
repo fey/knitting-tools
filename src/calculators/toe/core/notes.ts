@@ -12,7 +12,7 @@
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
 import type { ToeCalculation } from './types'
-import { decRowsWord, decRowsWordGen, plural, stepsWord, stitchesWord } from './text'
+import { decRowsWord, decRowsWordGen, plural, stepsWord, stitchesWord } from './plural'
 
 /** Мысок короче этого — замечание о тупом мыске (§9.6). */
 export const SHORT_TOE_ROWS = 12

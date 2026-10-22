@@ -180,7 +180,7 @@ test('перебор говорит, что до лишних шагов не д
   await expect(page.getByTestId('rhythm-lack-note')).toHaveCount(0)
   // Мысок кончается на конечных петлях: до лишних убавок дело не доходит,
   // и итог не вправе называть петли, которых не будет.
-  await expect(page.getByTestId('summary-params')).toContainText('60 → 52 петель')
+  await expect(page.getByTestId('summary-params')).toContainText('60 → 52 петли')
 })
 
 test('мягкое замечание о длине — не красным и без запрета', async ({ page }) => {

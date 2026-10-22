@@ -24,7 +24,7 @@
 import { computed, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import { formatHash } from '../core/hash'
-import { shareText } from '../core/share'
+import { shareText } from '../core/text'
 
 const { calculation } = useToeCalculator()
 

@@ -16,7 +16,7 @@
  */
 import type { ToeParams } from './types'
 import { minFinalStitches } from './calc'
-import { stitchesWord } from './text'
+import { stitchesWord } from './plural'
 
 /** Потолок полей — защита от лишнего нуля в опечатке, без сообщений (§9.4). */
 export const MAX_STITCHES = 200

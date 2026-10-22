@@ -9,7 +9,7 @@
  */
 import type { PresetName, Rhythm, Segment } from './types'
 import { buildRows } from './rows'
-import { decRowsWord } from './text'
+import { decRowsWord } from './plural'
 
 export type Preset = {
   code: PresetName

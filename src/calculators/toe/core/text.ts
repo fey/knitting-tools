@@ -1,54 +1,54 @@
 /**
- * Склонения для строк ядра. Голос безличный, привязки к полу того, кто вяжет, нет.
+ * Строки, описывающие расчёт: подпись схемы, «Итог», текст «Поделиться» (§7, §10.5).
+ * Одна сборка на все точки показа — у каждого места своя копия формулировки уже
+ * разъехалась однажды («22 петель», тикет #43). Числа петель и рядов склоняются
+ * только через `plural.ts`, своих литералов у компонентов нет.
+ *
+ * Петли везде — те, на которых мысок **действительно кончится**, то есть `finalReal`
+ * и только он (§9.5): при недоборе мысок встанет на 36 петлях вместо 20, а при
+ * переборе `finalReal` сам равен конечным — лишние шаги ядро не выполняет.
  *
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
+import type { ToeCalculation } from './types'
+import { rhythmName } from './presets'
+import { rowsWord, stitchesWord } from './plural'
 
-/** Русское числительное: 1 ряд, 2 ряда, 5 рядов. */
-export function plural(n: number, one: string, few: string, many: string): string {
-  const a = Math.abs(n) % 100
-  const b = a % 10
-  if (a > 10 && a < 20) return many
-  if (b > 1 && b < 5) return few
-  if (b === 1) return one
-  return many
-}
+type Described = Pick<ToeCalculation, 'initial' | 'finalReal' | 'edge' | 'totalRows' | 'rhythm'>
 
-/** «19 рядов». */
-export function rowsWord(n: number): string {
-  return `${n} ${plural(n, 'ряд', 'ряда', 'рядов')}`
-}
-
-/** «10 убавочных рядов». */
-export function decRowsWord(n: number): string {
-  return `${n} ${plural(n, 'убавочный ряд', 'убавочных ряда', 'убавочных рядов')}`
-}
-
-/** «1 промежуточный», «2 промежуточных» — существительное «ряд» опущено, как в §6.3. */
-export function plainRowsWord(n: number): string {
-  return `${n} ${plural(n, 'промежуточный', 'промежуточных', 'промежуточных')}`
-}
-
-/** «повторить 1 раз», «повторить 2 раза», «повторить 5 раз» (§6.3). */
-export function timesWord(n: number): string {
-  return `${n} ${plural(n, 'раз', 'раза', 'раз')}`
-}
-
-/** «20 петель», «22 петли», «21 петля». */
-export function stitchesWord(n: number): string {
-  return `${n} ${plural(n, 'петля', 'петли', 'петель')}`
-}
-
-/** «1 шаг», «2 шага», «5 шагов» — шаг конструктора ритма (§6.3). */
-export function stepsWord(n: number): string {
-  return `${n} ${plural(n, 'шаг', 'шага', 'шагов')}`
+/** «60 → 20 петель» — от начальных к тем, на которых мысок кончится. */
+function stitchesSpan(calculation: Pick<ToeCalculation, 'initial' | 'finalReal'>): string {
+  return `${calculation.initial} → ${stitchesWord(calculation.finalReal)}`
 }
 
 /**
- * Родительный падеж убавочных рядов: «не хватает 1 убавочного ряда»,
- * «не хватает 4 убавочных рядов». Именительный `decRowsWord` после «не хватает»
- * даёт «не хватает 4 убавочных ряда» — форма, которой спека не писала.
+ * Числа расчёта в подписи схемы (§7): «60 → 20 петель · кромка 1 · 19 рядов».
+ * Длина по плотности (`lengthCm`, уже отформатированная) дописывается в конец.
  */
-export function decRowsWordGen(n: number): string {
-  return `${n} ${plural(n, 'убавочного ряда', 'убавочных рядов', 'убавочных рядов')}`
+export function paramsLine(calculation: Described, lengthCm: string | null = null): string {
+  const head = `${stitchesSpan(calculation)} · кромка ${calculation.edge} · ${rowsWord(calculation.totalRows)}`
+  return lengthCm ? `${head} · ${lengthCm}` : head
+}
+
+/** Строка «Итога»: «Мысок: 60 → 20 петель, кромка 1, убавки через ряд». */
+export function summaryLine(calculation: Described): string {
+  return `Мысок: ${stitchesSpan(calculation)}, кромка ${calculation.edge}, убавки ${rhythmName(calculation.rhythm)}`
+}
+
+/**
+ * Текст для системного шита «Поделиться» (§10.5): «Мысок: 60 → 20 петель, убавки через
+ * ряд, 19 рядов» — читается даже без перехода по ссылке.
+ */
+export function shareText(calculation: Described): string {
+  return `Мысок: ${stitchesSpan(calculation)}, убавки ${rhythmName(calculation.rhythm)}, ${rowsWord(calculation.totalRows)}`
+}
+
+/** Подпись над схемой (§7): «↑ 20 петель на закрытие». */
+export function closingCaption(calculation: Pick<ToeCalculation, 'finalReal'>): string {
+  return `↑ ${stitchesWord(calculation.finalReal)} на закрытие`
+}
+
+/** Подпись под схемой (§7): «Начало мыска, 60 петель. …». */
+export function startCaption(calculation: Pick<ToeCalculation, 'initial'>): string {
+  return `Начало мыска, ${stitchesWord(calculation.initial)}. Ряды читаются снизу вверх, петли справа налево.`
 }

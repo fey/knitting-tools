@@ -152,7 +152,7 @@ test.describe('своё число петель вписывается, а не 
     // 62 − 20 = 42 на 4 не делится; ближайшее сходящееся сверху — 22 (62 − 22 = 40).
     await expect(page.getByTestId('final-stitches')).toHaveValue('22')
     await expect(page.getByTestId('final-fix')).toContainText('Ближайшее сходящееся — 22')
-    await expect(page.getByTestId('summary-params')).toContainText('62 → 22 петель')
+    await expect(page.getByTestId('summary-params')).toContainText('62 → 22 петли')
   })
 
   test('подсказка у начальных зовёт вписать своё, а не только жать кнопки', async ({ page }) => {

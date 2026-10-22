@@ -207,4 +207,13 @@ test.describe('схема мыска', () => {
       '60 → 20 петель · кромка 1 · 19 рядов',
     )
   })
+
+  test('на 62 → 22 подписи склоняют петли: «22 петли», «62 петли» (тикет #43)', async ({ page }) => {
+    await page.goto('./toe-band/#s=62&e=22&k=1&r=even')
+
+    await expect(page.getByTestId('toe-chart-caption-top')).toHaveText('↑ 22 петли на закрытие')
+    await expect(page.getByTestId('toe-chart-caption-bottom')).toContainText('Начало мыска, 62 петли.')
+    await expect(page.getByTestId('toe-chart-params')).toContainText('62 → 22 петли · кромка 1')
+    await expect(page.getByTestId('summary-params')).toHaveText('Мысок: 62 → 22 петли, кромка 1, убавки через ряд')
+  })
 })
