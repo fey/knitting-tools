@@ -25,7 +25,7 @@ import { computed } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import { PRESETS, presetRowCount, presetWhyOff, type Preset } from '../core/presets'
 import { coverageNote } from '../core/notes'
-import { rowsWord } from '../core/text'
+import { rowsWord } from '../core/plural'
 
 const { params, setParams, calculation } = useToeCalculator()
 

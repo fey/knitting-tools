@@ -59,7 +59,7 @@ import {
   trianglePoints,
   wheelAction,
 } from '../core/chart'
-import { rowsWord, stitchesWord } from '../core/text'
+import { closingCaption, paramsLine as describeParams, startCaption } from '../core/text'
 import {
   CELL_STYLE,
   CHART_COLORS,
@@ -117,23 +117,15 @@ const zoomButtons = computed(() => [
   { testId: 'toe-chart-zoom-in', label: 'Схема крупнее', delta: 1, enabled: model.value.zoom.canZoomIn },
 ])
 
-const finalReal = computed(() => calculation.value.finalReal)
-const initial = computed(() => calculation.value.initial)
-
 /**
- * Числа расчёта в подписи схемы (§7). Второго источника правды тут нет: строка
- * считается из того же `calculation`, что сама сетка, и разойтись с ней не может.
- * Конечные петли берутся как `finalReal` — те, на которых мысок действительно
- * кончится, тем же правилом, что в «Итоге» (§9.5).
+ * Подписи схемы (§7) собирает ядро (`core/text.ts`) — тем же правилом, что «Итог»
+ * и «Поделиться»: конечные петли — `finalReal` (§9.5), склонение одно на все места.
+ * Длина дописывается в строку чисел, а не встаёт рядом: строка стоит у схемы всегда,
+ * показаны ручки или убраны, и по ней вяжут (тикет #27).
  */
-const paramsLine = computed(() => {
-  const c = calculation.value
-  const head = `${c.initial} → ${stitchesWord(c.finalReal)} · кромка ${c.edge} · ${rowsWord(c.totalRows)}`
-  // Длина дописывается сюда же, а не встаёт рядом: строка стоит у схемы всегда,
-  // показаны ручки или убраны, и по ней вяжут (тикет #27).
-  const cm = model.value.centimetres
-  return cm ? `${head} · ${cm.length}` : head
-})
+const captionTop = computed(() => closingCaption(calculation.value))
+const captionBottom = computed(() => startCaption(calculation.value))
+const paramsLine = computed(() => describeParams(calculation.value, model.value.centimetres?.length ?? null))
 
 /**
  * Контур текущего ряда — строка над кромкой шторки, в той же развёрнутой индексации,
@@ -301,7 +293,7 @@ onUnmounted(() => {
     <div class="flex items-center justify-between gap-3">
       <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5">
         <p class="text-sm text-slate-600" data-testid="toe-chart-caption-top">
-          ↑ {{ finalReal }} петель на закрытие
+          {{ captionTop }}
         </p>
         <!-- Числа расчёта стоят у самой схемы и не зависят от того, показаны ли
              ручки (§7): по ним читают, что именно нарисовано ниже. -->
@@ -592,7 +584,7 @@ onUnmounted(() => {
     </div>
 
     <p class="mt-2 text-sm text-slate-600" data-testid="toe-chart-caption-bottom">
-      Начало мыска, {{ initial }} петель. Ряды читаются снизу вверх, петли справа налево.
+      {{ captionBottom }}
     </p>
 
     <div class="mt-3 flex flex-col gap-1 text-sm text-slate-700" data-testid="toe-chart-legend">

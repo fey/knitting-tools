@@ -1,0 +1,62 @@
+/**
+ * Склонения: число вместе со словом. Модуль без зависимостей — его берут и сборка
+ * строк расчёта (`text.ts`), и ритмы (`presets.ts`), не заводя цикла между ними.
+ *
+ * Голос безличный, привязки к полу того, кто вяжет, нет.
+ *
+ * Форму выбирает `Intl.PluralRules`, а не `vue-i18n`: ядро живёт без Vue, язык у страницы
+ * один, а русское правило `vue-i18n` всё равно велит писать самим. Второй язык — повод
+ * пересмотреть.
+ *
+ * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
+ */
+
+const RU_PLURAL = new Intl.PluralRules('ru')
+
+/**
+ * Русское числительное: 1 ряд, 2 ряда, 5 рядов. Форму выбирает платформа
+ * (`Intl.PluralRules`); числа здесь целые, так что `other` (дроби) не встречается.
+ */
+export function plural(n: number, one: string, few: string, many: string): string {
+  const form = RU_PLURAL.select(n)
+  return form === 'one' ? one : form === 'few' ? few : many
+}
+
+/** «19 рядов». */
+export function rowsWord(n: number): string {
+  return `${n} ${plural(n, 'ряд', 'ряда', 'рядов')}`
+}
+
+/** «10 убавочных рядов». */
+export function decRowsWord(n: number): string {
+  return `${n} ${plural(n, 'убавочный ряд', 'убавочных ряда', 'убавочных рядов')}`
+}
+
+/** «1 промежуточный», «2 промежуточных» — существительное «ряд» опущено, как в §6.3. */
+export function plainRowsWord(n: number): string {
+  return `${n} ${plural(n, 'промежуточный', 'промежуточных', 'промежуточных')}`
+}
+
+/** «повторить 1 раз», «повторить 2 раза», «повторить 5 раз» (§6.3). */
+export function timesWord(n: number): string {
+  return `${n} ${plural(n, 'раз', 'раза', 'раз')}`
+}
+
+/** «20 петель», «22 петли», «21 петля». */
+export function stitchesWord(n: number): string {
+  return `${n} ${plural(n, 'петля', 'петли', 'петель')}`
+}
+
+/** «1 шаг», «2 шага», «5 шагов» — шаг конструктора ритма (§6.3). */
+export function stepsWord(n: number): string {
+  return `${n} ${plural(n, 'шаг', 'шага', 'шагов')}`
+}
+
+/**
+ * Родительный падеж убавочных рядов: «не хватает 1 убавочного ряда»,
+ * «не хватает 4 убавочных рядов». Именительный `decRowsWord` после «не хватает»
+ * даёт «не хватает 4 убавочных ряда» — форма, которой спека не писала.
+ */
+export function decRowsWordGen(n: number): string {
+  return `${n} ${plural(n, 'убавочного ряда', 'убавочных рядов', 'убавочных рядов')}`
+}

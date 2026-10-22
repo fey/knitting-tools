@@ -10,6 +10,7 @@
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
 import type { ToeCalculation } from './types'
+import { stitchesWord } from './plural'
 
 /**
  * Короткая строка ряда: «убавочный 5 из 11 · в круге станет 40» для убавочного,
@@ -39,7 +40,7 @@ export function rowShortText(
  * у неё нет (§8), поэтому у завершения тоже есть текст.
  */
 export function toeDoneText(calculation: Pick<ToeCalculation, 'finalReal'>): string {
-  return `Мысок связан — закрывай ${calculation.finalReal} петель`
+  return `Мысок связан — закрывай ${stitchesWord(calculation.finalReal)}`
 }
 
 /**

@@ -29,7 +29,7 @@ import { computed, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import type { Segment } from '../core/types'
 import { coverageNote } from '../core/notes'
-import { plainRowsWord, rowsWord, timesWord } from '../core/text'
+import { plainRowsWord, rowsWord, timesWord } from '../core/plural'
 
 /** Потолок интервала (§6.3): шаг 1, потолок 6. */
 const INTERVAL_MAX = 6

@@ -27,16 +27,15 @@
  */
 import { computed } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
-import { rhythmName } from '../core/presets'
 import { centimetreView } from '../core/centimetres'
 import { coverageNote } from '../core/notes'
-import { decRowsWord, rowsWord } from '../core/text'
+import { decRowsWord, rowsWord } from '../core/plural'
+import { summaryLine } from '../core/text'
 import GaugeButton from './GaugeButton.vue'
 
 const { calculation, gauge } = useToeCalculator()
 
 const coverage = computed(() => coverageNote(calculation.value))
-const finalShown = computed(() => calculation.value.finalReal)
 /**
  * Сантиметры и замечание о длине — из одного вида (`centimetreView`): выбор «см или
  * ряды» решается там, а не здесь. Обхват назван обхватом, а не шириной: петли
@@ -46,16 +45,15 @@ const view = computed(() => centimetreView(calculation.value, gauge.value))
 const centimetres = computed(() => view.value.cm)
 const length = computed(() => view.value.lengthNote)
 
-/** Имя ритма — общее правило ядра (§5.5), одно на итог и на текст «Поделиться». */
-const rhythm = computed(() => rhythmName(calculation.value.rhythm))
+/** Строка расчёта — общая сборка ядра (§7), одна на итог, схему и «Поделиться». */
+const params = computed(() => summaryLine(calculation.value))
 </script>
 
 <template>
   <section class="rounded border border-slate-200 p-4" data-testid="summary-panel">
     <h2 class="text-base font-semibold">Итог</h2>
     <p class="mt-2 text-slate-700" data-testid="summary-params">
-      Мысок: {{ calculation.initial }} → {{ finalShown }} петель, кромка {{ calculation.edge }},
-      убавки {{ rhythm }}
+      {{ params }}
     </p>
     <p class="mt-1 text-slate-900">
       <span data-testid="summary-dec-rows">{{ decRowsWord(calculation.decRowsNeeded) }}</span>
