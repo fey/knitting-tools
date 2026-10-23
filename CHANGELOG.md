@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/fey/knitting-tools/compare/v1.2.0...v1.3.0) (2026-10-23)
+
+
+### Новое
+
+* Счётчик заходов GoatCounter на всех страницах ([#52](https://github.com/fey/knitting-tools/issues/52)) ([#72](https://github.com/fey/knitting-tools/issues/72)) ([f0b63ab](https://github.com/fey/knitting-tools/commit/f0b63ab00f9691525c944e8c601d42145ba4e337))
+
 ## [1.2.0](https://github.com/fey/knitting-tools/compare/v1.1.0...v1.2.0) (2026-10-23)
 
 
