@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/fey/knitting-tools/compare/v1.1.0...v1.2.0) (2026-10-23)
+
+
+### Новое
+
+* Справочник «Набор петель на носок» на витрине (§11) ([#75](https://github.com/fey/knitting-tools/issues/75)) ([ee6e36f](https://github.com/fey/knitting-tools/commit/ee6e36f0568d21e8a183010606726ee331127249))
+
+
+### Исправлено
+
+* «22 петли» вместо «22 петель» в «Итоге», под схемой и в «Поделиться» ([#43](https://github.com/fey/knitting-tools/issues/43)) ([#67](https://github.com/fey/knitting-tools/issues/67)) ([0853142](https://github.com/fey/knitting-tools/commit/085314251c37f381c206987a06caca7ce9f4cc0d))
+
 ## [1.1.0](https://github.com/fey/knitting-tools/compare/v1.0.0...v1.1.0) (2026-09-22)
 
 
