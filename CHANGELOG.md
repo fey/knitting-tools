@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/fey/knitting-tools/compare/v1.3.0...v1.4.0) (2026-10-30)
+
+
+### Новое
+
+* «Итог» говорит, за сколько до конца носка начинать мысок ([#36](https://github.com/fey/knitting-tools/issues/36)) ([#73](https://github.com/fey/knitting-tools/issues/73)) ([ee5f3a2](https://github.com/fey/knitting-tools/commit/ee5f3a2effcd0e0b0784d1bf2e531dcf7d6ff68b))
+* Страница поворота французской пятки со схемой ([#55](https://github.com/fey/knitting-tools/issues/55), [#56](https://github.com/fey/knitting-tools/issues/56)) ([#74](https://github.com/fey/knitting-tools/issues/74)) ([98d52c9](https://github.com/fey/knitting-tools/commit/98d52c974040249c41885da97b05e47245feca06))
+
 ## [1.3.0](https://github.com/fey/knitting-tools/compare/v1.2.0...v1.3.0) (2026-10-23)
 
 
