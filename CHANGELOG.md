@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.0](https://github.com/fey/knitting-tools/compare/v1.2.0...v1.3.0) (2026-10-23)
+
+
+### Новое
+
+* Счётчик заходов GoatCounter на всех страницах ([#52](https://github.com/fey/knitting-tools/issues/52)) ([#72](https://github.com/fey/knitting-tools/issues/72)) ([f0b63ab](https://github.com/fey/knitting-tools/commit/f0b63ab00f9691525c944e8c601d42145ba4e337))
+
+## [1.2.0](https://github.com/fey/knitting-tools/compare/v1.1.0...v1.2.0) (2026-10-23)
+
+
+### Новое
+
+* Справочник «Набор петель на носок» на витрине (§11) ([#75](https://github.com/fey/knitting-tools/issues/75)) ([ee6e36f](https://github.com/fey/knitting-tools/commit/ee6e36f0568d21e8a183010606726ee331127249))
+
+
+### Исправлено
+
+* «22 петли» вместо «22 петель» в «Итоге», под схемой и в «Поделиться» ([#43](https://github.com/fey/knitting-tools/issues/43)) ([#67](https://github.com/fey/knitting-tools/issues/67)) ([0853142](https://github.com/fey/knitting-tools/commit/085314251c37f381c206987a06caca7ce9f4cc0d))
+
 ## [1.1.0](https://github.com/fey/knitting-tools/compare/v1.0.0...v1.1.0) (2026-09-22)
 
 

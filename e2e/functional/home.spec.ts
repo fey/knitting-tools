@@ -54,3 +54,15 @@ test('«Поделиться» на витрине нет — делятся р�
   // Отзыв — про сайт целиком, и на витрине он остаётся.
   await expect(page.getByTestId('feedback-button')).toBeVisible()
 })
+
+test('ссылка из «Справочников» открывает набор петель, а возврат приводит на витрину', async ({ page }) => {
+  await page.goto('./')
+  await page.getByTestId('reference-link-sock-cast-on').click()
+
+  await expect(page).toHaveURL(/\/knitting-tools\/sock-cast-on\/$/)
+  await expect(page.getByTestId('cast-on-table')).toBeVisible()
+
+  await page.getByTestId('back-to-home').click()
+  await expect(page).toHaveURL(/\/knitting-tools\/$/)
+  await expect(page.getByTestId('reference-list')).toBeVisible()
+})
