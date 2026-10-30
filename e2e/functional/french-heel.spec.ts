@@ -161,6 +161,66 @@ test('сторона ряда 1 зеркалит поворот: изнаноч�
   await expect(page.getByTestId('summary-left')).toHaveText('18')
 })
 
+test('схема поворота на дефолте: ряд на петлю уже, поворот на каждом ряду, кроме последнего (§7)', async ({
+  page,
+}) => {
+  const rows = page.getByTestId('turn-chart-row')
+  await expect(rows).toHaveCount(12)
+  // В модели ряды сверху вниз: последний — первым, ряд 1 — нижним.
+  await expect(rows.last()).toHaveAttribute('data-row', '1')
+  await expect(rows.first()).toHaveAttribute('data-row', '12')
+
+  // Ширина ряда — петли на спице: две клетки убавки плюс остальные клетки ряда.
+  for (const [n, width] of [
+    [1, 30],
+    [2, 29],
+    [12, 19],
+  ] as const) {
+    const row = page.locator(`[data-testid="turn-chart-row"][data-row="${n}"]`)
+    await expect(row.locator('rect[data-kind="knit"], rect[data-kind="slip"], rect[data-kind="idle"]')).toHaveCount(
+      width - 2,
+    )
+    await expect(row.getByTestId('turn-chart-decrease')).toHaveCount(1)
+  }
+
+  await expect(page.getByTestId('turn-chart-turn')).toHaveCount(11)
+  await expect(page.locator('[data-row="12"]').getByTestId('turn-chart-turn')).toHaveCount(0)
+  await expect(page.getByTestId('turn-chart-label').last()).toHaveText('1 лиц. ←')
+  await expect(page.getByTestId('turn-chart-label').nth(10)).toHaveText('2 изн. →')
+  await expect(page.getByTestId('turn-chart-parts')).toContainText('12')
+  await expect(page.getByTestId('turn-chart-parts')).toContainText('6')
+  await expect(page.getByTestId('turn-chart-top')).toHaveText('Вверху: 18 петель на спице после поворота')
+})
+
+test('схема открывается на начале ряда 1: лицевой старт — у правого края, изнаночный — у левого', async ({
+  page,
+}) => {
+  const scroll = page.getByTestId('turn-chart-scroll')
+  const atRight = () => scroll.evaluate((el) => el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
+  const atLeft = () => scroll.evaluate((el) => el.scrollLeft === 0)
+  // На телефоне дефолтная схема шире колонки — иначе проверять было бы нечего.
+  expect(await scroll.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
+  expect(await atRight()).toBe(true)
+
+  await page.getByTestId('first-side-ws').click()
+  await expect(page.getByTestId('turn-chart-label').last()).toHaveText('1 изн. →')
+  await expect.poll(atLeft).toBe(true)
+  // Убавка ряда 1 — по стороне: «2 вм. изн.».
+  await expect(page.locator('[data-row="1"]').getByTestId('turn-chart-decrease')).toHaveAttribute(
+    'data-kind',
+    'p2tog',
+  )
+})
+
+test('схема идёт за центральной частью', async ({ page }) => {
+  const center = page.getByTestId('center-stitches')
+  await center.fill('10')
+  await center.blur()
+  await expect(page.getByTestId('turn-chart-row')).toHaveCount(10)
+  await expect(page.getByTestId('turn-chart-turn')).toHaveCount(9)
+  await expect(page.getByTestId('turn-chart-top')).toHaveText('Вверху: 20 петель на спице после поворота')
+})
+
 test('возврат на витрину', async ({ page }) => {
   await page.getByTestId('back-to-home').click()
   await expect(page).toHaveURL(/\/knitting-tools\/$/)

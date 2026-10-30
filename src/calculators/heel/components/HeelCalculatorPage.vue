@@ -3,13 +3,14 @@
  * Страница калькулятора поворота французской пятки — подстраница `/french-heel/` (§11).
  * Вход многостраничной сборки, как у мыска: роутера нет.
  *
- * Порядок блоков (§6): шапка, заголовок, вводка, поля, «Итог», описание по рядам.
+ * Порядок блоков (§6): шапка, заголовок, вводка, поля, «Итог», схема, описание по рядам.
  * Телефонный порядок сверху вниз — порядок в DOM. От 800 px страница встаёт в две
- * колонки: слева поля, справа «Итог» и описание. Ширина левой колонки — число, а не
+ * колонки: слева поля, справа «Итог», схема и описание. Ширина левой колонки — число, а не
  * шрифтовая единица, чтобы замеры в e2e не зависели от раннера.
  */
 import HeelFields from './HeelFields.vue'
 import HeelSummary from './HeelSummary.vue'
+import TurnChart from './TurnChart.vue'
 import TurnRows from './TurnRows.vue'
 import AppHeader from '../../../shared/AppHeader.vue'
 import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
@@ -31,8 +32,8 @@ import AppFooter from '../../../shared/AppFooter.vue'
       <p class="max-w-[42rem] text-sm text-slate-600" data-testid="intro">
         Поворот пятки — короткие ряды поверх связанной стенки: центральная часть забирает петли
         боковых, и после каждой убавки провязывается ещё одна петля. Впиши начальные петли носка и
-        центральную часть — ниже по рядам расписано, как вязать. Стенка и клинья здесь не
-        считаются.
+        центральную часть — ниже схема поворота и расписано по рядам, как вязать. Стенка и клинья
+        здесь не считаются.
       </p>
 
       <div
@@ -42,6 +43,7 @@ import AppFooter from '../../../shared/AppFooter.vue'
         <HeelFields class="min-[800px]:col-start-1" />
         <div class="flex flex-col gap-4 min-[800px]:col-start-2" data-testid="result-column">
           <HeelSummary />
+          <TurnChart />
           <TurnRows />
         </div>
       </div>

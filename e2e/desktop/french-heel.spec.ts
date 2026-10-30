@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 // Раскладка страницы пятки (спека пятки §6.2): от 800 px — две колонки, слева поля,
-// справа «Итог» и описание по рядам. Вьюпорт проекта 1280×900. Замеры блоков, а не
+// справа «Итог», схема и описание по рядам. Вьюпорт проекта 1280×900. Замеры блоков, а не
 // скриншоты, и числа, не зависящие от шрифта раннера.
 
 test.beforeEach(async ({ page }) => {
@@ -20,6 +20,11 @@ test('поля слева, «Итог» и описание справа, обе
   // Описание — под «Итогом», в той же колонке.
   expect(Math.abs(rows!.x - summary!.x)).toBeLessThan(2)
   expect(rows!.y).toBeGreaterThan(summary!.y)
+  // Схема — между «Итогом» и описанием, в той же колонке.
+  const chart = await page.getByTestId('turn-chart').boundingBox()
+  expect(Math.abs(chart!.x - summary!.x)).toBeLessThan(2)
+  expect(chart!.y).toBeGreaterThan(summary!.y)
+  expect(rows!.y).toBeGreaterThan(chart!.y)
   expect(fields!.width).toBeCloseTo(300, 0)
 })
 
@@ -39,10 +44,14 @@ test('пересчёт на десктопе: «Итог» и описание �
 test.describe('на 900 px', () => {
   test.use({ viewport: { width: 900, height: 900 } })
 
-  test('две колонки держатся и строка описания не вылезает за колонку', async ({ page }) => {
+  test('две колонки держатся, схема и строка описания не вылезают за колонку', async ({ page }) => {
     const fields = await page.getByTestId('heel-fields').boundingBox()
     const result = await page.getByTestId('result-column').boundingBox()
     expect(result!.x).toBeGreaterThan(fields!.x + fields!.width - 1)
+
+    // Схема шире колонки прокручивается внутри своей рамки, а не раздвигает страницу.
+    const chart = await page.getByTestId('turn-chart-scroll').boundingBox()
+    expect(chart!.x + chart!.width).toBeLessThanOrEqual(result!.x + result!.width + 1)
 
     const row = await page.getByTestId('turn-row').first().boundingBox()
     expect(row!.x + row!.width).toBeLessThanOrEqual(result!.x + result!.width + 1)
