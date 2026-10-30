@@ -57,7 +57,11 @@ function stitchesWord(n: number): string {
 
 const scrollEl = ref<HTMLDivElement | null>(null)
 
-/** Прокрутка к началу ряда 1 — на открытии и на смене стороны, больше никогда. */
+/**
+ * Прокрутка к началу ряда 1 — на открытии, на смене стороны и на смене петель пятки:
+ * у схемы новая ширина, и прежний `scrollLeft` увёл бы начало ряда за рамку.
+ * Центральная часть ширину не меняет и прокрутку не трогает.
+ */
 function scrollToRowStart(): void {
   const el = scrollEl.value
   if (el) el.scrollLeft = params.firstSide === 'rs' ? el.scrollWidth : 0
@@ -65,7 +69,7 @@ function scrollToRowStart(): void {
 
 onMounted(scrollToRowStart)
 watch(
-  () => params.firstSide,
+  () => [params.firstSide, heel.value],
   () => void nextTick(scrollToRowStart),
 )
 

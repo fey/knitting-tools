@@ -202,6 +202,13 @@ test('схема открывается на начале ряда 1: лицев
   expect(await scroll.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
   expect(await atRight()).toBe(true)
 
+  // Схема стала шире — прокрутка снова у начала ряда 1, а не на прежнем месте.
+  const initial = page.getByTestId('initial-stitches')
+  await initial.fill('80')
+  await initial.blur()
+  await expect(page.getByTestId('turn-chart-row')).toHaveCount(18)
+  await expect.poll(atRight).toBe(true)
+
   await page.getByTestId('first-side-ws').click()
   await expect(page.getByTestId('turn-chart-label').last()).toHaveText('1 изн. →')
   await expect.poll(atLeft).toBe(true)

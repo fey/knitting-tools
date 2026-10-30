@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { turnChart, type TurnChart } from './chart'
-import { centerRange } from './fieldRules'
+import { MAX_INITIAL, centerRange, heelStitches } from './fieldRules'
 import { computeTurn, type Side } from './turn'
 
 function chart(heel: number, center: number, firstSide: Side = 'rs'): TurnChart {
@@ -81,28 +81,29 @@ describe('раскладка схемы поворота (§7)', () => {
     expect(r7.decrease.x).toBe(lastWorked)
   })
 
-  it('на всех пятках 6…60, допустимых центрах и обеих сторонах ряд укладывается в петли на спице', () => {
-    for (let heel = 6; heel <= 60; heel++) {
+  it('на всех пятках 6…100, допустимых центрах и обеих сторонах ряд укладывается в петли на спице', () => {
+    // Нарушения копятся списком: тысячи `expect` в цикле стоили бы секунды прогона.
+    const broken: string[] = []
+    for (let heel = 6; heel <= heelStitches(MAX_INITIAL); heel++) {
       const { min, max } = centerRange(heel)
       for (let center = min; center <= max; center += 2) {
         for (const side of ['rs', 'ws'] as const) {
           const turn = computeTurn({ heel, center, firstSide: side })
           const c = turnChart(turn, heel, center)
-          const label = `H=${heel} C=${center} ${side}`
           for (const r of c.rows) {
             const src = turn.rows[r.n - 1]
             const worked = r.stitches.filter((s) => s.kind !== 'idle').length + 2
-            expect(worked, label).toBe((src.slip ? 1 : 0) + src.plain + 2 + (src.after ? 1 : 0))
-            expect(r.decrease.x, label).toBeGreaterThanOrEqual(r.x0)
-            expect(r.decrease.x + 2, label).toBeLessThanOrEqual(r.x0 + r.width)
-            if (r.turnX !== null) {
-              expect(r.turnX, label).toBeGreaterThanOrEqual(r.x0)
-              expect(r.turnX, label).toBeLessThanOrEqual(r.x0 + r.width)
-            }
+            const fits =
+              worked === (src.slip ? 1 : 0) + src.plain + 2 + (src.after ? 1 : 0) &&
+              r.decrease.x >= r.x0 &&
+              r.decrease.x + 2 <= r.x0 + r.width &&
+              (r.turnX === null || (r.turnX >= r.x0 && r.turnX <= r.x0 + r.width))
+            if (!fits) broken.push(`H=${heel} C=${center} ${side} ряд ${r.n}`)
           }
         }
       }
     }
+    expect(broken).toEqual([])
   })
 
   it('изнаночный ряд 1 зеркалит схему лицевого', () => {
