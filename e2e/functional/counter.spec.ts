@@ -10,6 +10,7 @@ import { expect, test } from '@playwright/test'
 const PAGES = [
   { path: './', heading: 'Калькуляторы для вязания' },
   { path: './toe-band/', heading: 'Ленточный мысок носка' },
+  { path: './french-heel/', heading: 'Поворот французской пятки' },
   { path: './sock-cast-on/', heading: 'Набор петель на носок' },
 ]
 

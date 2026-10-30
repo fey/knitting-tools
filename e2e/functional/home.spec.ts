@@ -30,6 +30,15 @@ test('ссылка витрины открывает калькулятор на
   await expect(page.getByTestId('toe-chart')).toBeVisible()
 })
 
+test('карточка пятки ведёт на подстраницу французской пятки, посчитанную на дефолте', async ({ page }) => {
+  await page.goto('./')
+  await page.getByTestId('calculator-link-french-heel').click()
+
+  await expect(page).toHaveURL(/\/knitting-tools\/french-heel\/$/)
+  await expect(page.getByTestId('summary-rows')).toHaveText('12')
+  await expect(page.getByTestId('turn-row').first()).toBeVisible()
+})
+
 test('возврат из калькулятора приводит на витрину', async ({ page }) => {
   await page.goto('./toe-band/')
   await page.getByTestId('back-to-home').click()
