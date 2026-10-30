@@ -30,6 +30,7 @@ async function overflow(page: import('@playwright/test').Page): Promise<number> 
 for (const [where, path] of [
   ['витрине', './'],
   ['калькуляторе', './toe-band/'],
+  ['справочнике', './sock-cast-on/'],
 ] as const) {
   test(`на ${where} шапка ведёт на канал`, async ({ page }) => {
     await page.goto(path)
