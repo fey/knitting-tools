@@ -10,18 +10,21 @@
 import type { ToeCalculation } from './types'
 import type { Gauge, RulerTick } from './gauge'
 import { circumferenceCm, cmPerRow, cmPerStitch, cmWord, rulerTicks, toeLengthCm } from './gauge'
-import { lengthNote, lengthNoteCm } from './notes'
+import { lengthNote, lengthNoteCm, startHint } from './notes'
 
 export type CentimetreView = {
   /**
-   * Замечание о длине (§9.6) — есть и без плотности, тогда в рядах: коридор в рядах
-   * и есть перевод по предполагаемой плотности, известная плотность его снимает.
+   * Замечание о длине (§9.6) **без плотности, в рядах**: коридор в рядах и есть перевод
+   * по предполагаемой плотности. С плотностью замечание влито в `cm.startHint`, и здесь
+   * `null` — два текста про одну величину рядом не стоят.
    */
   lengthNote: string | null
   /** Сантиметры — только с вписанной плотностью; без неё `null` и на экране их нет. */
   cm: {
     /** «4,75 см» — длина мыска. */
     length: string
+    /** Строка указания «Итога» (§6, #36): длина мыска и, если есть, замечание о ней. */
+    startHint: string
     /** Обхват на начальных петлях: петли считаются в круге (§4), схема — половина. */
     circumference: string
     /** Засечки вдоль, в клетках от ряда 1 — снизу, где начало мыска (§7). */
@@ -39,10 +42,12 @@ export function centimetreView(
   if (!gauge) return { lengthNote: lengthNote(totalRows), cm: null }
 
   const lengthCm = toeLengthCm(totalRows, gauge)
+  const length = cmWord(lengthCm)
   return {
-    lengthNote: lengthNoteCm(lengthCm),
+    lengthNote: null,
     cm: {
-      length: cmWord(lengthCm),
+      length,
+      startHint: startHint(length, lengthNoteCm(lengthCm)),
       circumference: cmWord(circumferenceCm(initial, gauge)),
       rowTicks: rulerTicks(totalRows, cmPerRow(gauge)),
       // Сетка — половина круга (§7), поперёк её `initial / 2` клеток.
