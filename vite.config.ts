@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import type { Plugin } from 'vite'
+import { BASE_PATH, DEV_PORT, PREVIEW_PORT } from './ports'
 
 // Счётчик заходов (§11). Скрипт кладёт плагин, а не сами html: каждая страница
 // сборки, и будущая тоже, получает его без ручной вставки. Только в `build` —
@@ -28,7 +29,10 @@ const goatCounter: Plugin = {
 export default defineConfig({
   // Project site: страница живёт не в корне домена, а по
   // https://fey.github.io/knitting-tools/ — корень занят блогом.
-  base: '/knitting-tools/',
+  base: BASE_PATH,
+  // Порты — свои у каждой рабочей копии (ports.ts), занятый порт роняет запуск.
+  server: { port: DEV_PORT, strictPort: true },
+  preview: { host: '127.0.0.1', port: PREVIEW_PORT, strictPort: true },
   plugins: [vue(), tailwindcss(), goatCounter],
   build: {
     // Многостраничная сборка вместо роутера (§11): корень — витрина разделов,

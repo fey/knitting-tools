@@ -1,8 +1,8 @@
 # Единая точка входа: всё гоняется через make, а не напрямую.
 # Сами команды описаны скриптами в package.json, Makefile их только зовёт —
 # так команда записана в одном месте, а не продублирована здесь и там.
-# Флаги (порты стенда и preview, набор проектов Playwright) живут там же,
-# в скриптах: JSON комментариев не держит, поэтому «почему так» — здесь.
+# Флаги (набор проектов Playwright) живут там же, в скриптах: JSON комментариев
+# не держит, поэтому «почему так» — здесь. Порты — в ports.ts, у каждой копии свои.
 
 .DEFAULT_GOAL := help
 
@@ -23,11 +23,15 @@ browsers: ## Chromium под прогон страницы
 playwright-version: ## Версия Playwright из lock-файла — тег образа CI
 	@npm run --silent playwright:version
 
-# Порты стенда и preview разведены намеренно (docs/agents/local-stand.md):
-# стенд — dev на 5173, прогон страницы — preview на 4173. Оставленный preview
-# подхватится следующим прогоном e2e вместо своей сборки, и тот проверит вчерашний dist.
-dev: ## Локальный стенд на 5173
+# Порты выводятся из пути рабочей копии (ports.ts): параллельные сессии в соседних
+# worktree не делят ни стенд, ни preview. Стенд — dev, прогон страницы — preview,
+# порты у них разные: оставленный preview подхватится следующим прогоном e2e вместо
+# своей сборки (reuseExistingServer), и тот проверит вчерашний dist.
+dev: ## Локальный стенд этой копии; адрес — make stand-url
 	npm run dev
+
+stand-url: ## Адрес стенда этой рабочей копии
+	@npm run --silent stand:url
 
 build: ## Проверка типов и сборка в dist
 	npm run build
@@ -40,7 +44,7 @@ typecheck: ## Проверка типов без сборки — на ходу 
 lint: ## Правила ast-grep и их примеры
 	npm run lint
 
-preview: ## Собранная страница на 4173. Под прогон e2e, стенд поднимают через dev
+preview: ## Собранная страница — под прогон e2e, стенд поднимают через dev
 	npm run preview
 
 test: test-unit test-e2e ## Оба шва разом — то же, что гоняет CI
@@ -67,9 +71,9 @@ lint-pr-title: ## Заголовок PR из PR_TITLE — Conventional Commits
 	printf '%s\n' "$$PR_TITLE" | npm run --silent lint:title
 
 # Карточка для соцсетей снимается с живой страницы, поэтому цель — рядом со съёмкой
-# базлайнов, а не со сборкой. Оставленный на 4173 preview подхватится и здесь
+# базлайнов, а не со сборкой. Оставленный preview этой копии подхватится и здесь
 # (reuseExistingServer), и карточка снимется со вчерашнего dist — гасить перед съёмкой.
 og: ## Пересъёмка карточки для соцсетей в public/og.png
 	npm run og
 
-.PHONY: help install browsers playwright-version dev build typecheck lint preview test test-unit test-e2e test-screens test-screens-update lint-pr-title og
+.PHONY: help install browsers playwright-version dev stand-url build typecheck lint preview test test-unit test-e2e test-screens test-screens-update lint-pr-title og

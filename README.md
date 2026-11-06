@@ -32,7 +32,7 @@
   с `#s=60&e=20&k=1&r=even` развернётся тем же кадром, что и голая.
 
 **Правил экран — пересними карточку:** `make og`, картинка едет в коммит вместе с правкой.
-Кадр снимается с живой страницы, поэтому оставленный на 4173 preview надо погасить: иначе
+Кадр снимается с живой страницы, поэтому оставленный preview этой копии надо погасить: иначе
 его подхватит `reuseExistingServer`, и карточка снимется со вчерашнего `dist`.
 
 ## Адреса
@@ -72,12 +72,14 @@
 ```
 make install    # зависимости из lock-файла и git-хуки
 make browsers   # Chromium под прогон страницы
-make dev        # стенд на 5173
+make dev        # стенд этой копии
+make stand-url  # его адрес
 ```
 
-Открывать по адресу **с путём** — `http://localhost:5173/knitting-tools/`. Голый
-`http://localhost:5173/` отдаст 404: `base` в `vite.config.ts` равен `/knitting-tools/`.
-Калькулятор — на подстранице `http://localhost:5173/knitting-tools/toe-band/`.
+Порт у каждой рабочей копии свой, он выводится из пути копии (`ports.ts`), поэтому адрес
+спрашивают у `make stand-url`. Открывать — **с путём** `/knitting-tools/`: голый корень
+сервера отдаст 404, `base` в `vite.config.ts` равен `/knitting-tools/`. Калькулятор —
+на подстранице, например `…/knitting-tools/toe-band/`.
 
 Кнопка «Оставить отзыв» появляется, только если подставлена ссылка на форму. Локально это
 `.env.local` (в репозиторий не едет), в Actions — секрет:
@@ -98,11 +100,12 @@ VITE_FEEDBACK_PREFILL_URL=https://docs.google.com/forms/d/e/<ID>/viewform?entry.
 | `make install` | Зависимости из lock-файла |
 | `make browsers` | Chromium под прогон страницы |
 | `make playwright-version` | Версия Playwright из lock-файла — тег образа CI |
-| `make dev` | Локальный стенд на 5173 |
+| `make dev` | Локальный стенд этой копии; адрес — `make stand-url` |
+| `make stand-url` | Адрес стенда этой рабочей копии |
 | `make build` | Проверка типов и сборка в `dist` |
 | `make typecheck` | Проверка типов без сборки — на ходу работы, быстрее `build` |
 | `make lint` | Правила ast-grep и их примеры |
-| `make preview` | Собранная страница на 4173. Под прогон e2e, стенд поднимают через `dev` |
+| `make preview` | Собранная страница — под прогон e2e, стенд поднимают через `dev` |
 | `make test` | Оба шва разом — то же, что гоняет CI |
 | `make test-unit` | Ядро под Vitest; `F=` — только эти файлы |
 | `make test-e2e` | Страница под Playwright: `functional` и `desktop`; `F=` — только эти файлы |
