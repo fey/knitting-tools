@@ -11,7 +11,7 @@ import { heelStitches } from './core/fieldRules'
 import { formatHash, parseHash, type HeelParams } from './core/hash'
 import { shareText } from './core/text'
 import { computeTurn } from './core/turn'
-import type { SharePayload } from '../../shared/ShareButton.vue'
+import type { SharePayload } from '../../shared/share'
 
 /** Параметры из hash, а без него — дефолт (§9.3). Битый hash чинится по параметру. */
 const params = reactive<HeelParams>(parseHash(typeof location === 'undefined' ? '' : location.hash))
