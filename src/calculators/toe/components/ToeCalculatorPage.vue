@@ -36,11 +36,14 @@ import RhythmBuilder from './RhythmBuilder.vue'
 import StitchFields from './StitchFields.vue'
 import SummaryPanel from './SummaryPanel.vue'
 import RowProgressBar from './RowProgressBar.vue'
-import ShareButton from './ShareButton.vue'
+import ShareButton from '../../../shared/ShareButton.vue'
 import GaugeDialog from './GaugeDialog.vue'
 import AppHeader from '../../../shared/AppHeader.vue'
 import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
 import AppFooter from '../../../shared/AppFooter.vue'
+import { useToeCalculator } from '../useToeCalculator'
+
+const { sharePayload } = useToeCalculator()
 
 /**
  * Ручки расчёта прячутся кнопкой (§6.2): досчитав, по схеме вяжут, и панель настроек
@@ -73,7 +76,7 @@ const settingsHidden = ref(false)
           ← Калькуляторы
         </a>
       </template>
-      <ShareButton />
+      <ShareButton :payload="sharePayload" />
       <FeedbackButton />
     </AppHeader>
 

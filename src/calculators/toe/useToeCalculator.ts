@@ -21,6 +21,8 @@ import {
   undoDone,
 } from './core/progress'
 import type { ToeParams } from './core/types'
+import { shareText } from './core/text'
+import type { SharePayload } from '../../shared/share'
 // Доступ к хранилищу — один на проект (§10.2, `src/shared/storage.ts`): записей три,
 // а правило «падать не вправе» сформулировано один раз и на все.
 import { readStored, writeStored } from '../../shared/storage'
@@ -221,6 +223,11 @@ function setGauge(next: Gauge | null): void {
  */
 const gaugeDialogOpen = ref(false)
 
+/** Что уходит в «Поделиться» (§10.5): зовётся в момент клика, расчёт уже починен (§10.4). */
+function sharePayload(): SharePayload {
+  return { hash: formatHash(calculation.value), text: shareText(calculation.value) }
+}
+
 export function useToeCalculator() {
   return {
     params: readonly(params),
@@ -236,5 +243,6 @@ export function useToeCalculator() {
     gauge,
     setGauge,
     gaugeDialogOpen,
+    sharePayload,
   }
 }

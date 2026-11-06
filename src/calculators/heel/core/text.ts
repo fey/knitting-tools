@@ -28,3 +28,13 @@ export function rowText(row: TurnRow): string {
   if (!row.last) parts.push('поверни')
   return parts.join(', ')
 }
+
+/**
+ * Текст для системного шита «Поделиться» (§9.4): «Поворот французской пятки: 30 петель
+ * пятки, центр 6, 12 рядов поворота» — читается даже без перехода по ссылке.
+ */
+export function shareText({ heel, center, rows }: { heel: number; center: number; rows: number }): string {
+  const stitches = plural(heel, 'петля', 'петли', 'петель')
+  const rowsWord = plural(rows, 'ряд', 'ряда', 'рядов')
+  return `Поворот французской пятки: ${heel} ${stitches} пятки, центр ${center}, ${rows} ${rowsWord} поворота`
+}

@@ -77,7 +77,7 @@ function repair(): void {
 }
 
 function setSide(side: Side): void {
-  params.firstSide = side
+  setParams({ firstSide: side })
 }
 
 const range = computed(() => centerRange(heel.value))
