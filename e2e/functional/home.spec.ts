@@ -34,7 +34,8 @@ test('карточка пятки ведёт на подстраницу фра�
   await page.goto('./')
   await page.getByTestId('calculator-link-french-heel').click()
 
-  await expect(page).toHaveURL(/\/knitting-tools\/french-heel\/$/)
+  // Как у мыска: дефолт тут же уходит в hash (спека пятки §9.1).
+  await expect(page).toHaveURL(/\/knitting-tools\/french-heel\/#s=60&c=6&side=rs$/)
   await expect(page.getByTestId('summary-rows')).toHaveText('12')
   await expect(page.getByTestId('turn-row').first()).toBeVisible()
 })

@@ -3,7 +3,7 @@
  * Страница калькулятора поворота французской пятки — подстраница `/french-heel/` (§11).
  * Вход многостраничной сборки, как у мыска: роутера нет.
  *
- * Порядок блоков (§6): шапка, заголовок, вводка, поля, «Итог», схема, описание по рядам.
+ * Порядок блоков (§6): шапка с «Поделиться» (§9.4), заголовок, вводка, поля, «Итог», схема, описание по рядам.
  * Телефонный порядок сверху вниз — порядок в DOM. От 800 px страница встаёт в две
  * колонки: слева поля, справа «Итог», схема и описание. Ширина левой колонки — число, а не
  * шрифтовая единица, чтобы замеры в e2e не зависели от раннера.
@@ -15,6 +15,10 @@ import TurnRows from './TurnRows.vue'
 import AppHeader from '../../../shared/AppHeader.vue'
 import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
 import AppFooter from '../../../shared/AppFooter.vue'
+import ShareButton from '../../../shared/ShareButton.vue'
+import { useHeelCalculator } from '../useHeelCalculator'
+
+const { sharePayload } = useHeelCalculator()
 </script>
 
 <template>
@@ -23,6 +27,7 @@ import AppFooter from '../../../shared/AppFooter.vue'
       <template #nav>
         <a class="text-sm text-slate-700" href="../" data-testid="back-to-home">← Калькуляторы</a>
       </template>
+      <ShareButton :payload="sharePayload" />
       <FeedbackButton />
     </AppHeader>
 

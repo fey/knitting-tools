@@ -36,11 +36,21 @@ import RhythmBuilder from './RhythmBuilder.vue'
 import StitchFields from './StitchFields.vue'
 import SummaryPanel from './SummaryPanel.vue'
 import RowProgressBar from './RowProgressBar.vue'
-import ShareButton from './ShareButton.vue'
+import ShareButton, { type SharePayload } from '../../../shared/ShareButton.vue'
 import GaugeDialog from './GaugeDialog.vue'
 import AppHeader from '../../../shared/AppHeader.vue'
 import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
 import AppFooter from '../../../shared/AppFooter.vue'
+import { useToeCalculator } from '../useToeCalculator'
+import { formatHash } from '../core/hash'
+import { shareText } from '../core/text'
+
+const { calculation } = useToeCalculator()
+
+/** Что уходит в «Поделиться» (§10.5): hash и текст из расчёта, прочитанного в момент клика. */
+function sharePayload(): SharePayload {
+  return { hash: formatHash(calculation.value), text: shareText(calculation.value) }
+}
 
 /**
  * Ручки расчёта прячутся кнопкой (§6.2): досчитав, по схеме вяжут, и панель настроек
@@ -73,7 +83,7 @@ const settingsHidden = ref(false)
           ← Калькуляторы
         </a>
       </template>
-      <ShareButton />
+      <ShareButton :payload="sharePayload" />
       <FeedbackButton />
     </AppHeader>
 

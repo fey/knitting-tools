@@ -1,32 +1,37 @@
 <script setup lang="ts">
 /**
- * Кнопка «Поделиться» (§10.5, тикет #8) — обычный блок шапки `App.vue`.
+ * Кнопка «Поделиться» (§10.5 спеки мыска, §9.4 спеки пятки) — общая на калькуляторы,
+ * стоит в шапке страницы. Что именно уходит в ссылку и текст, решает калькулятор:
+ * он отдаёт `payload` — функцию, а не готовые строки.
  *
  * `navigator.share()` уносит и `url`, и `text`: сообщение читается даже без
  * перехода по ссылке. Фолбэк — копирование в буфер там, где API нет или шит
  * отклонили не отменой (не `AbortError`), а сбоем.
  *
- * **Калькулятор не производит битых ссылок (§10.4).** Касание кнопки уводит
+ * **Калькулятор не производит битых ссылок (§10.4 спеки мыска).** Касание кнопки уводит
  * фокус с поля раньше, чем срабатывает `@click` — родное поведение браузера
- * (`blur` целевого поля идёт перед `click` по кнопке), и починка §9.3 меняет
- * `params` синхронно. Отдельного кода на этот случай здесь нет и не нужно: `url`
- * строится из уже почтикнутого расчёта, а не из `location.href` за спиной —
- * если бы `location.href` ещё не догнал `params` (следующий тик `watch`),
- * ссылка успела бы уйти недосинхронизированной.
+ * (`blur` целевого поля идёт перед `click` по кнопке), и починка поля меняет
+ * параметры синхронно. Поэтому `payload` — функция, которую кнопка зовёт в момент
+ * клика: она читает уже почтикнутый расчёт. Готовые строки пропсом отстали бы
+ * на ререндер родителя, а `location.href` — на следующий тик `watch`.
  *
  * **Место кнопки — шапка, выше полей петель**, и это часть той же гарантии.
- * Подпись починки (§9.2) вставляется в DOM тем же синхронным `blur`, что чинит
+ * Подпись починки вставляется в DOM тем же синхронным `blur`, что чинит
  * поле: кнопка, стоящая в потоке **ниже** полей, уехала бы от этой вставки вниз
  * между `mousedown` и `mouseup` одного и того же клика, и клик промахнулся бы мимо
  * (проверено: тест на блюр-починку падал на пустом `__shared`). Выше полей вставка
  * подписи кнопку не двигает — поэтому фиксировать её к экрану не нужно.
  */
 import { computed, ref } from 'vue'
-import { useToeCalculator } from '../useToeCalculator'
-import { formatHash } from '../core/hash'
-import { shareText } from '../core/text'
 
-const { calculation } = useToeCalculator()
+export interface SharePayload {
+  /** Hash расчёта вместе с решёткой. */
+  hash: string
+  /** Текст для шита: читается и без перехода по ссылке. */
+  text: string
+}
+
+const props = defineProps<{ payload: () => SharePayload }>()
 
 type Status = 'idle' | 'copied' | 'error'
 const status = ref<Status>('idle')
@@ -46,13 +51,10 @@ function showStatus(next: Status): void {
   }, 2000)
 }
 
-/**
- * Адрес из уже почтикнутого расчёта, а не из `location.href` (см. комментарий выше).
- * Расчёт несёт те же параметры и пересчитывается при чтении синхронно.
- */
-function shareUrl(): string {
+/** Адрес из уже почтикнутого расчёта, а не из `location.href` (см. комментарий выше). */
+function shareUrl(hash: string): string {
   const url = new URL(window.location.href)
-  url.hash = formatHash(calculation.value)
+  url.hash = hash
   return url.toString()
 }
 
@@ -81,8 +83,8 @@ async function copyToClipboard(text: string): Promise<void> {
 }
 
 async function share(): Promise<void> {
-  const url = shareUrl()
-  const text = shareText(calculation.value)
+  const { hash, text } = props.payload()
+  const url = shareUrl(hash)
 
   if (navigator.share) {
     try {
