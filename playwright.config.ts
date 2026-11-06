@@ -1,11 +1,12 @@
 import { defineConfig, devices } from '@playwright/test'
+import { BASE_PATH, PREVIEW_PORT } from './ports'
 
 /**
  * Сайт живёт по base '/knitting-tools/', поэтому baseURL несёт этот путь целиком,
  * а спеки ходят относительными адресами — абсолютный '/' попал бы мимо, в корень сервера.
  * По baseURL стоит витрина разделов, калькулятор — на './toe-band/' (§11).
  */
-const BASE_URL = 'http://127.0.0.1:4173/knitting-tools/'
+const BASE_URL = `http://127.0.0.1:${PREVIEW_PORT}${BASE_PATH}`
 
 export default defineConfig({
   testDir: 'e2e',

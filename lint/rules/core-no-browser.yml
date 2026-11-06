@@ -1,0 +1,12 @@
+# Граница core/ (CLAUDE.md, «Раскладка и границы»): браузер — location, history,
+# localStorage — трогает только состояние страницы (use*.ts) и src/shared.
+id: core-no-browser
+language: TypeScript
+severity: error
+message: core/ не трогает браузер — это дело состояния страницы (use*.ts)
+note: Ядро получает строку hash или прочитанное значение аргументом и возвращает результат.
+files:
+  - src/**/core/**/*.ts
+rule:
+  kind: identifier
+  regex: "^(window|document|location|history|localStorage|sessionStorage|navigator)$"

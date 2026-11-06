@@ -1,4 +1,4 @@
-// Конвенциональные коммиты с описанием по-русски — правило в CLAUDE.md, «Коммиты».
+// Конвенциональные коммиты с описанием по-русски — правило в docs/agents/commits.md.
 export default {
   extends: ['@commitlint/config-conventional'],
   rules: {

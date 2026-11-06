@@ -32,7 +32,7 @@
   с `#s=60&e=20&k=1&r=even` развернётся тем же кадром, что и голая.
 
 **Правил экран — пересними карточку:** `make og`, картинка едет в коммит вместе с правкой.
-Кадр снимается с живой страницы, поэтому оставленный на 4173 preview надо погасить: иначе
+Кадр снимается с живой страницы, поэтому оставленный preview этой копии надо погасить: иначе
 его подхватит `reuseExistingServer`, и карточка снимется со вчерашнего `dist`.
 
 ## Адреса
@@ -72,12 +72,14 @@
 ```
 make install    # зависимости из lock-файла и git-хуки
 make browsers   # Chromium под прогон страницы
-make dev        # стенд на 5173
+make dev        # стенд этой копии
+make stand-url  # его адрес
 ```
 
-Открывать по адресу **с путём** — `http://localhost:5173/knitting-tools/`. Голый
-`http://localhost:5173/` отдаст 404: `base` в `vite.config.ts` равен `/knitting-tools/`.
-Калькулятор — на подстранице `http://localhost:5173/knitting-tools/toe-band/`.
+Порт у каждой рабочей копии свой, он выводится из пути копии (`ports.ts`), поэтому адрес
+спрашивают у `make stand-url`. Открывать — **с путём** `/knitting-tools/`: голый корень
+сервера отдаст 404, `base` в `vite.config.ts` равен `/knitting-tools/`. Калькулятор —
+на подстранице, например `…/knitting-tools/toe-band/`.
 
 Кнопка «Оставить отзыв» появляется, только если подставлена ссылка на форму. Локально это
 `.env.local` (в репозиторий не едет), в Actions — секрет:
@@ -98,14 +100,17 @@ VITE_FEEDBACK_PREFILL_URL=https://docs.google.com/forms/d/e/<ID>/viewform?entry.
 | `make install` | Зависимости из lock-файла |
 | `make browsers` | Chromium под прогон страницы |
 | `make playwright-version` | Версия Playwright из lock-файла — тег образа CI |
-| `make dev` | Локальный стенд на 5173 |
+| `make dev` | Локальный стенд этой копии; адрес — `make stand-url` |
+| `make stand-url` | Адрес стенда этой рабочей копии |
 | `make build` | Проверка типов и сборка в `dist` |
-| `make preview` | Собранная страница на 4173. Под прогон e2e, стенд поднимают через `dev` |
+| `make typecheck` | Проверка типов без сборки — на ходу работы, быстрее `build` |
+| `make lint` | Правила ast-grep и их примеры |
+| `make preview` | Собранная страница — под прогон e2e, стенд поднимают через `dev` |
 | `make test` | Оба шва разом — то же, что гоняет CI |
-| `make test-unit` | Ядро под Vitest |
-| `make test-e2e` | Страница под Playwright: `functional` и `desktop` |
-| `make test-screens` | Скриншоты схемы. В CI не гоняются намеренно |
-| `make test-screens-update` | Пересъёмка базлайнов после правки экрана |
+| `make test-unit` | Ядро под Vitest; `F=` — только эти файлы |
+| `make test-e2e` | Страница под Playwright: `functional` и `desktop`; `F=` — только эти файлы |
+| `make test-screens` | Скриншоты схемы. В CI не гоняются намеренно; `F=` — только эти файлы |
+| `make test-screens-update` | Пересъёмка базлайнов после правки экрана; `F=` — только эти файлы |
 | `make og` | Пересъёмка карточки для соцсетей в `public/og.png` |
 
 Слоя два, и граница жёсткая: **сама команда со всеми флагами — скриптом в `package.json`**,
@@ -142,13 +147,13 @@ VITE_FEEDBACK_PREFILL_URL=https://docs.google.com/forms/d/e/<ID>/viewform?entry.
 Что нового на странице, можно прочитать на <https://github.com/fey/knitting-tools/releases>
 и в `CHANGELOG.md`. Релизы собирает release-please из заголовков коммитов
 (`.github/workflows/release.yml`). Он держит открытым PR «chore: Релиз X.Y.Z», и мерж этого
-PR выпускает релиз. Правило — в `CLAUDE.md`, раздел «Релизы».
+PR выпускает релиз. Правило — в `docs/agents/release.md`.
 
 ## Как устроен код
 
 | Где | Что там |
 |---|---|
-| `src/calculators/toe/core/` | Арифметика, разбор hash, тексты. **Чистый TypeScript без единого импорта из Vue** |
+| `src/calculators/toe/core/` | Арифметика, разбор hash, тексты. **Чистый TypeScript без единого импорта из Vue** — держит `make lint` |
 | `src/calculators/toe/useToeCalculator.ts` | Состояние калькулятора. Здесь и только здесь — Vue и браузер (`location`, `history`, `localStorage`) |
 | `src/calculators/toe/components/` | Экран калькулятора, включая оболочку его страницы |
 | `src/references/cast-on/` | Справочник набора петель: данные и формула в `core/`, страница в `components/` |
@@ -166,8 +171,8 @@ PR выпускает релиз. Правило — в `CLAUDE.md`, разде�
   Законченный markdown-архив: новая работа заводится в GitHub Issues, а не дописывается туда.
 - **Коммиты** — Conventional Commits с описанием по-русски. PR мержится squash-ом, и в `main`
   уезжает его заголовок; прогон на PR его проверяет.
-  Правило и таблица типов — в `CLAUDE.md`, раздел «Коммиты».
-- **`docs/agents/`** — локальный стенд, работа с issues через `gh`, канонические метки триажа.
+  Правило и таблица типов — в `docs/agents/commits.md`.
+- **`docs/agents/`** — коммиты, выкатка и релизы, локальный стенд, работа с issues через `gh`, канонические метки триажа.
 
 ## Язык
 
