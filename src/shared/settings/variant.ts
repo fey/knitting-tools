@@ -6,6 +6,8 @@ export const VARIANTS = [
   { key: 'B', name: 'Шестерёнка у значка кода' },
   { key: 'C', name: 'Слева, у возврата' },
   { key: 'D', name: 'Полоса под шапкой' },
+  { key: 'E', name: 'A + плашка, пока плотности нет' },
+  { key: 'F', name: 'C + плашка, пока плотности нет' },
 ] as const
 
 export type VariantKey = (typeof VARIANTS)[number]['key']

@@ -71,7 +71,7 @@ function open(): void {
       <div class="flex items-center gap-3" data-testid="header-nav">
         <slot name="nav" />
         <button
-          v-if="variant === 'C'"
+          v-if="variant === 'C' || variant === 'F'"
           type="button"
           :class="[PILL, tone, 'flex items-center gap-1.5 px-3']"
           aria-haspopup="dialog"
@@ -82,7 +82,7 @@ function open(): void {
       </div>
       <div class="flex flex-wrap items-center justify-end gap-3" data-testid="header-actions">
         <button
-          v-if="variant === 'A'"
+          v-if="variant === 'A' || variant === 'E'"
           type="button"
           :class="[PILL, tone, 'flex items-center gap-1.5']"
           aria-haspopup="dialog"
@@ -157,6 +157,26 @@ function open(): void {
         </span>
         <button type="button" class="shrink-0 font-medium underline underline-offset-2" aria-haspopup="dialog" @click="open">
           Настройки
+        </button>
+      </div>
+    </div>
+    <!-- E, F: плашка-предупреждение только там, где плотность пересчитывает экран, и только пока её нет. -->
+    <div
+      v-if="(variant === 'E' || variant === 'F') && warn"
+      class="border-t border-amber-300 bg-amber-50 text-amber-900"
+      data-testid="gauge-warning"
+    >
+      <div
+        class="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-2 text-sm min-[800px]:max-w-3xl min-[1240px]:max-w-[1400px]"
+      >
+        <span><span aria-hidden="true">! </span>Плотность не вписана — сантиметров нет, счёт в петлях и рядах</span>
+        <button
+          type="button"
+          class="shrink-0 rounded-full border border-amber-500 bg-white px-3 py-1 font-medium"
+          aria-haspopup="dialog"
+          @click="open"
+        >
+          Вписать
         </button>
       </div>
     </div>
