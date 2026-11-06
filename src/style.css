@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+/* Всё, что нажимается, показывает указатель: Tailwind 4 оставляет кнопкам обычную стрелку. */
+@layer base {
+  button:not(:disabled),
+  [role="button"],
+  summary,
+  select {
+    cursor: pointer;
+  }
+}

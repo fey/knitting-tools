@@ -32,7 +32,7 @@ import { centimetreView } from '../core/centimetres'
 import { FOOT_CHECK, coverageNote } from '../core/notes'
 import { decRowsWord, rowsWord } from '../core/plural'
 import { summaryLine } from '../core/text'
-import GaugeButton from './GaugeButton.vue'
+import { gaugeWords } from '../../../shared/settings/useSettings'
 
 const { calculation, gauge } = useToeCalculator()
 
@@ -73,10 +73,12 @@ const params = computed(() => summaryLine(calculation.value))
     <p v-if="length" class="mt-1 text-sm text-amber-700" data-testid="summary-length-note">{{ length }}</p>
     <p class="mt-1 text-sm text-slate-600" data-testid="summary-foot-check">{{ FOOT_CHECK }}</p>
 
-    <!-- Зацепка: без неё плотность не нашли бы вовсе — дефолта у неё нет,
-         и первый экран о сантиметрах не говорит ничем (тикет #27). -->
-    <div class="mt-3">
-      <GaugeButton />
-    </div>
+    <!-- ПРОТОТИП: кнопки нет, только строка о плотности (Q9, Q14). -->
+    <p v-if="gauge" class="mt-1 text-sm text-slate-600" data-testid="summary-gauge">
+      Плотность: {{ gaugeWords(gauge) }} — меняется в «Настройках».
+    </p>
+    <p v-else class="mt-1 text-sm text-slate-600" data-testid="summary-gauge">
+      Плотность не вписана — сантиметров нет. Её задают в «Настройках» наверху.
+    </p>
   </section>
 </template>

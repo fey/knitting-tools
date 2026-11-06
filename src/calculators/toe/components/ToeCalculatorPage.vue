@@ -37,7 +37,6 @@ import StitchFields from './StitchFields.vue'
 import SummaryPanel from './SummaryPanel.vue'
 import RowProgressBar from './RowProgressBar.vue'
 import ShareButton from './ShareButton.vue'
-import GaugeDialog from './GaugeDialog.vue'
 import AppHeader from '../../../shared/AppHeader.vue'
 import FeedbackButton from '../../../shared/feedback/FeedbackButton.vue'
 import AppFooter from '../../../shared/AppFooter.vue'
@@ -65,7 +64,7 @@ const settingsHidden = ref(false)
          срабатывает раньше `click`, и кнопка ниже полей уехала бы от этой вставки
          между `mousedown` и `mouseup` одного касания. В шапке над всем содержимым
          её не двигает ничто. -->
-    <AppHeader>
+    <AppHeader uses-gauge>
       <!-- Слева — возврат к витрине (§6.4): резерв левого края занят ровно этим.
            Адрес относительный, на страницу выше. -->
       <template #nav>
@@ -149,6 +148,5 @@ const settingsHidden = ref(false)
     <!-- Диалог плотности (тикет #27). Кнопка у него в «Итоге», а не в шапке: ряд
          шапки на телефоне уже в три строки, и пятая кнопка выталкивала вводку
          с первого экрана — §6.1 этого не допускает. -->
-    <GaugeDialog />
   </div>
 </template>

@@ -18,10 +18,10 @@
  * Обе плотности пустые — записи нет вовсе (§10.2), и сантиметров на экране нет.
  */
 import { ref, watch } from 'vue'
-import { DEFAULT_GAUGE_BASE, gaugeFromFields } from '../core/gauge'
-import { useToeCalculator } from '../useToeCalculator'
+import { DEFAULT_GAUGE_BASE, gaugeFromFields } from '../../calculators/toe/core/gauge'
+import { useSettings } from './useSettings'
 
-const { gauge, setGauge, gaugeDialogOpen } = useToeCalculator()
+const { gauge, setGauge, settingsOpen: gaugeDialogOpen } = useSettings()
 
 const dialog = ref<HTMLDialogElement>()
 
@@ -89,7 +89,7 @@ const fields = [
     @close="gaugeDialogOpen = false"
   >
     <div class="flex items-start justify-between gap-3">
-      <h2 id="gauge-title" class="text-lg font-semibold">Плотность вязания</h2>
+      <h2 id="gauge-title" class="text-lg font-semibold">Настройки</h2>
       <button
         type="button"
         class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500"
@@ -101,8 +101,9 @@ const fields = [
       </button>
     </div>
 
+    <h3 class="mt-3 font-medium">Плотность</h3>
     <p class="mt-1 text-sm text-slate-600">
-      Считается по образцу. Пока не вписана, калькулятор считает в петлях и рядах — сантиметров на
+      Считается по образцу. Пока не вписана, калькуляторы считают в петлях и рядах — сантиметров на
       экране нет.
     </p>
 

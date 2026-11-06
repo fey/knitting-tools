@@ -37,7 +37,7 @@ const rows = computed(() =>
 
 <template>
   <div class="min-h-screen bg-white text-slate-900">
-    <AppHeader>
+    <AppHeader uses-gauge>
       <template #nav>
         <a class="text-sm text-slate-700" href="../" data-testid="back-to-home">← Все разделы</a>
       </template>

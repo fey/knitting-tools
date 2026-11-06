@@ -9,8 +9,7 @@
 import { computed, reactive, readonly, ref, watch } from 'vue'
 import { calculateToe } from './core/calc'
 import { formatHash, paramsKey as computeParamsKey, resolveParams } from './core/hash'
-import { formatGauge, parseGauge } from './core/gauge'
-import type { Gauge } from './core/gauge'
+import { useSettings } from '../../shared/settings/useSettings'
 import {
   clampDone,
   formatProgressRecord,
@@ -182,44 +181,8 @@ function toggleIntro(): void {
   setIntroCollapsed(!introCollapsed.value)
 }
 
-/**
- * Ключ плотности вязания (тикет #27, §10.2) — **четвёртая** запись в `localStorage`
- * и, как свёрнутость вводки и черновик отзыва, привязана **к человеку**, а не
- * к расчёту: плотность — свойство пряжи и спиц, кручение петель её не трогает.
- *
- * **В hash плотность не идёт никогда** (§10.1, §10.5). «Поделиться» делится расчётом,
- * а в чужой ссылке чужая плотность соврала бы: получатель увидел бы сантиметры
- * по не своему образцу, и выглядели бы они свойством расчёта. Схема уезжает в петлях,
- * свою плотность вписывают на месте.
- *
- * **В `paramsKey` плотность тоже не входит**, и это отдельное решение: смена плотности
- * не смеет сбрасывать отмеченный ряд (§8). Здесь оно держится тем, что `gauge` живёт
- * своим `ref` вне `params` — зажимать прогресс по ней нечему.
- */
-export const GAUGE_STORAGE_KEY = 'knitting-tools:gauge'
-
-/**
- * Плотность из хранилища, или `null` — записи нет, она повреждена либо неполна
- * (`parseGauge`). Фолбэк — «плотности нет»: сантиметров на экране не появляется,
- * а расчёт в петлях и рядах от этого не меняется вовсе (§4).
- */
-const gauge = ref<Gauge | null>(parseGauge(readStored(GAUGE_STORAGE_KEY)))
-
-/**
- * Ставит плотность или стирает её. Стирание — это `null`: пустые поля значат
- * «плотности нет», а не нули, и хранить нечего (§10.2).
- */
-function setGauge(next: Gauge | null): void {
-  gauge.value = next
-  writeStored(GAUGE_STORAGE_KEY, next ? formatGauge(next) : null)
-}
-
-/**
- * Открыт ли диалог плотности (§6.4). Состояние экрана, как свёрнутость вводки:
- * в hash не идёт и не хранится. Лежит здесь, а не в компоненте кнопки, потому что
- * кнопка и диалог стоят в разных поддеревьях — кнопка в «Итоге», диалог у страницы.
- */
-const gaugeDialogOpen = ref(false)
+// ПРОТОТИП: плотность и окно настроек переехали в shared/settings.
+const { gauge, setGauge, settingsOpen: gaugeDialogOpen } = useSettings()
 
 export function useToeCalculator() {
   return {
