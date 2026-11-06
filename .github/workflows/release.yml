@@ -1,4 +1,4 @@
-# Релизы из заголовков коммитов (раздел «Коммиты» в CLAUDE.md).
+# Релизы из заголовков коммитов (docs/agents/commits.md).
 # На каждый push в main release-please держит открытым PR «chore: Релиз X.Y.Z»:
 # версия в package.json, CHANGELOG.md, заметки из feat, fix и perf. Мерж этого PR
 # ставит тег vX.Y.Z и публикует релиз на GitHub. Деплой живёт отдельно, в deploy.yml.

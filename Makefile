@@ -32,22 +32,33 @@ dev: ## Локальный стенд на 5173
 build: ## Проверка типов и сборка в dist
 	npm run build
 
+typecheck: ## Проверка типов без сборки — на ходу работы, быстрее build
+	npm run typecheck
+
+# Структурные правила ast-grep (sgconfig.yml): граница core/ — без Vue и без браузера.
+# Вторым шагом прогоняются примеры самих правил, чтобы правило не промахивалось молча.
+lint: ## Правила ast-grep и их примеры
+	npm run lint
+
 preview: ## Собранная страница на 4173. Под прогон e2e, стенд поднимают через dev
 	npm run preview
 
 test: test-unit test-e2e ## Оба шва разом — то же, что гоняет CI
 
-test-unit: ## Ядро под Vitest
-	npm run test:unit
+# F сужает прогон до файлов или каталогов: `make test-unit F=src/calculators/heel/core/`,
+# `make test-e2e F=e2e/functional/french-heel.spec.ts`. Без F — весь набор. Сужение
+# идёт через make, а не через npx, чтобы набор проектов Playwright оставался в скрипте.
+test-unit: ## Ядро под Vitest; F= — только эти файлы
+	npm run test:unit -- $(F)
 
-test-e2e: ## Страница под Playwright: functional и desktop
-	npm run test:e2e
+test-e2e: ## Страница под Playwright: functional и desktop; F= — только эти файлы
+	npm run test:e2e -- $(F)
 
-test-screens: ## Скриншоты схемы. В CI не гоняются намеренно
-	npm run test:screens
+test-screens: ## Скриншоты схемы. В CI не гоняются намеренно; F= — только эти файлы
+	npm run test:screens -- $(F)
 
-test-screens-update: ## Пересъёмка базлайнов после правки экрана
-	npm run test:screens:update
+test-screens-update: ## Пересъёмка базлайнов после правки экрана; F= — только эти файлы
+	npm run test:screens:update -- $(F)
 
 # Заголовок PR при squash-мерже становится коммитом в main и записью в заметках
 # к релизу, поэтому проверяется именно он. Заголовок приходит переменной PR_TITLE:
@@ -61,4 +72,4 @@ lint-pr-title: ## Заголовок PR из PR_TITLE — Conventional Commits
 og: ## Пересъёмка карточки для соцсетей в public/og.png
 	npm run og
 
-.PHONY: help install browsers playwright-version dev build preview test test-unit test-e2e test-screens test-screens-update lint-pr-title og
+.PHONY: help install browsers playwright-version dev build typecheck lint preview test test-unit test-e2e test-screens test-screens-update lint-pr-title og

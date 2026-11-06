@@ -1,0 +1,10 @@
+id: core-no-browser
+valid:
+  - "export function parseHash(hash: string) { return hash.slice(1) }"
+  - "const params = { history: [], location: 'heel' }"
+  - "const n = state.window.size"
+invalid:
+  - "const h = location.hash"
+  - "history.replaceState(null, '', url)"
+  - "localStorage.getItem('progress')"
+  - "const w = window.innerWidth"

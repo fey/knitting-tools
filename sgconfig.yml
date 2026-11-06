@@ -1,0 +1,6 @@
+# ast-grep: структурные правила репозитория (`make lint`). Сами правила — в lint/rules,
+# их проверочные примеры — в lint/rule-tests: правило без примера легко молча промахнётся.
+ruleDirs:
+  - lint/rules
+testConfigs:
+  - testDir: lint/rule-tests

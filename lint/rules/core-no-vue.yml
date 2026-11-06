@@ -1,0 +1,16 @@
+# Граница core/ (CLAUDE.md, «Раскладка и границы»): ядро калькуляторов и справочников —
+# чистый TypeScript, его гоняет Vitest без DOM, а страницы зовут его из Vue, не наоборот.
+id: core-no-vue
+language: TypeScript
+severity: error
+message: core/ — чистый TypeScript, Vue здесь не импортируется
+note: Реактивность и компоненты живут в `use*.ts` и `components/`, ядро отдаёт им простые данные.
+files:
+  - src/**/core/**/*.ts
+rule:
+  any:
+    - kind: import_statement
+    - kind: export_statement
+  has:
+    field: source
+    regex: "^['\"](vue|@vue/.*|.*\\.vue)['\"]$"

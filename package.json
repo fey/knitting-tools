@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
-    "build": "vue-tsc --noEmit && vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "browsers": "playwright install --with-deps chromium",
     "playwright:version": "node -p \"require('./package-lock.json').packages['node_modules/@playwright/test'].version\"",
@@ -14,12 +15,14 @@
     "test:screens": "playwright test --project=screens",
     "test:screens:update": "playwright test --project=screens -u",
     "og": "playwright test --project=social",
-    "lint:title": "commitlint --verbose"
+    "lint:title": "commitlint --verbose",
+    "lint": "ast-grep scan && ast-grep test --skip-snapshot-tests"
   },
   "dependencies": {
     "vue": "^3.5.42"
   },
   "devDependencies": {
+    "@ast-grep/cli": "0.51.0",
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@playwright/test": "~1.62.1",

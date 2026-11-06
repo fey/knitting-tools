@@ -68,13 +68,17 @@ jobs:
         run: make install
 
       # Заголовок PR при squash-мерже становится коммитом в main и записью в заметках
-      # к релизу (CLAUDE.md, «Коммиты»). Заголовок идёт переменной окружения,
+      # к релизу (docs/agents/commits.md). Заголовок идёт переменной окружения,
       # а не подстановкой в команду: так кавычки в нём не ломают шелл.
       - name: Заголовок PR
         if: github.event_name == 'pull_request'
         run: make lint-pr-title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+
+      # Граница core/ (CLAUDE.md, «Раскладка и границы») — правилами ast-grep.
+      - name: Правила кода
+        run: make lint
 
       - name: Тесты ядра
         run: make test-unit
