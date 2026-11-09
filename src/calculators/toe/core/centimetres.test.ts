@@ -4,13 +4,13 @@ import { centimetreView } from './centimetres'
 import type { Gauge } from './gauge'
 
 /** Дефолт первого экрана: 60 → 20, кромка 1, через ряд — 19 рядов. */
-const DEFAULT = calculateToe({ initial: 60, final: 20, edge: 1, rhythm: { kind: 'preset', name: 'even' } })
+const DEFAULT = calculateToe({ initial: 60, final: 20, edge: 1, rhythm: { kind: 'preset', name: 'even' } }, 'cuff-down')
 /** Носочная плотность из §9.6. */
 const GAUGE: Gauge = { rows: 40, stitches: 31, base: 10 }
 
 describe('сантиметровый вид расчёта (§4, §7, §9.6)', () => {
   it('без плотности сантиметров нет, а замечание о длине меряет в рядах', () => {
-    const long = calculateToe({ initial: 60, final: 20, edge: 1, rhythm: { kind: 'custom', segments: [{ interval: 3, repeats: 10 }] } })
+    const long = calculateToe({ initial: 60, final: 20, edge: 1, rhythm: { kind: 'custom', segments: [{ interval: 3, repeats: 10 }] } }, 'cuff-down')
     expect(centimetreView(DEFAULT, null)).toEqual({ lengthNote: null, cm: null })
     expect(centimetreView(long, null).lengthNote).toBe('Больше 30 рядов — мысок выйдет длинным, проверь ритм')
   })

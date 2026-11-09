@@ -48,7 +48,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import {
   CHART_LABEL_WIDTH,
-  CHART_LEGEND,
+  chartLegend,
   CHART_RULER_BAND_HEIGHT,
   CHART_RULER_TICK,
   DEFAULT_ZOOM_STEP,
@@ -588,7 +588,7 @@ onUnmounted(() => {
     </p>
 
     <div class="mt-3 flex flex-col gap-1 text-sm text-slate-700" data-testid="toe-chart-legend">
-      <div v-for="item in CHART_LEGEND" :key="item.key" class="flex items-center gap-2">
+      <div v-for="item in chartLegend(calculation.direction)" :key="item.key" class="flex items-center gap-2">
         <svg :width="LEGEND_CELL_SIZE" :height="LEGEND_CELL_SIZE" aria-hidden="true">
           <rect
             x="0.5"

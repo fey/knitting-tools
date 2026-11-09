@@ -14,7 +14,7 @@ import type { ToeCalculation } from './types'
 import { rhythmName } from './presets'
 import { rowsWord, stitchesWord } from './plural'
 
-type Described = Pick<ToeCalculation, 'initial' | 'finalReal' | 'edge' | 'totalRows' | 'rhythm'>
+type Described = Pick<ToeCalculation, 'initial' | 'finalReal' | 'edge' | 'totalRows' | 'rhythm' | 'direction'>
 
 /** «60 → 20 петель» — от начальных к тем, на которых мысок кончится. */
 function stitchesSpan(calculation: Pick<ToeCalculation, 'initial' | 'finalReal'>): string {
@@ -32,7 +32,7 @@ export function paramsLine(calculation: Described, lengthCm: string | null = nul
 
 /** Строка «Итога»: «Мысок: 60 → 20 петель, кромка 1, убавки через ряд». */
 export function summaryLine(calculation: Described): string {
-  return `Мысок: ${stitchesSpan(calculation)}, кромка ${calculation.edge}, убавки ${rhythmName(calculation.rhythm)}`
+  return `Мысок: ${stitchesSpan(calculation)}, кромка ${calculation.edge}, убавки ${rhythmName(calculation.rhythm, calculation.direction)}`
 }
 
 /**
@@ -40,7 +40,7 @@ export function summaryLine(calculation: Described): string {
  * ряд, 19 рядов» — читается даже без перехода по ссылке.
  */
 export function shareText(calculation: Described): string {
-  return `Мысок: ${stitchesSpan(calculation)}, убавки ${rhythmName(calculation.rhythm)}, ${rowsWord(calculation.totalRows)}`
+  return `Мысок: ${stitchesSpan(calculation)}, убавки ${rhythmName(calculation.rhythm, calculation.direction)}, ${rowsWord(calculation.totalRows)}`
 }
 
 /** Подпись над схемой (§7): «↑ 20 петель на закрытие». */

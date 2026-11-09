@@ -11,7 +11,15 @@
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
 
+import type { Direction } from './types'
+
 const RU_PLURAL = new Intl.PluralRules('ru')
+
+/** Рабочий ряд по направлению: у cuff-down убавочный, у toe-up прибавочный (§2, §2 спеки toe-up). */
+const WORK_ROW = {
+  'cuff-down': { nom: ['убавочный ряд', 'убавочных ряда', 'убавочных рядов'], gen: ['убавочного ряда', 'убавочных рядов', 'убавочных рядов'] },
+  'toe-up': { nom: ['прибавочный ряд', 'прибавочных ряда', 'прибавочных рядов'], gen: ['прибавочного ряда', 'прибавочных рядов', 'прибавочных рядов'] },
+} as const satisfies Record<Direction, { nom: readonly [string, string, string]; gen: readonly [string, string, string] }>
 
 /**
  * Русское числительное: 1 ряд, 2 ряда, 5 рядов. Форму выбирает платформа
@@ -27,9 +35,10 @@ export function rowsWord(n: number): string {
   return `${n} ${plural(n, 'ряд', 'ряда', 'рядов')}`
 }
 
-/** «10 убавочных рядов». */
-export function decRowsWord(n: number): string {
-  return `${n} ${plural(n, 'убавочный ряд', 'убавочных ряда', 'убавочных рядов')}`
+/** «10 убавочных рядов», у toe-up — «10 прибавочных рядов». */
+export function decRowsWord(n: number, direction: Direction): string {
+  const [one, few, many] = WORK_ROW[direction].nom
+  return `${n} ${plural(n, one, few, many)}`
 }
 
 /** «1 промежуточный», «2 промежуточных» — существительное «ряд» опущено, как в §6.3. */
@@ -53,10 +62,11 @@ export function stepsWord(n: number): string {
 }
 
 /**
- * Родительный падеж убавочных рядов: «не хватает 1 убавочного ряда»,
- * «не хватает 4 убавочных рядов». Именительный `decRowsWord` после «не хватает»
+ * Родительный падеж рабочих рядов: «не хватает 1 убавочного ряда»,
+ * «не хватает 4 прибавочных рядов». Именительный `decRowsWord` после «не хватает»
  * даёт «не хватает 4 убавочных ряда» — форма, которой спека не писала.
  */
-export function decRowsWordGen(n: number): string {
-  return `${n} ${plural(n, 'убавочного ряда', 'убавочных рядов', 'убавочных рядов')}`
+export function decRowsWordGen(n: number, direction: Direction): string {
+  const [one, few, many] = WORK_ROW[direction].gen
+  return `${n} ${plural(n, one, few, many)}`
 }

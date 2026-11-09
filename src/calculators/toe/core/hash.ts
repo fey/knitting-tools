@@ -107,7 +107,7 @@ function parseRhythm(raw: string | null, direction: Direction): Rhythm {
  * Принимает hash и с решёткой, и без — `paramsKey` из `localStorage` несёт то же
  * содержимое, но без неё (§10.2).
  */
-export function parseHash(hash: string, direction: Direction = 'cuff-down'): ToeParams {
+export function parseHash(hash: string, direction: Direction): ToeParams {
   const query = new URLSearchParams(stripHash(hash))
   const draft = {
     initial: parseIntParam(query.get('s')),
@@ -131,7 +131,7 @@ export function parseHash(hash: string, direction: Direction = 'cuff-down'): Toe
 export function resolveParams(
   hash: string | null | undefined,
   savedParamsKey: string | null | undefined,
-  direction: Direction = 'cuff-down',
+  direction: Direction,
 ): ToeParams {
   const hashContent = hash ? stripHash(hash) : ''
   if (hashContent) return parseHash(hashContent, direction)

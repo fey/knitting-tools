@@ -13,43 +13,43 @@ import {
 
 describe('converges', () => {
   it('дефолт сходится', () => {
-    expect(converges({ initial: 60, final: 20, edge: 1 })).toBe(true)
+    expect(converges({ initial: 60, final: 20, edge: 1 }, 'cuff-down')).toBe(true)
   })
 
   it('нечётные начальные не сходятся', () => {
-    expect(converges({ initial: 61, final: 20, edge: 1 })).toBe(false)
+    expect(converges({ initial: 61, final: 20, edge: 1 }, 'cuff-down')).toBe(false)
   })
 
   it('нечётные конечные не сходятся', () => {
-    expect(converges({ initial: 60, final: 19, edge: 1 })).toBe(false)
+    expect(converges({ initial: 60, final: 19, edge: 1 }, 'cuff-down')).toBe(false)
   })
 
   it('разница не кратна 4 не сходится', () => {
-    expect(converges({ initial: 60, final: 18, edge: 1 })).toBe(false)
+    expect(converges({ initial: 60, final: 18, edge: 1 }, 'cuff-down')).toBe(false)
   })
 
   it('конечные не меньше начальных не сходятся', () => {
-    expect(converges({ initial: 60, final: 60, edge: 1 })).toBe(false)
-    expect(converges({ initial: 60, final: 64, edge: 1 })).toBe(false)
+    expect(converges({ initial: 60, final: 60, edge: 1 }, 'cuff-down')).toBe(false)
+    expect(converges({ initial: 60, final: 64, edge: 1 }, 'cuff-down')).toBe(false)
   })
 
   it('конечных не хватает на кромку', () => {
-    expect(converges({ initial: 16, final: 8, edge: 2 })).toBe(false)
-    expect(converges({ initial: 16, final: 12, edge: 2 })).toBe(true)
+    expect(converges({ initial: 16, final: 8, edge: 2 }, 'cuff-down')).toBe(false)
+    expect(converges({ initial: 16, final: 12, edge: 2 }, 'cuff-down')).toBe(true)
   })
 
   it('потолок 200 соблюдается по обоим полям', () => {
-    expect(converges({ initial: MAX_STITCHES + 4, final: 20, edge: 1 })).toBe(false)
-    expect(converges({ initial: MAX_STITCHES, final: MAX_STITCHES - 4, edge: 1 })).toBe(true)
+    expect(converges({ initial: MAX_STITCHES + 4, final: 20, edge: 1 }, 'cuff-down')).toBe(false)
+    expect(converges({ initial: MAX_STITCHES, final: MAX_STITCHES - 4, edge: 1 }, 'cuff-down')).toBe(true)
   })
 
   it('нулевые и отрицательные значения не сходятся', () => {
-    expect(converges({ initial: 0, final: 0, edge: 1 })).toBe(false)
-    expect(converges({ initial: 60, final: -4, edge: 1 })).toBe(false)
+    expect(converges({ initial: 0, final: 0, edge: 1 }, 'cuff-down')).toBe(false)
+    expect(converges({ initial: 60, final: -4, edge: 1 }, 'cuff-down')).toBe(false)
   })
 
   it('нецелые значения не сходятся', () => {
-    expect(converges({ initial: 60.5, final: 20, edge: 1 })).toBe(false)
+    expect(converges({ initial: 60.5, final: 20, edge: 1 }, 'cuff-down')).toBe(false)
   })
 })
 
@@ -81,7 +81,7 @@ describe('нормализатор: подтягивание с подписью
 
   /** Короткий вызов: чего нет в черновике — того не трогали, берётся прошлое. */
   function normalize(draft: Partial<FieldsDraft>) {
-    return normalizeStitchFields({ initial: null, final: null, edge: null, ...draft }, PREV)
+    return normalizeStitchFields({ initial: null, final: null, edge: null, ...draft }, PREV, 'cuff-down')
   }
 
   function fixOn(result: NormalizedFields, field: 'initial' | 'final'): Fix {
@@ -153,7 +153,7 @@ describe('нормализатор: подтягивание с подписью
   it('кромка уже 2, набрали конечные 8 — число тянется до 12', () => {
     const result = normalizeStitchFields(
       { initial: null, final: 8, edge: 2 },
-      { initial: 60, final: 20, edge: 2 },
+      { initial: 60, final: 20, edge: 2 }, 'cuff-down',
     )
     expect(result.final).toBe(12)
     expect(fixOn(result, 'final')).toMatchObject({
@@ -172,7 +172,7 @@ describe('нормализатор: подтягивание с подписью
 
   it('минимум сдвигается вверх, когда решётка шага мимо него', () => {
     // При начальных 62 сходятся конечные 10, 14, … — восьмёрка мимо решётки.
-    const result = normalizeStitchFields({ initial: 62, final: 8, edge: 1 }, PREV)
+    const result = normalizeStitchFields({ initial: 62, final: 8, edge: 1 }, PREV, 'cuff-down')
     expect(result.final).toBe(10)
   })
 
@@ -202,7 +202,7 @@ describe('нормализатор: подтягивание с подписью
 
   it('пустое поле возвращает прошлое значение этого поля, а не дефолт', () => {
     const previous = { initial: 64, final: 24, edge: 1 }
-    const result = normalizeStitchFields({ initial: null, final: null, edge: null }, previous)
+    const result = normalizeStitchFields({ initial: null, final: null, edge: null }, previous, 'cuff-down')
     expect(result).toEqual({ initial: 64, final: 24, edge: 1, fixes: [] })
   })
 
@@ -215,8 +215,8 @@ describe('нормализатор: подтягивание с подписью
     for (const initial of garbage) {
       for (const final of garbage) {
         for (const edge of [0, 1, 2, 7]) {
-          const result = normalizeStitchFields({ initial, final, edge }, PREV)
-          expect(converges(result), `набрано ${initial} / ${final} при кромке ${edge}`).toBe(true)
+          const result = normalizeStitchFields({ initial, final, edge }, PREV, 'cuff-down')
+          expect(converges(result, 'cuff-down'), `набрано ${initial} / ${final} при кромке ${edge}`).toBe(true)
           // Правка на поле ровно одна: две подписи под одним полем показывать негде.
           expect(result.fixes.filter((f) => f.field === 'initial').length).toBeLessThanOrEqual(1)
           expect(result.fixes.filter((f) => f.field === 'final').length).toBeLessThanOrEqual(1)
@@ -231,14 +231,14 @@ describe('нормализатор: подтягивание с подписью
 
 describe('edgeWhyOff', () => {
   it('двойка гаснет с причиной, пока конечных меньше 12', () => {
-    expect(edgeWhyOff(2, 8)).toBe('Широкий мысок — от 12 конечных петель')
-    expect(edgeWhyOff(2, 12)).toBeNull()
+    expect(edgeWhyOff(2, 8, 'cuff-down')).toBe('Широкий мысок — от 12 конечных петель')
+    expect(edgeWhyOff(2, 12, 'cuff-down')).toBeNull()
   })
 
   it('кромка 0 и 1 при обычных конечных доступна', () => {
-    expect(edgeWhyOff(0, 8)).toBeNull()
-    expect(edgeWhyOff(1, 8)).toBeNull()
-    expect(edgeWhyOff(1, 4)).toBe('Нужно минимум 8 конечных петель')
+    expect(edgeWhyOff(0, 8, 'cuff-down')).toBeNull()
+    expect(edgeWhyOff(1, 8, 'cuff-down')).toBeNull()
+    expect(edgeWhyOff(1, 4, 'cuff-down')).toBe('Нужно минимум 8 конечных петель')
   })
 })
 
