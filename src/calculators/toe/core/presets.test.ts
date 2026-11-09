@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PRESETS, presetByCode, presetRowCount, presetWhyOff, rhythmName } from './presets'
+import { PRESETS, PRESETS_TOE_UP, presetByCode, presetRowCount, presetWhyOff, presetsFor, rhythmName } from './presets'
 import { calculateToe, DEFAULT_PARAMS } from './calc'
 import type { PresetName } from './types'
 
@@ -105,5 +105,59 @@ describe('имя ритма — одно на весь калькулятор (�
   it('набранные руками сегменты — «свой ритм», сравнения с пресетами нет', () => {
     // Сегменты в точности как у «через ряд» на дефолте — имя всё равно своё.
     expect(rhythmName({ kind: 'custom', segments: [{ interval: 1, repeats: 10 }] })).toBe('свой ритм')
+  })
+})
+
+describe('пресеты от мыска (§5.4 спеки toe-up)', () => {
+  const rowsOfUp = (name: PresetName, initial: number, final: number) =>
+    calculateToe({ initial, final, edge: 1, rhythm: { kind: 'preset', name } }, 'toe-up').totalRows
+
+  it('набор закреплён: even и slow, чужих пресетов нет', () => {
+    expect(PRESETS_TOE_UP.map((p) => p.code)).toEqual(['even', 'slow'])
+    expect(PRESETS_TOE_UP.map((p) => p.min)).toEqual([1, 2])
+    // «Через ряд» общий с cuff-down и стоит первым на обеих страницах.
+    expect(presetsFor('toe-up')[0]).toBe(presetsFor('cuff-down')[0])
+  })
+
+  // §5.4 спеки toe-up: N = 10 даёт 15 рядов, N = 11 — 17.
+  it('при N = 10 и N = 11 «с замедлением» даёт 15 и 17 рядов', () => {
+    expect(rowsOfUp('slow', 24, 64)).toBe(15)
+    expect(rowsOfUp('slow', 24, 68)).toBe(17)
+  })
+
+  it('сегменты при N = 10: каждый ряд 5 раз, потом через ряд 5 раз', () => {
+    expect(presetByCode('slow', 'toe-up').segments(10)).toEqual([
+      { interval: 0, repeats: 5 },
+      { interval: 1, repeats: 5 },
+    ])
+  })
+
+  it('остаток уходит в фазу «через ряд», ближе к стопе: ⌊N/2⌋ + ⌈N/2⌉', () => {
+    expect(presetByCode('slow', 'toe-up').segments(11).map((s) => s.repeats)).toEqual([5, 6])
+    expect(presetByCode('slow', 'toe-up').segments(7).map((s) => s.repeats)).toEqual([3, 4])
+  })
+
+  it('«с ускорением» toe-up не достаётся: пресеты направлений не пересекаются', () => {
+    expect(() => presetByCode('accel', 'toe-up')).toThrow('Неизвестный ритм: accel')
+    expect(() => presetByCode('thirds', 'toe-up')).toThrow('Неизвестный ритм: thirds')
+    expect(() => presetByCode('ramp', 'toe-up')).toThrow('Неизвестный ритм: ramp')
+  })
+
+  it('живой пресет покрывает ровно N прибавочных рядов на всём диапазоне', () => {
+    const range = Array.from({ length: 40 }, (_, i) => i + 1)
+    for (const n of range) {
+      for (const preset of PRESETS_TOE_UP) {
+        if (n < preset.min) continue
+        const segments = preset.segments(n)
+        expect(segments.reduce((sum, s) => sum + s.repeats, 0)).toBe(n)
+        expect(segments.every((s) => s.repeats >= 1)).toBe(true)
+        expect(
+          calculateToe(
+            { initial: 8, final: 8 + 4 * n, edge: 1, rhythm: { kind: 'preset', name: preset.code } },
+            'toe-up',
+          ).lack,
+        ).toBe(0)
+      }
+    }
   })
 })
