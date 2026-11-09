@@ -36,24 +36,27 @@ export type CoverageNote = {
 }
 
 /**
- * Покрывают ли сегменты все убавочные ряды, и что будет, если нет (§9.5).
+ * Покрывают ли сегменты все убавочные (прибавочные) ряды, и что будет, если нет
+ * (§9.5, §9.5 спеки toe-up). При недоборе cuff-down говорит, сколько петель
+ * останется, toe-up — сколько выйдет.
  *
  * «Шаг» здесь — лишний **убавочный ряд**, а не лишняя строка конструктора: сегмент
  * с пятью повторами даёт пять шагов. Так же говорит и сама спека («Лишние 2 шага»
  * при переборе на два убавочных ряда), и так же считает `lack`.
  */
 export function coverageNote(
-  calculation: Pick<ToeCalculation, 'lack' | 'decRowsNeeded' | 'final' | 'finalReal'>,
+  calculation: Pick<ToeCalculation, 'lack' | 'decRowsNeeded' | 'final' | 'finalReal' | 'direction'>,
 ): CoverageNote {
-  const { lack, decRowsNeeded, final, finalReal } = calculation
+  const { lack, decRowsNeeded, final, finalReal, direction } = calculation
 
   if (lack === 0) {
-    return { kind: 'ok', text: `Сегменты покрывают все ${decRowsWord(decRowsNeeded)}` }
+    return { kind: 'ok', text: `Сегменты покрывают все ${decRowsWord(decRowsNeeded, direction)}` }
   }
   if (lack > 0) {
+    const outcome = direction === 'toe-up' ? 'выйдет' : 'останется'
     return {
       kind: 'lack',
-      text: `Не хватает ${decRowsWordGen(lack)}: останется ${stitchesWord(finalReal)} вместо ${final}`,
+      text: `Не хватает ${decRowsWordGen(lack, direction)}: ${outcome} ${stitchesWord(finalReal)} вместо ${final}`,
     }
   }
   // Склоняется и прилагательное: «Лишний 1 шаг», «Лишние 2 шага», «Лишних 5 шагов».

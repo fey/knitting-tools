@@ -184,11 +184,10 @@ export type ChartRow = {
  * `prototypes/toe-visualization.html` (`renderD`), расширен направлением
  * (§7 спеки toe-up).
  *
- * У cuff-down активная зона **центрирована**: кончик мыска в середине, убавки съели
- * края. У toe-up наоборот: активная зона прижата к краям... нет — у toe-up живая зона
- * тоже центрирована, но **растёт** с каждым прибавочным рядом: «нет петли» стоит
- * там, где петель ещё нет, и значок прибавки стоит в клетке, которая рядом ниже была
- * «нет петли» (§7.1 спеки toe-up).
+ * Живая зона у обоих направлений **центрирована**. У cuff-down она сужается: убавки
+ * съедают края. У toe-up растёт с каждым прибавочным рядом, и «нет петли» стоит там,
+ * где петель ещё нет. Значок прибавки стоит сразу за кромкой — там, где её вяжут
+ * (§3, §7.1 спеки toe-up).
  */
 function layoutRow(row: Row, y: number, cols: number, edge: number, direction: Direction): ChartRow {
   const active = row.stitches / 2
@@ -213,8 +212,8 @@ function layoutRow(row: Row, y: number, cols: number, edge: number, direction: D
     // Ряд с изменением числа петель несёт два значка на половине, оба за кромкой:
     // «k лицевых · пара · лицевые · пара · k лицевых» (§3). У cuff-down это убавки,
     // у toe-up — прибавки; наклон один: в начале половины влево, в конце вправо.
-    // Клетка значка прибавки — та, что рядом ниже была «нет петли»: живая зона
-    // только что выросла на клетку с каждого края (§7.1 спеки toe-up).
+    // Значок прибавки — сразу за кромкой, как у убавки: схема рисует, где вяжут
+    // прибавку, а не где выросла зона (§7.1 спеки toe-up).
     const changesStitches = row.type === (up ? 'inc' : 'dec')
     const startMark = changesStitches && p === edge
     // startMark/endMark никогда не совпадают: минимум живой зоны держит
@@ -276,11 +275,11 @@ export type ChartModel = {
  * петель ещё нет; §7 спеки toe-up).
  */
 export function chartModel(
-  calculation: Pick<ToeCalculation, 'rows' | 'initial' | 'final' | 'edge' | 'totalRows'>,
+  calculation: Pick<ToeCalculation, 'rows' | 'initial' | 'final' | 'edge' | 'totalRows' | 'direction'>,
   gauge: Gauge | null,
   zoomStep: number,
-  direction: Direction = 'cuff-down',
 ): ChartModel {
+  const { direction } = calculation
   const cols = (direction === 'toe-up' ? calculation.final : calculation.initial) / 2
   // Кончик мыска сверху — ряды идут развёрнутым массивом, индекс и есть `y`.
   const rows = calculation.rows
@@ -383,12 +382,6 @@ const LEGEND_TOE_UP: readonly LegendItem[] = [
 ]
 
 /** Легенда схемы по направлению (§7.2, §7.2 спеки toe-up). */
-export function chartLegend(direction: Direction = 'cuff-down'): readonly LegendItem[] {
+export function chartLegend(direction: Direction): readonly LegendItem[] {
   return direction === 'toe-up' ? LEGEND_TOE_UP : LEGEND_CUFF_DOWN
 }
-
-/**
- * Легенда схемы cuff-down — прежняя константа. Экран cuff-down читает её по-прежнему;
- * toe-up берёт `chartLegend('toe-up')`.
- */
-export const CHART_LEGEND = LEGEND_CUFF_DOWN

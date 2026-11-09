@@ -5,7 +5,7 @@
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
 import type { Direction, Rhythm, Segment, ToeCalculation, ToeParams } from './types'
-import { buildRows, decRowsFor, STITCHES_PER_DEC_ROW } from './rows'
+import { buildRows, decRowsFor, roundStitchesAfter, STITCHES_PER_DEC_ROW } from './rows'
 import { presetByCode } from './presets'
 
 /** Дефолтный расчёт первого экрана (§4): 60 → 20, кромка 1, через ряд. */
@@ -35,7 +35,7 @@ export function defaultParams(direction: Direction): ToeParams {
  * Сегменты ритма. У пресета они выводятся от числа убавочных рядов при каждом расчёте —
  * поэтому пресет пересчитывается живьём сам; свой ритм отдаётся как набран (§5.4, §5.5).
  */
-export function segmentsOf(rhythm: Rhythm, decRowsNeeded: number, direction: Direction = 'cuff-down'): Segment[] {
+export function segmentsOf(rhythm: Rhythm, decRowsNeeded: number, direction: Direction): Segment[] {
   // Свой ритм копируется: результат расчёта — снимок, а не та же память, что у
   // набранных сегментов. Иначе правка сегмента меняла бы уже посчитанное.
   if (rhythm.kind === 'custom') return rhythm.segments.map((s) => ({ ...s }))
@@ -84,7 +84,7 @@ export function minFinalStitches(edge: number): number {
  * Недобор рисуется честно: мысок встанет на 36 петлях вместо 20. Перебор — наоборот,
  * упирается в конечные петли: лишние шаги не выполняются, и число рядов их не считает.
  */
-export function calculateToe(params: ToeParams, direction: Direction = 'cuff-down'): ToeCalculation {
+export function calculateToe(params: ToeParams, direction: Direction): ToeCalculation {
   const { initial, final, edge, rhythm } = params
   const decRowsNeeded = decRowsFor(initial, final)
   const segments = segmentsOf(rhythm, decRowsNeeded, direction)
@@ -107,8 +107,6 @@ export function calculateToe(params: ToeParams, direction: Direction = 'cuff-dow
     rows,
     totalRows: rows.length,
     lack: decRowsNeeded - decRowsCovered,
-    finalReal: direction === 'toe-up'
-      ? initial + decRowsDone * STITCHES_PER_DEC_ROW
-      : initial - decRowsDone * STITCHES_PER_DEC_ROW,
+    finalReal: roundStitchesAfter(initial, decRowsDone, direction),
   }
 }

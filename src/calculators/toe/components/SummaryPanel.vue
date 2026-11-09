@@ -56,7 +56,7 @@ const params = computed(() => summaryLine(calculation.value))
       {{ params }}
     </p>
     <p class="mt-1 text-slate-900">
-      <span data-testid="summary-dec-rows">{{ decRowsWord(calculation.decRowsNeeded) }}</span>
+      <span data-testid="summary-dec-rows">{{ decRowsWord(calculation.decRowsNeeded, calculation.direction) }}</span>
       ·
       <span data-testid="summary-total-rows">{{ rowsWord(calculation.totalRows) }} всего</span>
     </p>

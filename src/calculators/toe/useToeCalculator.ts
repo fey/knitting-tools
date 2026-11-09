@@ -20,7 +20,7 @@ import {
   restoreDone,
   undoDone,
 } from './core/progress'
-import type { ToeParams } from './core/types'
+import type { Direction, ToeParams } from './core/types'
 // Доступ к хранилищу — один на проект (§10.2, `src/shared/storage.ts`): записей три,
 // а правило «падать не вправе» сформулировано один раз и на все.
 import { readStored, writeStored } from '../../shared/storage'
@@ -33,6 +33,12 @@ import { readStored, writeStored } from '../../shared/storage'
  */
 export const PROGRESS_STORAGE_KEY = 'knitting-tools:toe-progress'
 
+/**
+ * Направление страницы. Пока страница одна — мысок от манжеты; страница мыска от мыска
+ * передаст своё, когда появится (§11 спеки toe-up).
+ */
+const DIRECTION: Direction = 'cuff-down'
+
 /** `paramsKey` сохранённого расчёта, для фолбэка при пустом hash (§10.3). */
 function readSavedParamsKey(): string | null {
   return parseProgressRecord(readStored(PROGRESS_STORAGE_KEY))?.paramsKey ?? null
@@ -40,7 +46,7 @@ function readSavedParamsKey(): string | null {
 
 function loadInitialParams(): ToeParams {
   const hash = typeof location === 'undefined' ? null : location.hash
-  return resolveParams(hash, readSavedParamsKey())
+  return resolveParams(hash, readSavedParamsKey(), DIRECTION)
 }
 
 /**
@@ -52,7 +58,7 @@ function loadInitialParams(): ToeParams {
 const params = reactive<ToeParams>(loadInitialParams())
 
 /** Расчёт пересчитывается сам при любой правке параметров. */
-const calculation = computed(() => calculateToe(params))
+const calculation = computed(() => calculateToe(params, DIRECTION))
 
 /**
  * Переписывает hash живьём (§10.1). Сравнение с текущим hash — не оптимизация,
@@ -223,6 +229,7 @@ const gaugeDialogOpen = ref(false)
 
 export function useToeCalculator() {
   return {
+    direction: DIRECTION,
     params: readonly(params),
     setParams,
     calculation,

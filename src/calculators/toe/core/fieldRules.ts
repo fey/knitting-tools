@@ -5,7 +5,7 @@
  * `converges` отвечает на вопрос «схема пересчитывается живьём от этого набора
  * значений или нет» (§9.3): поле в фокусе двигает схему, только пока набранное
  * сходится само с собой. Починка несходящегося — `normalizeStitchFields` ниже;
- * она срабатывает не на каждом нажатie, а на уходе фокуса и по `Enter`.
+ * она срабатывает не на каждом нажатии, а на уходе фокуса и по `Enter`.
  *
  * У toe-up зеркально: **поле-факт — конечные петли** (§9.2 спеки toe-up), в конфликте
  * уступают начальные; исключение зеркальное — нечётные конечные чинятся сами, фактом
@@ -57,7 +57,7 @@ function isPositiveEvenInt(n: number): boolean {
  */
 export function converges(
   params: Pick<ToeParams, 'initial' | 'final' | 'edge'>,
-  direction: Direction = 'cuff-down',
+  direction: Direction,
 ): boolean {
   const { initial, final, edge } = params
   if (!isPositiveEvenInt(initial) || !isPositiveEvenInt(final)) return false
@@ -267,7 +267,7 @@ function fixOf(
 export function normalizeStitchFields(
   draft: FieldsDraft,
   previous: { initial: number; final: number; edge: number },
-  direction: Direction = 'cuff-down',
+  direction: Direction,
 ): NormalizedFields {
   return direction === 'toe-up' ? normalizeToeUp(draft, previous) : normalizeCuffDown(draft, previous)
 }
@@ -455,7 +455,7 @@ function initialPasses(initial: number, edge: EdgeValue): boolean {
 export function fieldsFromLink(
   draft: FieldsDraft,
   defaults: { initial: number; final: number; edge: number },
-  direction: Direction = 'cuff-down',
+  direction: Direction,
 ): { initial: number; final: number; edge: EdgeValue } {
   const edge = toEdge(draft.edge, toEdge(defaults.edge, 1))
 
@@ -486,9 +486,9 @@ export function fieldsFromLink(
 
   const linkFinal = toInt(draft.final)
   const final =
-    linkFinal !== null && converges({ initial, final: linkFinal, edge }) ? linkFinal : defaults.final
+    linkFinal !== null && converges({ initial, final: linkFinal, edge }, direction) ? linkFinal : defaults.final
 
-  const safe = normalizeStitchFields({ initial, final, edge }, { initial, final, edge })
+  const safe = normalizeStitchFields({ initial, final, edge }, { initial, final, edge }, direction)
   return { initial: safe.initial, final: safe.final, edge: safe.edge }
 }
 
@@ -502,7 +502,7 @@ export function fieldsFromLink(
  *
  * У toe-up кромка границ не двигает (§9.4 спеки toe-up): двойка не гасится никогда.
  */
-export function edgeWhyOff(edge: EdgeValue, final: number, direction: Direction = 'cuff-down'): string | null {
+export function edgeWhyOff(edge: EdgeValue, final: number, direction: Direction): string | null {
   if (direction === 'toe-up') return null
   const min = minFinalStitches(edge)
   if (final >= min) return null

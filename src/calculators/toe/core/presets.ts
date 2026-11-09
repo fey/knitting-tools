@@ -28,18 +28,20 @@ export type Preset = {
   segments: (decRowsNeeded: number) => Segment[]
 }
 
-/** «Через ряд» общий: у обоих направлений сегменты одни. */
-const even: Preset = {
-  code: 'even',
-  name: 'Через ряд',
-  min: 1,
-  how: 'убавочный, потом один промежуточный — и так до конца',
-  segments: (n) => [{ interval: 1, repeats: n }],
+/** «Через ряд» у обоих направлений одинаков сегментами, описание называет свой рабочий ряд. */
+function even(workRow: string): Preset {
+  return {
+    code: 'even',
+    name: 'Через ряд',
+    min: 1,
+    how: `${workRow}, потом один промежуточный — и так до конца`,
+    segments: (n) => [{ interval: 1, repeats: n }],
+  }
 }
 
 /** Пресеты от манжеты (§5.4). */
 export const PRESETS: Preset[] = [
-  even,
+  even('убавочный'),
   {
     code: 'accel',
     name: 'С ускорением',
@@ -88,7 +90,7 @@ export const PRESETS: Preset[] = [
 
 /** Пресеты от мыска (§5.4 спеки toe-up). */
 export const PRESETS_TOE_UP: Preset[] = [
-  even,
+  even('прибавочный'),
   {
     code: 'slow',
     name: 'С замедлением',
@@ -111,7 +113,7 @@ export function presetsFor(direction: Direction): Preset[] {
  * Пресет по коду **в наборе своего направления**. У наборов нет общих чужих кодов:
  * `accel` на странице toe-up — битая ссылка (§10.4), и отсюда он не достаётся.
  */
-export function presetByCode(code: PresetName, direction: Direction = 'cuff-down'): Preset {
+export function presetByCode(code: PresetName, direction: Direction): Preset {
   const preset = presetsFor(direction).find((p) => p.code === code)
   if (!preset) throw new Error(`Неизвестный ритм: ${code}`)
   return preset
@@ -125,7 +127,7 @@ export function presetByCode(code: PresetName, direction: Direction = 'cuff-down
  * Строчная буква — ритм всегда стоит внутри фразы: «убавки через ряд», «прибавки
  * свой ритм».
  */
-export function rhythmName(rhythm: Rhythm, direction: Direction = 'cuff-down'): string {
+export function rhythmName(rhythm: Rhythm, direction: Direction): string {
   return rhythm.kind === 'preset' ? presetByCode(rhythm.name, direction).name.toLowerCase() : 'свой ритм'
 }
 
@@ -133,14 +135,14 @@ export function rhythmName(rhythm: Rhythm, direction: Direction = 'cuff-down'): 
  * Живое число рядов для подписи карточки. `null` — ритм при этих петлях не собирается;
  * карточку показывают неактивной с причиной, а не подменяют другим ритмом (§5.4).
  */
-export function presetRowCount(preset: Preset, decRowsNeeded: number, initial: number, direction: Direction = 'cuff-down'): number | null {
+export function presetRowCount(preset: Preset, decRowsNeeded: number, initial: number, direction: Direction): number | null {
   if (decRowsNeeded < preset.min) return null
   return buildRows(initial, preset.segments(decRowsNeeded), direction).length
 }
 
 /** Причина, по которой ритм неактивен: «нужно 3 убавочных ряда, сейчас 2». */
-export function presetWhyOff(preset: Preset, decRowsNeeded: number): string {
+export function presetWhyOff(preset: Preset, decRowsNeeded: number, direction: Direction): string {
   // Прототип склонял только слово «ряд» и на пороге 1 выдавал «1 убавочных ряд»;
   // склоняется вся связка целиком.
-  return `нужно ${decRowsWord(preset.min)}, сейчас ${decRowsNeeded}`
+  return `нужно ${decRowsWord(preset.min, direction)}, сейчас ${decRowsNeeded}`
 }

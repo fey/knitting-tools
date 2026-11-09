@@ -6,7 +6,7 @@ import type { PresetName, Rhythm, ToeParams } from './types'
 const preset = (name: PresetName): Rhythm => ({ kind: 'preset', name })
 
 const toe = (params: Partial<ToeParams> = {}) =>
-  calculateToe({ ...DEFAULT_PARAMS, ...params })
+  calculateToe({ ...DEFAULT_PARAMS, ...params }, 'cuff-down')
 
 describe('число рядов и убавочные ряды', () => {
   // §12.1, случай 2 — дефолт первого экрана.
@@ -24,9 +24,9 @@ describe('число рядов и убавочные ряды', () => {
     const result = toe({ final: 16 })
     expect(result.decRowsNeeded).toBe(11)
     expect(result.totalRows).toBe(21)
-    expect(halfStitchesAfter(60, 0)).toBe(30)
-    expect(halfStitchesAfter(60, result.decRowsNeeded)).toBe(8)
-    expect(roundStitchesAfter(60, result.decRowsNeeded)).toBe(16)
+    expect(halfStitchesAfter(60, 0, 'cuff-down')).toBe(30)
+    expect(halfStitchesAfter(60, result.decRowsNeeded, 'cuff-down')).toBe(8)
+    expect(roundStitchesAfter(60, result.decRowsNeeded, 'cuff-down')).toBe(16)
     expect(result.rows[result.rows.length - 1].stitches).toBe(16)
   })
 
@@ -158,7 +158,7 @@ describe('закрытая формула числа рядов', () => {
   ]
 
   it.each(cases)('сходится с раскладкой рядов: %j', (...segments) => {
-    expect(buildRows(60, segments).length).toBe(byFormula(segments))
+    expect(buildRows(60, segments, 'cuff-down').length).toBe(byFormula(segments))
   })
 })
 
