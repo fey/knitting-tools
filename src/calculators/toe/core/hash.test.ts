@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { formatHash, parseHash, paramsKey, resolveParams } from './hash'
-import { DEFAULT_PARAMS } from './calc'
+import { DEFAULT_PARAMS, DEFAULT_PARAMS_TOE_UP } from './calc'
+import type { ToeParams } from './types'
 
 describe('запись параметров в hash', () => {
   it('дефолт пишется каноническим примером', () => {
@@ -189,5 +190,67 @@ describe('приоритет при загрузке (§10.3): hash → localSto
   it('битый localStorage тоже чинится молча тем же нормализатором', () => {
     const result = resolveParams(null, 's=60&e=18&k=1&r=even')
     expect(result.final).toBe(20)
+  })
+})
+
+describe('hash от мыска (§10.1 спеки toe-up)', () => {
+  const UP_DEFAULTS = '#s=24&e=64&k=1&r=even'
+
+  it('дефолт пишется каноническим примером спеки toe-up', () => {
+    expect(formatHash(DEFAULT_PARAMS_TOE_UP)).toBe(UP_DEFAULTS)
+    expect(paramsKey(DEFAULT_PARAMS_TOE_UP)).toBe('s=24&e=64&k=1&r=even')
+  })
+
+  it('канонический пример разбирается в дефолт toe-up', () => {
+    expect(parseHash(UP_DEFAULTS, 'toe-up')).toEqual(DEFAULT_PARAMS_TOE_UP)
+  })
+
+  it('те же ключи s/e/k/r — страницы разные, ключи не сталкиваются', () => {
+    // Один hash на двух страницах открывает два разных расчёта: у каждой свои дефолты.
+    expect(parseHash('#s=24&e=64&k=1&r=even', 'cuff-down').initial).toBe(24)
+    expect(parseHash('#s=60&e=20&k=1&r=even', 'toe-up').final).toBe(20)
+  })
+
+  it('свой ритм и кромка пишутся и читаются как у cuff-down', () => {
+    const params: ToeParams = { ...DEFAULT_PARAMS_TOE_UP, edge: 2, rhythm: { kind: 'custom', segments: [{ interval: 0, repeats: 8 }] } }
+    expect(parseHash(formatHash(params), 'toe-up')).toEqual(params)
+  })
+
+  it('разбор сходящегося hash toe-up по параметрам', () => {
+    expect(parseHash('#s=28&e=68&k=2&r=slow', 'toe-up')).toEqual({
+      initial: 28,
+      final: 68,
+      edge: 2,
+      rhythm: { kind: 'preset', name: 'slow' },
+    })
+  })
+
+  it('чужой пресет accel — битая ссылка: ритм заменяется дефолтом молча (§10.4)', () => {
+    // Остальное из ссылки живёт: 28 → 68 сходится.
+    expect(parseHash('#s=28&e=68&k=1&r=accel', 'toe-up')).toEqual({
+      initial: 28,
+      final: 68,
+      edge: 1,
+      rhythm: { kind: 'preset', name: 'even' },
+    })
+    expect(parseHash('#s=28&e=68&k=1&r=thirds', 'toe-up').rhythm).toEqual({ kind: 'preset', name: 'even' })
+    expect(parseHash('#s=28&e=68&k=1&r=ramp', 'toe-up').rhythm).toEqual({ kind: 'preset', name: 'even' })
+  })
+
+  it('slow на странице cuff-down — тоже чужой пресет', () => {
+    expect(parseHash('#s=60&e=20&k=1&r=slow', 'cuff-down').rhythm).toEqual({ kind: 'preset', name: 'even' })
+  })
+
+  it('несходящиеся числа заменяются дефолтом по параметру', () => {
+    // Конечные 66 законны сами по себе и живут (66 − 24 = 42 не кратно 4 — но
+    // разбор по параметрам, начальные уступают), начальные подтягивает страховка.
+    expect(parseHash('#s=24&e=66&k=1&r=even', 'toe-up')).toEqual({ initial: 22, final: 66, edge: 1, rhythm: { kind: 'preset', name: 'even' } })
+    // Честный отказ конечных — выше потолка: берутся дефолтные 64.
+    expect(parseHash('#s=24&e=204&k=1&r=even', 'toe-up')).toEqual(DEFAULT_PARAMS_TOE_UP)
+  })
+
+  it('приоритет hash → localStorage → дефолты toe-up', () => {
+    expect(resolveParams('', 's=28&e=68&k=1&r=slow', 'toe-up').final).toBe(68)
+    expect(resolveParams(null, null, 'toe-up')).toEqual(DEFAULT_PARAMS_TOE_UP)
   })
 })
