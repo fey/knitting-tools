@@ -14,7 +14,7 @@ export const STITCHES_PER_DEC_ROW = 4
  * Насколько рабочий ряд меняет круг со знаком: −4 у cuff-down, +4 у toe-up. Единственное
  * место, где знак зависит от направления, — счёт петель после `r` рядов строится на нём.
  */
-export function stitchStep(direction: Direction): number {
+function stitchStep(direction: Direction): number {
   return direction === 'toe-up' ? STITCHES_PER_DEC_ROW : -STITCHES_PER_DEC_ROW
 }
 

@@ -229,7 +229,6 @@ const gaugeDialogOpen = ref(false)
 
 export function useToeCalculator() {
   return {
-    direction: DIRECTION,
     params: readonly(params),
     setParams,
     calculation,
