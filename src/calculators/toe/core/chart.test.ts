@@ -6,6 +6,7 @@ import {
   DEFAULT_ZOOM_STEP,
   cellSizeAt,
   chartGuideLines,
+  chartLegend,
   chartModel,
   clampZoomStep,
   pageScrollTargetPx,
@@ -265,5 +266,102 @@ describe('решение по колесу (§7)', () => {
   it('вертикальное колесо без shift схему не трогает — листается страница', () => {
     expect(wheel({ deltaY: 30 })).toEqual({ kind: 'none' })
     expect(wheel({})).toEqual({ kind: 'none' })
+  })
+})
+
+/* -------------------------------------------------------------------------
+ * Схема от мыска (§7, §7.1 спеки toe-up): ширина сетки постоянна и равна
+ * конечные / 2, «нет петли» там, где петель ещё нет, значки прибавок с наклоном
+ * влево в начале половины и вправо в конце.
+ * ------------------------------------------------------------------------- */
+
+/** Дефолт toe-up: 24 → 64, кромка 1, через ряд — 32 колонки, 20 рядов, ряд 1 промежуточный. */
+function toeUpWithEdge(edge: number) {
+  const params: ToeParams = { initial: 24, final: 64, edge, rhythm: { kind: 'preset', name: 'even' } }
+  return calculateToe(params, 'toe-up')
+}
+
+describe('модель схемы от мыска: раскладка рядов (§7 спеки toe-up)', () => {
+  it('сетка шириной конечные / 2: ряд 1 у набора снизу, последний прибавочный сверху', () => {
+    const model = chartModel(toeUpWithEdge(1), null, DEFAULT_ZOOM_STEP, 'toe-up')
+    expect(model.cols).toBe(32)
+    expect(model.rowsCount).toBe(20)
+    // Схема хранит ряды развёрнутыми: кончик мыска (последний ряд) сверху.
+    expect(model.rows[0].row.n).toBe(20)
+    expect(row(model, 1).y).toBe(19)
+  })
+
+  it('«нет петли» там, где петель ещё нет: у ряда 1 живых 12 из 32, пусто по краям', () => {
+    const model = chartModel(toeUpWithEdge(1), null, DEFAULT_ZOOM_STEP, 'toe-up')
+    const first = row(model, 1)
+    expect(first.stitches).toHaveLength(12)
+    expect(first.cells.filter((c) => c.kind === 'empty').map((c) => c.j)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+    ])
+  })
+
+  it('каждый прибавочный ряд расширяет живую зону на 2 клетки, промежуточный стоит на месте', () => {
+    const model = chartModel(toeUpWithEdge(1), null, DEFAULT_ZOOM_STEP, 'toe-up')
+    // Ряд 1 — промежуточный на 24 петлях: живых 12. Ряд 2 — прибавочный на 28: живых
+    // 14, из них две клетки несут значки прибавок, штрихов 12.
+    expect(row(model, 2).stitches).toHaveLength(12)
+    expect(row(model, 2).cells.filter((c) => c.kind !== 'empty')).toHaveLength(14)
+    // Промежуточный ряд 3 стоит на 28 петлях: живых 14, значков нет.
+    expect(row(model, 3).stitches).toHaveLength(14)
+    expect(row(model, 4).stitches).toHaveLength(14)
+  })
+
+  it('прибавки с наклоном влево в начале половины и вправо в конце: значки стоят там, где ниже была «нет петли»', () => {
+    const model = chartModel(toeUpWithEdge(1), null, DEFAULT_ZOOM_STEP, 'toe-up')
+    // Ряд 2 — прибавочный: живая зона 14 клеток с off = 9. Значок в конце половины
+    // стоит правее (j меньше), в начале — левее; клетка значка рядом ниже была «нет петли».
+    const incs = row(model, 2).decorations
+    expect(incs).toEqual([
+      expect.objectContaining({ dir: 'right', j: 10, p: 12 }),
+      expect.objectContaining({ dir: 'left', j: 21, p: 1 }),
+    ])
+  })
+
+  it('кромка отсчитывается от краёв живой зоны: при кромке 2 у ряда 1 по две кромочные с краёв', () => {
+    const model = chartModel(toeUpWithEdge(2), null, DEFAULT_ZOOM_STEP, 'toe-up')
+    const first = row(model, 1)
+    expect(first.cells.filter((c) => c.kind === 'edge').map((c) => c.j)).toEqual([10, 11, 20, 21])
+    expect(first.stitches.filter((s) => s.edge)).toHaveLength(4)
+  })
+
+  it('кромка на арифметику схемы не влияет: значки прибавок за кромкой', () => {
+    const model = chartModel(toeUpWithEdge(2), null, DEFAULT_ZOOM_STEP, 'toe-up')
+    expect(row(model, 2).decorations).toEqual([
+      expect.objectContaining({ dir: 'right', j: 11, p: 11 }),
+      expect.objectContaining({ dir: 'left', j: 20, p: 2 }),
+    ])
+  })
+
+  it('жирные линии — по-прежнему от правого края сетки', () => {
+    expect(chartModel(toeUpWithEdge(1), null, DEFAULT_ZOOM_STEP, 'toe-up').guideLines).toEqual([27, 22, 17, 12, 7, 2])
+  })
+
+  it('размеры считаются от той же сетки: 32 колонки на дефолтной клетке', () => {
+    const model = chartModel(toeUpWithEdge(1), null, DEFAULT_ZOOM_STEP, 'toe-up')
+    expect(model.gridWidthPx).toBe(32 * CELL_SIZE)
+    expect(model.pixelHeight).toBe(20 * CELL_SIZE)
+  })
+})
+
+describe('легенда от мыска (§7.2 спеки toe-up)', () => {
+  it('значки убавок заменены на значки прибавок, названия описательные', () => {
+    const legend = chartLegend('toe-up')
+    expect(legend.map((item) => item.key)).toEqual(['stitch', 'edge', 'inc-left', 'inc-right', 'empty', 'note'])
+    expect(legend.find((item) => item.key === 'inc-left')?.label).toBe('прибавка из протяжки с наклоном влево')
+    expect(legend.find((item) => item.key === 'inc-right')?.label).toBe('прибавка из протяжки с наклоном вправо')
+  })
+
+  it('про наклоны сказано, что их можно поменять местами', () => {
+    const legend = chartLegend('toe-up')
+    expect(legend.find((item) => item.key === 'note')?.label).toContain('наклоны можно поменять местами')
+  })
+
+  it('легенда cuff-down не изменилась', () => {
+    expect(chartLegend('cuff-down').map((item) => item.key)).toEqual(['stitch', 'edge', 'dec-left', 'dec-right', 'empty'])
   })
 })
