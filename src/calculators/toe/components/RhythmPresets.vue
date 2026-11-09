@@ -23,7 +23,7 @@
  */
 import { computed } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
-import { PRESETS, presetRowCount, presetWhyOff, type Preset } from '../core/presets'
+import { presetsFor, presetRowCount, presetWhyOff, type Preset } from '../core/presets'
 import { coverageNote } from '../core/notes'
 import { rowsWord } from '../core/plural'
 
@@ -33,7 +33,7 @@ const { params, setParams, calculation } = useToeCalculator()
 const coverage = computed(() => coverageNote(calculation.value))
 
 function rows(preset: Preset): number | null {
-  return presetRowCount(preset, calculation.value.decRowsNeeded, calculation.value.initial)
+  return presetRowCount(preset, calculation.value.decRowsNeeded, calculation.value.initial, calculation.value.direction)
 }
 
 function isSelected(preset: Preset): boolean {
@@ -51,7 +51,7 @@ function select(preset: Preset): void {
     <h2 class="text-base font-semibold">Ритм убавок</h2>
     <div class="mt-3 grid grid-cols-2 gap-2">
       <button
-        v-for="preset in PRESETS"
+        v-for="preset in presetsFor(calculation.direction)"
         :key="preset.code"
         type="button"
         class="rounded border p-3 text-left transition-opacity"
@@ -67,7 +67,7 @@ function select(preset: Preset): void {
         <span class="block text-sm font-medium">{{ preset.name }}</span>
         <span class="mt-1 block text-xs font-semibold" data-testid="preset-status">
           <template v-if="rows(preset) !== null">{{ rowsWord(rows(preset)!) }}</template>
-          <template v-else>{{ presetWhyOff(preset, calculation.decRowsNeeded) }}</template>
+          <template v-else>{{ presetWhyOff(preset, calculation.decRowsNeeded, calculation.direction) }}</template>
         </span>
         <span class="mt-1 block text-xs" :class="isSelected(preset) ? 'text-slate-300' : 'text-slate-500'">
           {{ preset.how }}

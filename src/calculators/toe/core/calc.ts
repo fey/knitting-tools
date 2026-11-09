@@ -1,10 +1,11 @@
 /**
- * Расчёт мыска целиком (§5). Перенос из прототипа `prototypes/rhythm-input.html`.
+ * Расчёт мыска целиком (§5). Перенос из прототипа `prototypes/rhythm-input.html`,
+ * расширен направлением вязания (§11 спеки toe-up).
  *
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
-import type { Rhythm, Segment, ToeCalculation, ToeParams } from './types'
-import { buildRows, decRowsFor, STITCHES_PER_DEC_ROW } from './rows'
+import type { Direction, Rhythm, Segment, ToeCalculation, ToeParams } from './types'
+import { buildRows, decRowsFor, roundStitchesAfter, STITCHES_PER_DEC_ROW } from './rows'
 import { presetByCode } from './presets'
 
 /** Дефолтный расчёт первого экрана (§4): 60 → 20, кромка 1, через ряд. */
@@ -15,15 +16,30 @@ export const DEFAULT_PARAMS: ToeParams = {
   rhythm: { kind: 'preset', name: 'even' },
 }
 
+/** Дефолтный расчёт мыска от мыска (§4 спеки toe-up): 24 → 64, кромка 1, через ряд. */
+export const DEFAULT_PARAMS_TOE_UP: ToeParams = {
+  initial: 24,
+  final: 64,
+  edge: 1,
+  rhythm: { kind: 'preset', name: 'even' },
+}
+
+/** Дефолт по направлению (§4, §4 спеки toe-up). */
+export function defaultParams(direction: Direction): ToeParams {
+  return direction === 'toe-up'
+    ? { ...DEFAULT_PARAMS_TOE_UP, rhythm: { ...DEFAULT_PARAMS_TOE_UP.rhythm } }
+    : { ...DEFAULT_PARAMS, rhythm: { ...DEFAULT_PARAMS.rhythm } }
+}
+
 /**
  * Сегменты ритма. У пресета они выводятся от числа убавочных рядов при каждом расчёте —
  * поэтому пресет пересчитывается живьём сам; свой ритм отдаётся как набран (§5.4, §5.5).
  */
-export function segmentsOf(rhythm: Rhythm, decRowsNeeded: number): Segment[] {
+export function segmentsOf(rhythm: Rhythm, decRowsNeeded: number, direction: Direction): Segment[] {
   // Свой ритм копируется: результат расчёта — снимок, а не та же память, что у
   // набранных сегментов. Иначе правка сегмента меняла бы уже посчитанное.
   if (rhythm.kind === 'custom') return rhythm.segments.map((s) => ({ ...s }))
-  return presetByCode(rhythm.name).segments(decRowsNeeded)
+  return presetByCode(rhythm.name, direction).segments(decRowsNeeded)
 }
 
 /**
@@ -68,28 +84,29 @@ export function minFinalStitches(edge: number): number {
  * Недобор рисуется честно: мысок встанет на 36 петлях вместо 20. Перебор — наоборот,
  * упирается в конечные петли: лишние шаги не выполняются, и число рядов их не считает.
  */
-export function calculateToe(params: ToeParams): ToeCalculation {
+export function calculateToe(params: ToeParams, direction: Direction): ToeCalculation {
   const { initial, final, edge, rhythm } = params
   const decRowsNeeded = decRowsFor(initial, final)
-  const segments = segmentsOf(rhythm, decRowsNeeded)
+  const segments = segmentsOf(rhythm, decRowsNeeded, direction)
   const decRowsCovered = segments.reduce((sum, s) => sum + s.repeats, 0)
   // Выполненных убавочных рядов не больше, чем нужно: при переборе лишние шаги
   // не выполняются (§9.5). Величина держится локальной — наружу она выходит
   // числом рядов и `finalReal`, а `lack` считается по набранному покрытию.
   const decRowsDone = Math.min(decRowsCovered, decRowsNeeded)
-  const rows = buildRows(initial, executedSegments(segments, decRowsDone))
+  const rows = buildRows(initial, executedSegments(segments, decRowsDone), direction)
 
   return {
     initial,
     final,
     edge,
     rhythm,
+    direction,
     segments,
     decRowsNeeded,
     decRowsCovered,
     rows,
     totalRows: rows.length,
     lack: decRowsNeeded - decRowsCovered,
-    finalReal: initial - decRowsDone * STITCHES_PER_DEC_ROW,
+    finalReal: roundStitchesAfter(initial, decRowsDone, direction),
   }
 }

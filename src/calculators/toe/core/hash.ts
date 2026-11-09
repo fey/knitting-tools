@@ -2,19 +2,21 @@
  * Запись и разбор параметров в hash адреса (§10.1, §10.3, §10.4). Запись — перенос
  * из прототипа `prototypes/rhythm-input.html`; разбор — тикет #8, держится на
  * правилах починки §9.2/§9.4, которых не было, когда запись переезжала из прототипа.
+ * Расширен направлением (§11 спеки toe-up): ключи те же `s/e/k/r` — страницы разные,
+ * ключи не сталкиваются, — а дефолты и пресеты у направлений свои.
  *
- * Канонический пример: `#s=60&e=20&k=1&r=even`. Свой ритм пишется сегментами через
- * запятую: `r=1x4,0x7`. Коды не сталкиваются — цифра в начале значит сегменты,
- * буква значит пресет.
+ * Канонический пример: `#s=60&e=20&k=1&r=even` (от манжеты), `#s=24&e=64&k=1&r=even`
+ * (от мыска). Свой ритм пишется сегментами через запятую: `r=1x4,0x7`. Коды
+ * не сталкиваются — цифра в начале значит сегменты, буква значит пресет.
  *
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно. Разбор тоже
  * чистый: он принимает и возвращает строки/объекты, а не читает `location` сам —
  * `location` и `localStorage` читает `useToeCalculator.ts`, это его этаж (§10.3).
  */
-import type { PresetName, Rhythm, Segment, ToeParams } from './types'
-import { DEFAULT_PARAMS } from './calc'
+import type { Direction, PresetName, Rhythm, Segment, ToeParams } from './types'
+import { defaultParams } from './calc'
 import { fieldsFromLink } from './fieldRules'
-import { PRESETS } from './presets'
+import { presetsFor } from './presets'
 
 /** Значение ключа `r=`: имя пресета либо сегменты своего ритма. */
 export function formatRhythm(rhythm: Rhythm): string {
@@ -69,17 +71,21 @@ function parseSegments(raw: string): Segment[] | null {
  * Ритм из значения `r=`: цифра в начале — сегменты, буква — пресет (§10.1). Ничего
  * не прошло разбор (пусто, неизвестный код, сломанные сегменты) — дефолт: при
  * разборе ссылки прошлого значения нет, есть только он (§9.5).
+ *
+ * Пресет ищется **в наборе своего направления**: `accel` на странице toe-up — чужой
+ * пресет, битая ссылка (§10.4 спеки toe-up), и ритм заменяется дефолтом молча.
  */
-function parseRhythm(raw: string | null): Rhythm {
-  if (!raw) return { ...DEFAULT_PARAMS.rhythm }
+function parseRhythm(raw: string | null, direction: Direction): Rhythm {
+  const fallback = defaultParams(direction).rhythm
+  if (!raw) return { ...fallback }
 
   if (/^\d/.test(raw)) {
     const segments = parseSegments(raw)
-    return segments ? { kind: 'custom', segments } : { ...DEFAULT_PARAMS.rhythm }
+    return segments ? { kind: 'custom', segments } : { ...fallback }
   }
 
-  const known = PRESETS.some((preset) => preset.code === raw)
-  return known ? { kind: 'preset', name: raw as PresetName } : { ...DEFAULT_PARAMS.rhythm }
+  const known = presetsFor(direction).some((preset) => preset.code === raw)
+  return known ? { kind: 'preset', name: raw as PresetName } : { ...fallback }
 }
 
 /**
@@ -87,6 +93,9 @@ function parseRhythm(raw: string | null): Rhythm {
  * в порядке правок §9.2 (начальные → конечные → кромка → ритм): не прошедшее
  * заменяется дефолтом, остальное из ссылки живёт — и всё это **молча**, отдельного
  * текста и места на экране случай не получает.
+ *
+ * Дефолты и правила починки — своего направления (§11 спеки toe-up): у toe-up это
+ * 24 → 64, кромка 1, `even`, а поле-факт — конечные.
  *
  * Подтягивания к ближайшему сходящемуся здесь нет: это правило набранного в поле,
  * а не пришедшего в ссылке (§9.5 — «дефолт уместен только там, где прошлого значения
@@ -98,15 +107,16 @@ function parseRhythm(raw: string | null): Rhythm {
  * Принимает hash и с решёткой, и без — `paramsKey` из `localStorage` несёт то же
  * содержимое, но без неё (§10.2).
  */
-export function parseHash(hash: string): ToeParams {
+export function parseHash(hash: string, direction: Direction): ToeParams {
   const query = new URLSearchParams(stripHash(hash))
   const draft = {
     initial: parseIntParam(query.get('s')),
     final: parseIntParam(query.get('e')),
     edge: parseIntParam(query.get('k')),
   }
-  const { initial, final, edge } = fieldsFromLink(draft, DEFAULT_PARAMS)
-  const rhythm = parseRhythm(query.get('r'))
+  const defaults = defaultParams(direction)
+  const { initial, final, edge } = fieldsFromLink(draft, defaults, direction)
+  const rhythm = parseRhythm(query.get('r'), direction)
 
   return { initial, final, edge, rhythm }
 }
@@ -118,12 +128,16 @@ export function parseHash(hash: string): ToeParams {
  * `paramsKey` записи `{ paramsKey, row }` (§10.2), она несёт тот же формат, что hash,
  * без решётки, поэтому идёт через тот же `parseHash`.
  */
-export function resolveParams(hash: string | null | undefined, savedParamsKey: string | null | undefined): ToeParams {
+export function resolveParams(
+  hash: string | null | undefined,
+  savedParamsKey: string | null | undefined,
+  direction: Direction,
+): ToeParams {
   const hashContent = hash ? stripHash(hash) : ''
-  if (hashContent) return parseHash(hashContent)
+  if (hashContent) return parseHash(hashContent, direction)
 
   const savedContent = savedParamsKey ? stripHash(savedParamsKey) : ''
-  if (savedContent) return parseHash(savedContent)
+  if (savedContent) return parseHash(savedContent, direction)
 
-  return { ...DEFAULT_PARAMS, rhythm: { ...DEFAULT_PARAMS.rhythm } }
+  return defaultParams(direction)
 }

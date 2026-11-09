@@ -1,13 +1,18 @@
 /**
- * Готовые ритмы (§5.4). Состав перенесён из прототипа `prototypes/rhythm-input.html`.
+ * Готовые ритмы (§5.4). Состав перенесён из прототипа `prototypes/rhythm-input.html`
+ * и расширен направлением (§11 спеки toe-up): у toe-up свои пресеты — `even` и `slow`;
+ * «по третям» и «с разгоном» в источниках toe-up не встречаются ни разу и сюда
+ * не переносятся, а «с ускорением» — перевёрнутое «с замедлением».
  *
  * Правило остатка зашито в самих формулах, отдельной функции нет:
- * **лишний убавочный ряд уходит ближе к концу мыска**. У «с ускорением» длиннее первая
- * фаза (⌈N/2⌉), у «по третям» остаток падает в последнюю треть.
+ * **лишний убавочный ряд уходит ближе к концу мыска** у cuff-down. У toe-up правило
+ * привязано к смыслу, а не к порядку вязания: лишний прибавочный ряд уходит в фазу
+ * «через ряд», ближе к стопе (§5.4 спеки toe-up) — у «с замедлением» это ⌈N/2⌉
+ * во второй фазе.
  *
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
-import type { PresetName, Rhythm, Segment } from './types'
+import type { Direction, PresetName, Rhythm, Segment } from './types'
 import { buildRows } from './rows'
 import { decRowsWord } from './plural'
 
@@ -15,7 +20,7 @@ export type Preset = {
   code: PresetName
   /** Имя в интерфейсе. */
   name: string
-  /** Сколько убавочных рядов нужно, чтобы ритм собрался. */
+  /** Сколько убавочных (прибавочных) рядов нужно, чтобы ритм собрался. */
   min: number
   /** Описание самих сегментов. Формы клина словами не обещаем (§5.4). */
   how: string
@@ -23,14 +28,20 @@ export type Preset = {
   segments: (decRowsNeeded: number) => Segment[]
 }
 
-export const PRESETS: Preset[] = [
-  {
+/** «Через ряд» у обоих направлений одинаков сегментами, описание называет свой рабочий ряд. */
+function even(workRow: string): Preset {
+  return {
     code: 'even',
     name: 'Через ряд',
     min: 1,
-    how: 'убавочный, потом один промежуточный — и так до конца',
+    how: `${workRow}, потом один промежуточный — и так до конца`,
     segments: (n) => [{ interval: 1, repeats: n }],
-  },
+  }
+}
+
+/** Пресеты от манжеты (§5.4). */
+export const PRESETS: Preset[] = [
+  even('убавочный'),
   {
     code: 'accel',
     name: 'С ускорением',
@@ -77,8 +88,33 @@ export const PRESETS: Preset[] = [
   },
 ]
 
-export function presetByCode(code: PresetName): Preset {
-  const preset = PRESETS.find((p) => p.code === code)
+/** Пресеты от мыска (§5.4 спеки toe-up). */
+export const PRESETS_TOE_UP: Preset[] = [
+  even('прибавочный'),
+  {
+    code: 'slow',
+    name: 'С замедлением',
+    min: 2,
+    how: 'сперва каждый ряд, вторая половина — через ряд',
+    segments: (n) => [
+      { interval: 0, repeats: Math.floor(n / 2) },
+      // Остаток уходит во вторую фазу: прибавки «через ряд» стоят ближе к стопе.
+      { interval: 1, repeats: Math.ceil(n / 2) },
+    ],
+  },
+]
+
+/** Пресеты по направлению (§11 спеки toe-up): наборы не пересекаются, кроме «через ряд». */
+export function presetsFor(direction: Direction): Preset[] {
+  return direction === 'toe-up' ? PRESETS_TOE_UP : PRESETS
+}
+
+/**
+ * Пресет по коду **в наборе своего направления**. У наборов нет общих чужих кодов:
+ * `accel` на странице toe-up — битая ссылка (§10.4), и отсюда он не достаётся.
+ */
+export function presetByCode(code: PresetName, direction: Direction): Preset {
+  const preset = presetsFor(direction).find((p) => p.code === code)
   if (!preset) throw new Error(`Неизвестный ритм: ${code}`)
   return preset
 }
@@ -88,25 +124,25 @@ export function presetByCode(code: PresetName): Preset {
  * ритм называет словами, читают его отсюда. Правило §5.5: «Свой ритм» навсегда после
  * первой правки сегмента, сравнения набранных сегментов с пресетами нет нигде.
  *
- * Строчная буква — ритм всегда стоит внутри фразы: «убавки через ряд», «убавки
+ * Строчная буква — ритм всегда стоит внутри фразы: «убавки через ряд», «прибавки
  * свой ритм».
  */
-export function rhythmName(rhythm: Rhythm): string {
-  return rhythm.kind === 'preset' ? presetByCode(rhythm.name).name.toLowerCase() : 'свой ритм'
+export function rhythmName(rhythm: Rhythm, direction: Direction): string {
+  return rhythm.kind === 'preset' ? presetByCode(rhythm.name, direction).name.toLowerCase() : 'свой ритм'
 }
 
 /**
  * Живое число рядов для подписи карточки. `null` — ритм при этих петлях не собирается;
  * карточку показывают неактивной с причиной, а не подменяют другим ритмом (§5.4).
  */
-export function presetRowCount(preset: Preset, decRowsNeeded: number, initial: number): number | null {
+export function presetRowCount(preset: Preset, decRowsNeeded: number, initial: number, direction: Direction): number | null {
   if (decRowsNeeded < preset.min) return null
-  return buildRows(initial, preset.segments(decRowsNeeded)).length
+  return buildRows(initial, preset.segments(decRowsNeeded), direction).length
 }
 
 /** Причина, по которой ритм неактивен: «нужно 3 убавочных ряда, сейчас 2». */
-export function presetWhyOff(preset: Preset, decRowsNeeded: number): string {
+export function presetWhyOff(preset: Preset, decRowsNeeded: number, direction: Direction): string {
   // Прототип склонял только слово «ряд» и на пороге 1 выдавал «1 убавочных ряд»;
   // склоняется вся связка целиком.
-  return `нужно ${decRowsWord(preset.min)}, сейчас ${decRowsNeeded}`
+  return `нужно ${decRowsWord(preset.min, direction)}, сейчас ${decRowsNeeded}`
 }

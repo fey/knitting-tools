@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { calculateToe, DEFAULT_PARAMS, minFinalStitches } from './calc'
+import { calculateToe, DEFAULT_PARAMS, DEFAULT_PARAMS_TOE_UP, minFinalStitches } from './calc'
 import { buildRows, halfStitchesAfter, roundStitchesAfter } from './rows'
 import type { PresetName, Rhythm, ToeParams } from './types'
 
 const preset = (name: PresetName): Rhythm => ({ kind: 'preset', name })
 
 const toe = (params: Partial<ToeParams> = {}) =>
-  calculateToe({ ...DEFAULT_PARAMS, ...params })
+  calculateToe({ ...DEFAULT_PARAMS, ...params }, 'cuff-down')
 
 describe('число рядов и убавочные ряды', () => {
   // §12.1, случай 2 — дефолт первого экрана.
@@ -24,9 +24,9 @@ describe('число рядов и убавочные ряды', () => {
     const result = toe({ final: 16 })
     expect(result.decRowsNeeded).toBe(11)
     expect(result.totalRows).toBe(21)
-    expect(halfStitchesAfter(60, 0)).toBe(30)
-    expect(halfStitchesAfter(60, result.decRowsNeeded)).toBe(8)
-    expect(roundStitchesAfter(60, result.decRowsNeeded)).toBe(16)
+    expect(halfStitchesAfter(60, 0, 'cuff-down')).toBe(30)
+    expect(halfStitchesAfter(60, result.decRowsNeeded, 'cuff-down')).toBe(8)
+    expect(roundStitchesAfter(60, result.decRowsNeeded, 'cuff-down')).toBe(16)
     expect(result.rows[result.rows.length - 1].stitches).toBe(16)
   })
 
@@ -158,7 +158,7 @@ describe('закрытая формула числа рядов', () => {
   ]
 
   it.each(cases)('сходится с раскладкой рядов: %j', (...segments) => {
-    expect(buildRows(60, segments).length).toBe(byFormula(segments))
+    expect(buildRows(60, segments, 'cuff-down').length).toBe(byFormula(segments))
   })
 })
 
@@ -182,5 +182,67 @@ describe('пресет пересчитывается живьём, свой р�
     const result = toe({ rhythm: { kind: 'custom', segments }, final: 16 })
     expect(result.segments).toEqual(segments)
     expect(result.lack).toBe(1)
+  })
+})
+
+describe('мысок от мыска: модель и ряды (§3, §5.2, §5.3 toe-up)', () => {
+  const toeUp = (params: Partial<ToeParams> = {}) =>
+    calculateToe({ ...DEFAULT_PARAMS_TOE_UP, ...params }, 'toe-up')
+
+  // §12 toe-up: дефолт 24 → 64, кромка 1, «через ряд» — N = 10 прибавочных, 20 рядов всего.
+  it('дефолт 24 → 64 через ряд: 10 прибавочных рядов, 20 рядов всего, ряд 1 промежуточный', () => {
+    const result = toeUp()
+    expect(result.direction).toBe('toe-up')
+    expect(result.decRowsNeeded).toBe(10)
+    expect(result.decRowsCovered).toBe(10)
+    expect(result.totalRows).toBe(20)
+    expect(result.finalReal).toBe(64)
+    expect(result.lack).toBe(0)
+    expect(result.rows[0]).toEqual({ n: 1, type: 'plain', stitches: 24 })
+  })
+
+  it('прибавочный ряд добавляет 4 петли, последний ряд мыска — прибавочный', () => {
+    const result = toeUp()
+    expect(result.rows[result.rows.length - 1]).toEqual({ n: 20, type: 'inc', inc: 10, stitches: 64 })
+    expect(result.rows.filter((r) => r.type === 'inc').map((r) => r.stitches)).toEqual([28, 32, 36, 40, 44, 48, 52, 56, 60, 64])
+  })
+
+  it('формула 1 + Σ M(1+K) − K последнего: свой ритм одним сегментом {0, 3} даёт 1 + 3 ряда', () => {
+    const result = toeUp({ rhythm: { kind: 'custom', segments: [{ interval: 0, repeats: 3 }] } })
+    expect(result.totalRows).toBe(4)
+    expect(result.rows.map((r) => r.type)).toEqual(['plain', 'inc', 'inc', 'inc'])
+  })
+
+  it('хвост промежуточных перед стопой не провязывается: {1, 3} даёт 1 + 5 рядов', () => {
+    const result = toeUp({ rhythm: { kind: 'custom', segments: [{ interval: 1, repeats: 3 }] } })
+    expect(result.totalRows).toBe(6)
+    expect(result.rows[result.rows.length - 1].type).toBe('inc')
+  })
+
+  it('петли в половине растут: 24 → 64 при кромке на арифметику не влияют', () => {
+    const result = toeUp()
+    expect(halfStitchesAfter(24, 0, 'toe-up')).toBe(12)
+    expect(halfStitchesAfter(24, result.decRowsNeeded, 'toe-up')).toBe(32)
+    expect(roundStitchesAfter(24, result.decRowsNeeded, 'toe-up')).toBe(64)
+    const rows = [0, 1, 2].map((edge) => toeUp({ edge }).totalRows)
+    expect(rows).toEqual([20, 20, 20])
+  })
+
+  it('недобор оставляет меньше петель, чем конечные; перебор упирается в конечные', () => {
+    const lack = toeUp({ rhythm: { kind: 'custom', segments: [{ interval: 1, repeats: 6 }] } })
+    expect(lack.lack).toBe(4)
+    expect(lack.finalReal).toBe(48)
+
+    const excess = toeUp({ rhythm: { kind: 'custom', segments: [{ interval: 1, repeats: 12 }] } })
+    expect(excess.lack).toBe(-2)
+    expect(excess.finalReal).toBe(64)
+    expect(excess.totalRows).toBe(20)
+    expect(excess.rows[excess.rows.length - 1]).toEqual({ n: 20, type: 'inc', inc: 10, stitches: 64 })
+  })
+
+  it('конечных не больше начальных — прибавочных рядов нет, ряд 1 без прибавок не считается', () => {
+    const result = toeUp({ initial: 64, final: 64, rhythm: { kind: 'custom', segments: [] } })
+    expect(result.decRowsNeeded).toBe(0)
+    expect(result.totalRows).toBe(0)
   })
 })

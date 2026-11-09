@@ -15,7 +15,7 @@ import { paramsKey } from './hash'
 
 // Дефолт: 60 → 20, кромка 1, через ряд — 19 рядов, 10 убавочных (§12.1, случай 2).
 // Ряд 1 убавочный (60 − 4 = 56), ряд 2 промежуточный на тех же 56.
-const calculation = calculateToe(DEFAULT_PARAMS)
+const calculation = calculateToe(DEFAULT_PARAMS, 'cuff-down')
 
 describe('короткая строка ряда (§8)', () => {
   it('убавочный ряд называет номер убавки из decRowsNeeded и петли, которые станут', () => {
