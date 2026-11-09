@@ -7,7 +7,7 @@
  *
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
-import type { Row, ToeCalculation } from './types'
+import type { Direction, Row, ToeCalculation } from './types'
 import type { Gauge } from './gauge'
 import { centimetreView } from './centimetres'
 
@@ -181,12 +181,18 @@ export type ChartRow = {
 
 /**
  * Раскладывает один ряд на клетки, штрихи и треугольники. Перенос тела из
- * `prototypes/toe-visualization.html` (`renderD`) с единственной правкой
- * задачи: жирные линии считаются от правого края (в `chartGuideLines`, не здесь).
+ * `prototypes/toe-visualization.html` (`renderD`), расширен направлением
+ * (§7 спеки toe-up).
+ *
+ * У cuff-down активная зона **центрирована**: кончик мыска в середине, убавки съели
+ * края. У toe-up наоборот: активная зона прижата к краям... нет — у toe-up живая зона
+ * тоже центрирована, но **растёт** с каждым прибавочным рядом: «нет петли» стоит
+ * там, где петель ещё нет, и значок прибавки стоит в клетке, которая рядом ниже была
+ * «нет петли» (§7.1 спеки toe-up).
  */
-function layoutRow(row: Row, y: number, cols: number, edge: number): ChartRow {
+function layoutRow(row: Row, y: number, cols: number, edge: number, direction: Direction): ChartRow {
   const active = row.stitches / 2
-  // active = cols − 2r всегда чётно-выравнено с cols той же чётности, off — целое.
+  // active = cols ± 2r всегда чётно-выравнено с cols той же чётности, off — целое.
   const off = (cols - active) / 2
 
   const cells: ChartCell[] = []
@@ -203,16 +209,23 @@ function layoutRow(row: Row, y: number, cols: number, edge: number): ChartRow {
     // Номер живой петли от начала половины — то есть от правого края (§7, круговое чтение).
     const p = off + active - 1 - j
     const isEdge = p < edge || p >= active - edge
-    const decStart = row.type === 'dec' && p === edge
-    // decStart/decEnd никогда не совпадают: minFinalStitches = 4 + 4×кромка держит
+    const up = direction === 'toe-up'
+    // Ряд с изменением числа петель несёт два значка на половине, оба за кромкой:
+    // «k лицевых · пара · лицевые · пара · k лицевых» (§3). У cuff-down это убавки,
+    // у toe-up — прибавки; наклон один: в начале половины влево, в конце вправо.
+    // Клетка значка прибавки — та, что рядом ниже была «нет петли»: живая зона
+    // только что выросла на клетку с каждого края (§7.1 спеки toe-up).
+    const changesStitches = row.type === (up ? 'inc' : 'dec')
+    const startMark = changesStitches && p === edge
+    // startMark/endMark никогда не совпадают: минимум живой зоны держит
     // active − 1 − edge ≥ edge + 1.
-    const decEnd = row.type === 'dec' && p === active - 1 - edge
+    const endMark = changesStitches && p === active - 1 - edge
 
     cells.push({ j, kind: isEdge ? 'edge' : 'plain' })
 
-    if (decStart) {
+    if (startMark) {
       decorations.push({ j, p, dir: 'left', points: trianglePoints('left', j, y) })
-    } else if (decEnd) {
+    } else if (endMark) {
       decorations.push({ j, p, dir: 'right', points: trianglePoints('right', j, y) })
     } else {
       // Лицевая — вертикальный штрих; пустая клетка означала бы изнаночную (§7.1).
@@ -257,18 +270,23 @@ export type ChartModel = {
  * Модель схемы на данном расчёте, плотности и шаге масштаба (§7). Координаты — в клетках
  * (`viewBox`), размеры — в пикселях: масштаб меняет только вторые, поэтому сетка, значки
  * и номера растут сами.
+ *
+ * Ширина сетки: у cuff-down — половина **начальных** петель (схема сужается от полного
+ * круга), у toe-up — половина **конечных** (схема расширяется, «нет петли» там, где
+ * петель ещё нет; §7 спеки toe-up).
  */
 export function chartModel(
-  calculation: Pick<ToeCalculation, 'rows' | 'initial' | 'edge' | 'totalRows'>,
+  calculation: Pick<ToeCalculation, 'rows' | 'initial' | 'final' | 'edge' | 'totalRows'>,
   gauge: Gauge | null,
   zoomStep: number,
+  direction: Direction = 'cuff-down',
 ): ChartModel {
-  const cols = calculation.initial / 2
+  const cols = (direction === 'toe-up' ? calculation.final : calculation.initial) / 2
   // Кончик мыска сверху — ряды идут развёрнутым массивом, индекс и есть `y`.
   const rows = calculation.rows
     .slice()
     .reverse()
-    .map((row, y) => layoutRow(row, y, cols, calculation.edge))
+    .map((row, y) => layoutRow(row, y, cols, calculation.edge, direction))
   const rowsCount = rows.length
   const cellSize = cellSizeAt(zoomStep)
   const cm = centimetreView(calculation, gauge).cm
@@ -329,16 +347,18 @@ export type LegendItem = {
   key: string
   label: string
   cell: CellKind
-  symbol: 'stitch' | 'dec-left' | 'dec-right' | null
+  symbol: 'stitch' | 'dec-left' | 'dec-right' | 'inc-left' | 'inc-right' | 'note' | null
 }
 
-/**
- * Легенда схемы — единственное место, где названы типы убавок (§7.2). Значка кромочной
- * (точка в центре) здесь нет — он означает другое (§2).
- */
-export const CHART_LEGEND: readonly LegendItem[] = [
+/** Общие строки легенды: петля, кромка, «нет петли». */
+const LEGEND_COMMON: readonly LegendItem[] = [
   { key: 'stitch', label: 'лицевая', cell: 'plain', symbol: 'stitch' },
   { key: 'edge', label: 'петля кромки, тоже лицевая', cell: 'edge', symbol: 'stitch' },
+]
+
+/** Легенда cuff-down — единственное место, где названы типы убавок (§7.2). */
+const LEGEND_CUFF_DOWN: readonly LegendItem[] = [
+  ...LEGEND_COMMON,
   {
     key: 'dec-left',
     label: '2 вместе лицевой с наклоном влево (протяжка)',
@@ -348,3 +368,27 @@ export const CHART_LEGEND: readonly LegendItem[] = [
   { key: 'dec-right', label: '2 вместе лицевой с наклоном вправо', cell: 'plain', symbol: 'dec-right' },
   { key: 'empty', label: 'нет петли', cell: 'empty', symbol: null },
 ]
+
+/**
+ * Легенда toe-up (§7.2 спеки toe-up): значки убавок заменены значками прибавок,
+ * названия описательные. Отдельной строкой — наклоны можно поменять местами: счёт
+ * рядов и петель от этого не меняется (§3 спеки toe-up).
+ */
+const LEGEND_TOE_UP: readonly LegendItem[] = [
+  ...LEGEND_COMMON,
+  { key: 'inc-left', label: 'прибавка из протяжки с наклоном влево', cell: 'plain', symbol: 'inc-left' },
+  { key: 'inc-right', label: 'прибавка из протяжки с наклоном вправо', cell: 'plain', symbol: 'inc-right' },
+  { key: 'empty', label: 'нет петли', cell: 'empty', symbol: null },
+  { key: 'note', label: 'наклоны можно поменять местами — счёт рядов и петель от этого не меняется', cell: 'plain', symbol: 'note' },
+]
+
+/** Легенда схемы по направлению (§7.2, §7.2 спеки toe-up). */
+export function chartLegend(direction: Direction = 'cuff-down'): readonly LegendItem[] {
+  return direction === 'toe-up' ? LEGEND_TOE_UP : LEGEND_CUFF_DOWN
+}
+
+/**
+ * Легенда схемы cuff-down — прежняя константа. Экран cuff-down читает её по-прежнему;
+ * toe-up берёт `chartLegend('toe-up')`.
+ */
+export const CHART_LEGEND = LEGEND_CUFF_DOWN
