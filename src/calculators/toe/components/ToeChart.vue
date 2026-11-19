@@ -418,7 +418,7 @@ onUnmounted(() => {
                   :data-row="layer.row.n"
                   :data-col="dec.j"
                   :data-stitch="dec.p"
-                  :data-symbol="`dec-${dec.dir}`"
+                  :data-symbol="`${layer.row.type === 'inc' ? 'inc' : 'dec'}-${dec.dir}`"
                 />
               </template>
 
@@ -484,8 +484,8 @@ onUnmounted(() => {
                 x="0.35"
                 :y="layer.y + 0.7"
                 font-size="0.55"
-                :fill="layer.row.type === 'dec' ? CHART_COLORS.decRowLabel : CHART_COLORS.plainRowLabel"
-                :font-weight="layer.row.type === 'dec' ? 600 : 400"
+                :fill="layer.row.type !== 'plain' ? CHART_COLORS.decRowLabel : CHART_COLORS.plainRowLabel"
+                :font-weight="layer.row.type !== 'plain' ? 600 : 400"
                 data-testid="toe-chart-row-label"
                 :data-row="layer.row.n"
               >{{ layer.row.n }}</text>
@@ -606,8 +606,8 @@ onUnmounted(() => {
             stroke-linecap="round"
           />
           <polygon
-            v-if="item.symbol === 'dec-left' || item.symbol === 'dec-right'"
-            :points="trianglePoints(item.symbol === 'dec-left' ? 'left' : 'right', 0, 0, LEGEND_CELL_SIZE)"
+            v-if="item.symbol?.endsWith('-left') || item.symbol?.endsWith('-right')"
+            :points="trianglePoints(item.symbol.endsWith('-left') ? 'left' : 'right', 0, 0, LEGEND_CELL_SIZE)"
             :fill="CHART_COLORS.decorFill"
           />
         </svg>

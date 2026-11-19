@@ -25,7 +25,7 @@ test('вводка называет конструкцию и её границ�
   // Закрытие названо выбором, а не частью зафиксированной конструкции (тикет #15, §1).
   await expect(intro).toContainText('трикотажным швом или стягиванием')
   await expect(intro).toContainText('выбор мастера')
-  await expect(intro).toContainText('toe-up')
+  await expect(intro).toContainText('мысок от мыска')
 })
 
 test('вводка не несёт живых чисел — они живут у ручек, которые их меняют', async ({ page }) => {

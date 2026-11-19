@@ -40,7 +40,8 @@
 | Адрес | Что там |
 |---|---|
 | <https://fey.github.io/knitting-tools/> | витрина разделов |
-| <https://fey.github.io/knitting-tools/toe-band/> | калькулятор ленточного мыска |
+| <https://fey.github.io/knitting-tools/toe-band/> | калькулятор ленточного мыска от манжеты |
+| <https://fey.github.io/knitting-tools/toe-up-band/> | калькулятор ленточного мыска от мыска |
 | <https://fey.github.io/knitting-tools/french-heel/> | калькулятор поворота французской пятки |
 | <https://fey.github.io/knitting-tools/sock-cast-on/> | справочник: набор петель на носок |
 
@@ -152,7 +153,7 @@ PR выпускает релиз. Правило — в `CLAUDE.md`, разде�
 | `src/calculators/toe/useToeCalculator.ts` | Состояние калькулятора. Здесь и только здесь — Vue и браузер (`location`, `history`, `localStorage`) |
 | `src/calculators/toe/components/` | Экран калькулятора, включая оболочку его страницы |
 | `src/references/cast-on/` | Справочник набора петель: данные и формула в `core/`, страница в `components/` |
-| `src/pages/` | Входы страниц (`home.ts`, `toe-band.ts`, `sock-cast-on.ts`) и витрина разделов. Каждому входу отвечает свой файл сборки: `index.html`, `toe-band/index.html`, `sock-cast-on/index.html` |
+| `src/pages/` | Входы страниц (`home.ts`, `toe-band.ts`, `toe-up-band.ts`, `sock-cast-on.ts`) и витрина разделов. Каждому входу отвечает свой файл сборки: `index.html`, `toe-band/index.html`, `toe-up-band/index.html`, `sock-cast-on/index.html` |
 | `src/shared/` | Общее на весь проект: шапка, доступ к `localStorage`, обратная связь |
 | `e2e/` | Спеки Playwright, по каталогу на проект |
 

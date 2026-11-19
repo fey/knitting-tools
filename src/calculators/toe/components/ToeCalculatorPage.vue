@@ -28,7 +28,9 @@
  * **Ручки прячутся кнопкой (§6.2).** Убранные, они снимают левую колонку целиком:
  * страница становится одноколоночной на любой ширине, и схема забирает всё место.
  */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { provideToeCalculator } from '../useToeCalculator'
+import type { Direction } from '../core/types'
 import ToeChart from './ToeChart.vue'
 import IntroNote from './IntroNote.vue'
 import RhythmPresets from './RhythmPresets.vue'
@@ -52,6 +54,14 @@ import AppFooter from '../../../shared/AppFooter.vue'
  * всегда, и делятся расчётом, а не тем, свернул ли отправитель панель.
  */
 const settingsHidden = ref(false)
+
+/**
+ * Направление задаёт вход страницы (§11 спеки toe-up): `/toe-band/` — от манжеты,
+ * `/toe-up-band/` — от мыска. Страница кладёт состояние в дерево, блоки берут его оттуда.
+ */
+const props = defineProps<{ direction: Direction }>()
+provideToeCalculator(props.direction)
+const heading = computed(() => (props.direction === 'toe-up' ? 'Ленточный мысок от мыска' : 'Ленточный мысок от манжеты'))
 </script>
 
 <template>
@@ -83,7 +93,7 @@ const settingsHidden = ref(false)
     <main
       class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-4 pb-56 min-[800px]:max-w-3xl min-[1240px]:max-w-[1400px]"
     >
-      <h1 class="text-xl font-semibold">Ленточный мысок носка</h1>
+      <h1 class="text-xl font-semibold">{{ heading }}</h1>
 
       <!-- Кнопка «Убрать настройки» стоит в строке кнопки вводки (§6.1): блок вводки
            меняет ширину, и кнопка, поставленная рядом с ним, ездила бы вбок вместе

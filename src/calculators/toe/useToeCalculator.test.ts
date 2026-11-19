@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { useToeCalculator } from './useToeCalculator'
+import { createToeCalculator } from './useToeCalculator'
+
+// Состояние одно на весь файл: кейсы ниже продолжают друг друга, как прежде продолжали синглтон.
+const instance = createToeCalculator('cuff-down')
+const useToeCalculator = () => instance
 
 describe('состояние калькулятора', () => {
   it('открывается посчитанным дефолтом: 60 → 20, кромка 1, через ряд', () => {
