@@ -49,7 +49,8 @@
   @media (min-width:800px) { .grid { display:grid; grid-template-columns: 1fr 1fr; align-items:start; } .stage { position:sticky; top:12px; } }
   /* дерево участков */
   .tree { border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-  .sec + .sec { border-top:1px solid var(--line); }
+  .sec + .sec, .tree-head + .sec { border-top:1px solid var(--line); }
+  .tree-head { cursor:default; background:var(--soft); }
   .sec-head { display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer; user-select:none; }
   .sec-head .name { font-weight:600; width:86px; }
   .mini { flex:1; height:14px; display:flex; border-radius:4px; overflow:hidden; border:1px solid #0002; }
@@ -514,8 +515,7 @@ createApp({
     <h1>Расцветка носка</h1>
     <div class="grid" style="margin-top:10px">
       <div class="stage col">
-        <div class="row" style="justify-content:space-between">
-          <button class="primary" @click="rollSock" title="Заново нарезать полосы всех незакреплённых участков">🎲 Полосы</button>
+        <div class="row" style="justify-content:flex-end">
           <div class="seg" role="group" aria-label="Вид">
             <button :class="{ on: ui.view !== 'tube' }" @click="ui.view = 'sock'">Носок</button>
             <button :class="{ on: ui.view === 'tube' }" @click="ui.view = 'tube'">Развёртка</button>
@@ -527,6 +527,13 @@ createApp({
       </div>
       <div class="col">
         <div class="tree">
+          <div class="sec-head tree-head">
+            <span style="width:14px"></span>
+            <span class="name">Участки</span>
+            <span class="mute" style="flex:1">кубик справа — все незакреплённые разом</span>
+            <button class="ghost" style="min-height:28px;min-width:28px;padding:0" title="Заново нарезать полосы всех незакреплённых участков" @click="rollSock">🎲</button>
+            <span style="width:28px"></span>
+          </div>
           <SectionNode v-for="(s, k) in st.sections" :key="s.name" :s="s" :k="k"/>
         </div>
         <section><h2 style="margin-bottom:6px">Итог</h2><Totals/></section>
