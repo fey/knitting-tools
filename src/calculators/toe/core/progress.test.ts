@@ -18,7 +18,7 @@ import { paramsKey } from './hash'
 const calculation = calculateToe(DEFAULT_PARAMS, 'cuff-down')
 
 describe('короткая строка ряда (§8)', () => {
-  it('убавочный ряд называет номер убавки из decRowsNeeded и петли, которые станут', () => {
+  it('убавочный ряд называет номер убавки из workRowsNeeded и петли, которые станут', () => {
     expect(rowShortText(calculation, 1)).toBe('убавочный 1 из 10 · в круге станет 56')
   })
 

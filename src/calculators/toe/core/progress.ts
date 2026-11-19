@@ -20,13 +20,13 @@ import { stitchesWord } from './plural'
  * в интерфейс, синоним значит разойтись со спекой.
  */
 export function rowShortText(
-  calculation: Pick<ToeCalculation, 'rows' | 'decRowsNeeded'>,
+  calculation: Pick<ToeCalculation, 'rows' | 'workRowsNeeded'>,
   rowNumber: number,
 ): string {
   const row = calculation.rows[rowNumber - 1]
   if (!row) return ''
   if (row.type === 'dec') {
-    return `убавочный ${row.dec} из ${calculation.decRowsNeeded} · в круге станет ${row.stitches}`
+    return `убавочный ${row.dec} из ${calculation.workRowsNeeded} · в круге станет ${row.stitches}`
   }
   return `промежуточный · в круге ${row.stitches}`
 }
@@ -48,7 +48,7 @@ export function toeDoneText(calculation: Pick<ToeCalculation, 'finalReal'>): str
  * а когда отмечены все ряды мыска — сообщение о завершении.
  */
 export function progressWhatText(
-  calculation: Pick<ToeCalculation, 'rows' | 'decRowsNeeded' | 'totalRows' | 'finalReal'>,
+  calculation: Pick<ToeCalculation, 'rows' | 'workRowsNeeded' | 'totalRows' | 'finalReal'>,
   done: number,
 ): string {
   if (done >= calculation.totalRows) return toeDoneText(calculation)
@@ -92,7 +92,7 @@ export type ProgressView = {
 
 /** Что прогресс показывает на экране при `done` отмеченных рядах. */
 export function progressView(
-  calculation: Pick<ToeCalculation, 'rows' | 'decRowsNeeded' | 'totalRows' | 'finalReal'>,
+  calculation: Pick<ToeCalculation, 'rows' | 'workRowsNeeded' | 'totalRows' | 'finalReal'>,
   done: number,
 ): ProgressView {
   const total = calculation.totalRows

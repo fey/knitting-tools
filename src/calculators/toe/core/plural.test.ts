@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decRowsWord, plainRowsWord, plural, rowsWord, timesWord } from './plural'
+import { workRowsWord, plainRowsWord, plural, rowsWord, timesWord } from './plural'
 
 describe('склонения', () => {
   it('ряд, ряда, рядов', () => {
@@ -9,7 +9,7 @@ describe('склонения', () => {
   })
 
   it('убавочные ряды склоняются вместе с числом', () => {
-    expect([1, 3, 10].map((n) => decRowsWord(n, 'cuff-down'))).toEqual([
+    expect([1, 3, 10].map((n) => workRowsWord(n, 'cuff-down'))).toEqual([
       '1 убавочный ряд', '3 убавочных ряда', '10 убавочных рядов',
     ])
   })

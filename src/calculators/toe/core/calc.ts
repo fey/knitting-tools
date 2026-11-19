@@ -5,7 +5,7 @@
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
 import type { Direction, Rhythm, Segment, ToeCalculation, ToeParams } from './types'
-import { buildRows, decRowsFor, roundStitchesAfter, STITCHES_PER_DEC_ROW } from './rows'
+import { buildRows, workRowsFor, roundStitchesAfter, STITCHES_PER_WORK_ROW } from './rows'
 import { presetByCode } from './presets'
 
 /** Дефолтный расчёт первого экрана (§4): 60 → 20, кромка 1, через ряд. */
@@ -24,20 +24,22 @@ export const DEFAULT_PARAMS_TOE_UP: ToeParams = {
   rhythm: { kind: 'preset', name: 'even' },
 }
 
+const DEFAULTS: Record<Direction, ToeParams> = { 'cuff-down': DEFAULT_PARAMS, 'toe-up': DEFAULT_PARAMS_TOE_UP }
+
 /** Дефолт по направлению (§4, §4 спеки toe-up). */
 export function defaultParams(direction: Direction): ToeParams {
-  return structuredClone(direction === 'toe-up' ? DEFAULT_PARAMS_TOE_UP : DEFAULT_PARAMS)
+  return structuredClone(DEFAULTS[direction])
 }
 
 /**
  * Сегменты ритма. У пресета они выводятся от числа убавочных рядов при каждом расчёте —
  * поэтому пресет пересчитывается живьём сам; свой ритм отдаётся как набран (§5.4, §5.5).
  */
-export function segmentsOf(rhythm: Rhythm, decRowsNeeded: number, direction: Direction): Segment[] {
+export function segmentsOf(rhythm: Rhythm, workRowsNeeded: number, direction: Direction): Segment[] {
   // Свой ритм копируется: результат расчёта — снимок, а не та же память, что у
   // набранных сегментов. Иначе правка сегмента меняла бы уже посчитанное.
   if (rhythm.kind === 'custom') return rhythm.segments.map((s) => ({ ...s }))
-  return presetByCode(rhythm.name, direction).segments(decRowsNeeded)
+  return presetByCode(rhythm.name, direction).segments(workRowsNeeded)
 }
 
 /**
@@ -50,9 +52,9 @@ export function segmentsOf(rhythm: Rhythm, decRowsNeeded: number, direction: Dir
  * набранные шаги молча исчезнуть с экрана — а управление последним шагом спека отнимать
  * запрещает (§9.5).
  */
-function executedSegments(segments: Segment[], decRows: number): Segment[] {
+function executedSegments(segments: Segment[], workRows: number): Segment[] {
   const done: Segment[] = []
-  let left = decRows
+  let left = workRows
 
   for (const segment of segments) {
     if (left <= 0) break
@@ -72,7 +74,7 @@ function executedSegments(segments: Segment[], decRows: number): Segment[] {
  * сочетание петель и кромки чинит интерфейс.
  */
 export function minFinalStitches(edge: number): number {
-  return STITCHES_PER_DEC_ROW + STITCHES_PER_DEC_ROW * edge
+  return STITCHES_PER_WORK_ROW + STITCHES_PER_WORK_ROW * edge
 }
 
 /**
@@ -84,14 +86,14 @@ export function minFinalStitches(edge: number): number {
  */
 export function calculateToe(params: ToeParams, direction: Direction): ToeCalculation {
   const { initial, final, edge, rhythm } = params
-  const decRowsNeeded = decRowsFor(initial, final)
-  const segments = segmentsOf(rhythm, decRowsNeeded, direction)
-  const decRowsCovered = segments.reduce((sum, s) => sum + s.repeats, 0)
+  const workRowsNeeded = workRowsFor(initial, final)
+  const segments = segmentsOf(rhythm, workRowsNeeded, direction)
+  const workRowsCovered = segments.reduce((sum, s) => sum + s.repeats, 0)
   // Выполненных убавочных рядов не больше, чем нужно: при переборе лишние шаги
   // не выполняются (§9.5). Величина держится локальной — наружу она выходит
   // числом рядов и `finalReal`, а `lack` считается по набранному покрытию.
-  const decRowsDone = Math.min(decRowsCovered, decRowsNeeded)
-  const rows = buildRows(initial, executedSegments(segments, decRowsDone), direction)
+  const workRowsDone = Math.min(workRowsCovered, workRowsNeeded)
+  const rows = buildRows(initial, executedSegments(segments, workRowsDone), direction)
 
   return {
     initial,
@@ -100,11 +102,11 @@ export function calculateToe(params: ToeParams, direction: Direction): ToeCalcul
     rhythm,
     direction,
     segments,
-    decRowsNeeded,
-    decRowsCovered,
+    workRowsNeeded,
+    workRowsCovered,
     rows,
     totalRows: rows.length,
-    lack: decRowsNeeded - decRowsCovered,
-    finalReal: roundStitchesAfter(initial, decRowsDone, direction),
+    lack: workRowsNeeded - workRowsCovered,
+    finalReal: roundStitchesAfter(initial, workRowsDone, direction),
   }
 }

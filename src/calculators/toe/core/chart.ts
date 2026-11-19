@@ -383,5 +383,10 @@ const LEGEND_TOE_UP: readonly LegendItem[] = [
 
 /** Легенда схемы по направлению (§7.2, §7.2 спеки toe-up). */
 export function chartLegend(direction: Direction): readonly LegendItem[] {
-  return direction === 'toe-up' ? LEGEND_TOE_UP : LEGEND_CUFF_DOWN
+  return LEGEND_BY_DIRECTION[direction]
+}
+
+const LEGEND_BY_DIRECTION: Record<Direction, readonly LegendItem[]> = {
+  'cuff-down': LEGEND_CUFF_DOWN,
+  'toe-up': LEGEND_TOE_UP,
 }

@@ -253,6 +253,56 @@ function fixOf(
 }
 
 /**
+ * Роли полей (§9.2): какое поле — факт, а какое уступает. Алгоритм починки у обоих
+ * направлений один; различаются роли, пол факта, дно решётки уступающего, тай-брейк
+ * и имена причин.
+ *
+ * Факт чинится только своей арифметикой — чётность, потолок, пол. Уступающее поле
+ * подтягивается к решётке `дно + 4k` в пределах `дно … факт − 4` (разница кратна 4,
+ * уступающее меньше факта).
+ */
+type Roles = {
+  anchor: FixField
+  follower: FixField
+  /** Пол факта при этой кромке. */
+  anchorFloor: (edge: EdgeValue) => number
+  /** Наименьшее сходящееся уступающее поле при этом факте и кромке. */
+  followerLowest: (anchor: number, edge: EdgeValue) => number
+  /** При равенстве расстояний: вверх (cuff-down) или вниз (toe-up) — мысок выходит длиннее (§9.5). */
+  tieUp: boolean
+  anchorReasons: { odd: FixReason; ceiling: FixReason; floor: FixReason }
+  followerReasons: { floor: FixReason; notLess: FixReason; step: FixReason }
+}
+
+const ROLES: Record<Direction, Roles> = {
+  'cuff-down': {
+    anchor: 'initial',
+    follower: 'final',
+    anchorFloor: initialFloor,
+    followerLowest: lowestFinal,
+    tieUp: true,
+    anchorReasons: { odd: 'initial-odd', ceiling: 'initial-ceiling', floor: 'initial-floor' },
+    followerReasons: { floor: 'final-min', notLess: 'final-not-less', step: 'final-step' },
+  },
+  'toe-up': {
+    anchor: 'final',
+    follower: 'initial',
+    anchorFloor: () => FINAL_FLOOR_TOE_UP,
+    // Решётка сходящихся начальных держится конечных: `начальные ≡ конечные (mod 4)` —
+    // от пола 8 вверх она встала бы мимо (при конечных 66 сходятся 10, 14, …, а не 8, 12, …).
+    followerLowest: (final) => final - 4 - 4 * Math.floor((final - 4 - INITIAL_FLOOR_TOE_UP) / 4),
+    tieUp: false,
+    anchorReasons: { odd: 'final-odd', ceiling: 'final-ceiling', floor: 'final-floor' },
+    followerReasons: { floor: 'initial-floor', notLess: 'initial-not-less', step: 'initial-step' },
+  },
+}
+
+/** Проходит ли поле-факт само по себе: чётность, потолок и пол под кромку. */
+function anchorPasses(roles: Roles, value: number, edge: EdgeValue): boolean {
+  return isPositiveEvenInt(value) && value <= MAX_STITCHES && value >= roles.anchorFloor(edge)
+}
+
+/**
  * Чинит набранное до сходящегося и рассказывает, что починил.
  *
  * `previous` — последние сходящиеся значения полей: к ним возвращается пустое поле
@@ -266,163 +316,75 @@ export function normalizeStitchFields(
   previous: { initial: number; final: number; edge: number },
   direction: Direction,
 ): NormalizedFields {
-  return direction === 'toe-up' ? normalizeToeUp(draft, previous) : normalizeCuffDown(draft, previous)
-}
-
-function normalizeCuffDown(draft: FieldsDraft, previous: { initial: number; final: number; edge: number }): NormalizedFields {
+  const roles = ROLES[direction]
   const edge = toEdge(draft.edge, toEdge(previous.edge, 1))
   const fixes: Fix[] = []
 
-  // --- Начальные. Поле-факт: их не подтягивают под конечные, только под свою же
-  // арифметику — чётность, пол и потолок.
-  const enteredInitial = toInt(draft.initial) ?? previous.initial
-  let initial = enteredInitial
-  let initialReason: FixReason | null = null
-  let initialNeighbour: number | null = null
+  // --- Факт. Его не подтягивают под уступающее поле, только под свою же арифметику.
+  const enteredAnchor = toInt(draft[roles.anchor]) ?? previous[roles.anchor]
+  const floor = roles.anchorFloor(edge)
+  let anchor = enteredAnchor
+  let anchorReason: FixReason | null = null
+  let anchorNeighbour: number | null = null
 
-  if (initial % 2 !== 0) {
+  if (anchor % 2 !== 0) {
     // Тянутся вниз, оба соседа предложены (§9.5).
-    initialReason = 'initial-odd'
-    initialNeighbour = initial + 1
-    initial -= 1
+    anchorReason = roles.anchorReasons.odd
+    anchorNeighbour = anchor + 1
+    anchor -= 1
   }
-  if (initial > MAX_STITCHES) {
-    initial = MAX_STITCHES
-    initialReason = 'initial-ceiling'
-    initialNeighbour = null
+  if (anchor > MAX_STITCHES) {
+    anchor = MAX_STITCHES
+    anchorReason = roles.anchorReasons.ceiling
+    anchorNeighbour = null
   }
-  if (initial < initialFloor(edge)) {
-    initial = initialFloor(edge)
-    initialReason = 'initial-floor'
-    initialNeighbour = null
+  if (anchor < floor) {
+    anchor = floor
+    anchorReason = roles.anchorReasons.floor
+    anchorNeighbour = null
   }
-  if (initialNeighbour !== null && (initialNeighbour > MAX_STITCHES || initialNeighbour < initialFloor(edge))) {
-    initialNeighbour = null
+  if (anchorNeighbour !== null && (anchorNeighbour > MAX_STITCHES || anchorNeighbour < floor)) {
+    anchorNeighbour = null
   }
-  if (initialReason) {
-    fixes.push(fixOf('initial', initialReason, enteredInitial, initial, initialNeighbour, initial, edge))
+  if (anchorReason) {
+    fixes.push(fixOf(roles.anchor, anchorReason, enteredAnchor, anchor, anchorNeighbour, anchor, edge))
   }
 
-  // --- Конечные. В конфликте уступают именно они — и начальным, и кромке.
-  const enteredFinal = toInt(draft.final) ?? previous.final
-  const lo = lowestFinal(initial, edge)
-  const hi = initial - 4
-  const step = 4
+  // --- Уступающее поле: в конфликте уступает именно оно — и факту, и кромке.
+  const enteredFollower = toInt(draft[roles.follower]) ?? previous[roles.follower]
+  const lo = roles.followerLowest(anchor, edge)
+  const hi = anchor - 4
 
   // Сходящиеся соседи набранного: на решётке `lo + 4k` в пределах `lo…hi`.
-  const below = enteredFinal < lo ? null : Math.min(hi, lo + Math.floor((enteredFinal - lo) / step) * step)
-  const above = enteredFinal > hi ? null : Math.max(lo, lo + Math.ceil((enteredFinal - lo) / step) * step)
+  const below = enteredFollower < lo ? null : Math.min(hi, lo + Math.floor((enteredFollower - lo) / 4) * 4)
+  const above = enteredFollower > hi ? null : Math.max(lo, lo + Math.ceil((enteredFollower - lo) / 4) * 4)
 
-  let final = enteredFinal
-  let finalReason: FixReason | null = null
-  let finalNeighbour: number | null = null
+  let follower = enteredFollower
+  let followerReason: FixReason | null = null
+  let followerNeighbour: number | null = null
 
-  if (below === enteredFinal && above === enteredFinal) {
+  if (below === enteredFollower && above === enteredFollower) {
     // Набранное само сходится — правки нет.
   } else if (below === null) {
-    final = lo
-    finalReason = 'final-min'
+    follower = lo
+    followerReason = roles.followerReasons.floor
   } else if (above === null) {
-    final = hi
-    finalReason = enteredFinal >= initial ? 'final-not-less' : 'final-step'
+    follower = hi
+    followerReason = enteredFollower >= anchor ? roles.followerReasons.notLess : roles.followerReasons.step
   } else {
-    // Набранное между двумя сходящимися: при равенстве расстояний — вверх (§9.5).
-    const up = above - enteredFinal <= enteredFinal - below
-    final = up ? above : below
-    finalNeighbour = up ? below : above
-    finalReason = 'final-step'
+    // Набранное между двумя сходящимися.
+    const up = roles.tieUp ? above - enteredFollower <= enteredFollower - below : above - enteredFollower < enteredFollower - below
+    follower = up ? above : below
+    followerNeighbour = up ? below : above
+    followerReason = roles.followerReasons.step
   }
 
-  if (finalReason) {
-    fixes.push(fixOf('final', finalReason, enteredFinal, final, finalNeighbour, initial, edge))
+  if (followerReason) {
+    fixes.push(fixOf(roles.follower, followerReason, enteredFollower, follower, followerNeighbour, anchor, edge))
   }
 
-  return { initial, final, edge, fixes }
-}
-
-/**
- * Toe-up. Зеркально cuff-down: поле-факт — конечные (§9.2 спеки toe-up), в конфликте
- * уступают начальные, при равенстве расстояний начальные тянутся **вниз** — зеркало
- * «вверх» у конечных cuff-down: в обоих случаях мысок выходит длиннее, а не тупее.
- * Исключение зеркальное: нечётные конечные чинятся сами (§9.2 toe-up).
- */
-function normalizeToeUp(draft: FieldsDraft, previous: { initial: number; final: number; edge: number }): NormalizedFields {
-  const edge = toEdge(draft.edge, toEdge(previous.edge, 1))
-  const fixes: Fix[] = []
-
-  // --- Конечные. Поле-факт: их не подтягивают под начальные, только под свою же
-  // арифметику — чётность, пол и потолок.
-  const enteredFinal = toInt(draft.final) ?? previous.final
-  let final = enteredFinal
-  let finalReason: FixReason | null = null
-  let finalNeighbour: number | null = null
-
-  if (final % 2 !== 0) {
-    // Тянутся вниз, оба соседа предложены (§9.5).
-    finalReason = 'final-odd'
-    finalNeighbour = final + 1
-    final -= 1
-  }
-  if (final > MAX_STITCHES) {
-    final = MAX_STITCHES
-    finalReason = 'final-ceiling'
-    finalNeighbour = null
-  }
-  if (final < FINAL_FLOOR_TOE_UP) {
-    final = FINAL_FLOOR_TOE_UP
-    finalReason = 'final-floor'
-    finalNeighbour = null
-  }
-  if (finalNeighbour !== null && (finalNeighbour > MAX_STITCHES || finalNeighbour < FINAL_FLOOR_TOE_UP)) {
-    finalNeighbour = null
-  }
-  if (finalReason) {
-    fixes.push(fixOf('final', finalReason, enteredFinal, final, finalNeighbour, final, edge))
-  }
-
-  // --- Начальные. В конфликте уступают именно они — конечным.
-  const enteredInitial = toInt(draft.initial) ?? previous.initial
-  const hi = final - 4
-  // Решётка сходящихся начальных держится конечных: разница кратна 4, то есть
-  // `начальные ≡ конечные (mod 4)` — от пола 8 вверх решётка встала бы мимо
-  // (при конечных 66 сходятся 10, 14, …, а не 8, 12, …).
-  const lo = hi - 4 * Math.floor((hi - INITIAL_FLOOR_TOE_UP) / 4)
-  const step = 4
-
-  // Сходящиеся соседи набранного: на решётке `lo + 4k` в пределах `lo…hi`.
-  const below = enteredInitial < lo ? null : Math.min(hi, lo + Math.floor((enteredInitial - lo) / step) * step)
-  const above = enteredInitial > hi ? null : Math.max(lo, lo + Math.ceil((enteredInitial - lo) / step) * step)
-
-  let initial = enteredInitial
-  let initialReason: FixReason | null = null
-  let initialNeighbour: number | null = null
-
-  if (below === enteredInitial && above === enteredInitial) {
-    // Набранное само сходится — правки нет.
-  } else if (below === null) {
-    initial = lo
-    initialReason = 'initial-floor'
-  } else if (above === null) {
-    initial = hi
-    initialReason = enteredInitial >= final ? 'initial-not-less' : 'initial-step'
-  } else {
-    // Набранное между двумя сходящимися: при равенстве расстояний — вниз (§9.5 toe-up):
-    // мысок выйдет длиннее, а не тупее.
-    initial = above - enteredInitial < enteredInitial - below ? above : below
-    initialNeighbour = initial === above ? below : above
-    initialReason = 'initial-step'
-  }
-
-  if (initialReason) {
-    fixes.push(fixOf('initial', initialReason, enteredInitial, initial, initialNeighbour, final, edge))
-  }
-
-  return { initial, final, edge, fixes }
-}
-
-/** Проходит ли поле начальных петель само по себе: чётность, потолок и пол под кромку (cuff-down). */
-function initialPasses(initial: number, edge: EdgeValue): boolean {
-  return isPositiveEvenInt(initial) && initial <= MAX_STITCHES && initial >= initialFloor(edge)
+  const values = { [roles.anchor]: anchor, [roles.follower]: follower } as Record<FixField, number>
+  return { initial: values.initial, final: values.final, edge, fixes }
 }
 
 /**
@@ -454,38 +416,22 @@ export function fieldsFromLink(
   defaults: { initial: number; final: number; edge: number },
   direction: Direction,
 ): { initial: number; final: number; edge: EdgeValue } {
+  const roles = ROLES[direction]
   const edge = toEdge(draft.edge, toEdge(defaults.edge, 1))
 
-  if (direction === 'toe-up') {
-    // Поле-факт — конечные: проверяются сами по себе, исключение — нечётные.
-    const linkFinal = toInt(draft.final)
-    let final =
-      linkFinal !== null &&
-      isPositiveEvenInt(linkFinal) &&
-      linkFinal <= MAX_STITCHES &&
-      linkFinal >= FINAL_FLOOR_TOE_UP
-        ? linkFinal
-        : defaults.final
+  // Факт проверяется сам по себе, уступающее поле — уже вместе с уцелевшим фактом.
+  const linkAnchor = toInt(draft[roles.anchor])
+  const anchor = linkAnchor !== null && anchorPasses(roles, linkAnchor, edge) ? linkAnchor : defaults[roles.anchor]
 
-    // Начальные проверяются вместе с уцелевшими конечными.
-    const linkInitial = toInt(draft.initial)
-    const initial =
-      linkInitial !== null && converges({ initial: linkInitial, final, edge }, direction)
-        ? linkInitial
-        : defaults.initial
+  const linkFollower = toInt(draft[roles.follower])
+  const follower =
+    linkFollower !== null &&
+    converges({ [roles.anchor]: anchor, [roles.follower]: linkFollower, edge } as Pick<ToeParams, 'initial' | 'final' | 'edge'>, direction)
+      ? linkFollower
+      : defaults[roles.follower]
 
-    const safe = normalizeStitchFields({ initial, final, edge }, { initial, final, edge }, direction)
-    return { initial: safe.initial, final: safe.final, edge: safe.edge }
-  }
-
-  const linkInitial = toInt(draft.initial)
-  const initial = linkInitial !== null && initialPasses(linkInitial, edge) ? linkInitial : defaults.initial
-
-  const linkFinal = toInt(draft.final)
-  const final =
-    linkFinal !== null && converges({ initial, final: linkFinal, edge }, direction) ? linkFinal : defaults.final
-
-  const safe = normalizeStitchFields({ initial, final, edge }, { initial, final, edge }, direction)
+  const values = { [roles.anchor]: anchor, [roles.follower]: follower } as Record<FixField, number>
+  const safe = normalizeStitchFields({ ...values, edge }, { ...values, edge }, direction)
   return { initial: safe.initial, final: safe.final, edge: safe.edge }
 }
 

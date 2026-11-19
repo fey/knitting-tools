@@ -36,7 +36,7 @@ export function rowsWord(n: number): string {
 }
 
 /** «10 убавочных рядов», у toe-up — «10 прибавочных рядов». */
-export function decRowsWord(n: number, direction: Direction): string {
+export function workRowsWord(n: number, direction: Direction): string {
   const [one, few, many] = WORK_ROW[direction].nom
   return `${n} ${plural(n, one, few, many)}`
 }
@@ -63,10 +63,10 @@ export function stepsWord(n: number): string {
 
 /**
  * Родительный падеж рабочих рядов: «не хватает 1 убавочного ряда»,
- * «не хватает 4 прибавочных рядов». Именительный `decRowsWord` после «не хватает»
+ * «не хватает 4 прибавочных рядов». Именительный `workRowsWord` после «не хватает»
  * даёт «не хватает 4 убавочных ряда» — форма, которой спека не писала.
  */
-export function decRowsWordGen(n: number, direction: Direction): string {
+export function workRowsWordGen(n: number, direction: Direction): string {
   const [one, few, many] = WORK_ROW[direction].gen
   return `${n} ${plural(n, one, few, many)}`
 }

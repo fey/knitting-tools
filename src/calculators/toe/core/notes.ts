@@ -12,7 +12,7 @@
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
 import type { ToeCalculation } from './types'
-import { decRowsWord, decRowsWordGen, plural, stepsWord, stitchesWord } from './plural'
+import { workRowsWord, workRowsWordGen, plural, stepsWord, stitchesWord } from './plural'
 
 /** Мысок короче этого — замечание о тупом мыске (§9.6). */
 export const SHORT_TOE_ROWS = 12
@@ -45,18 +45,18 @@ export type CoverageNote = {
  * при переборе на два убавочных ряда), и так же считает `lack`.
  */
 export function coverageNote(
-  calculation: Pick<ToeCalculation, 'lack' | 'decRowsNeeded' | 'final' | 'finalReal' | 'direction'>,
+  calculation: Pick<ToeCalculation, 'lack' | 'workRowsNeeded' | 'final' | 'finalReal' | 'direction'>,
 ): CoverageNote {
-  const { lack, decRowsNeeded, final, finalReal, direction } = calculation
+  const { lack, workRowsNeeded, final, finalReal, direction } = calculation
 
   if (lack === 0) {
-    return { kind: 'ok', text: `Сегменты покрывают все ${decRowsWord(decRowsNeeded, direction)}` }
+    return { kind: 'ok', text: `Сегменты покрывают все ${workRowsWord(workRowsNeeded, direction)}` }
   }
   if (lack > 0) {
     const outcome = direction === 'toe-up' ? 'выйдет' : 'останется'
     return {
       kind: 'lack',
-      text: `Не хватает ${decRowsWordGen(lack, direction)}: ${outcome} ${stitchesWord(finalReal)} вместо ${final}`,
+      text: `Не хватает ${workRowsWordGen(lack, direction)}: ${outcome} ${stitchesWord(finalReal)} вместо ${final}`,
     }
   }
   // Склоняется и прилагательное: «Лишний 1 шаг», «Лишние 2 шага», «Лишних 5 шагов».

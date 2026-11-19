@@ -12,8 +12,8 @@ describe('число рядов и убавочные ряды', () => {
   // §12.1, случай 2 — дефолт первого экрана.
   it('60 → 20 через ряд: 10 убавочных рядов, 19 рядов всего', () => {
     const result = toe()
-    expect(result.decRowsNeeded).toBe(10)
-    expect(result.decRowsCovered).toBe(10)
+    expect(result.workRowsNeeded).toBe(10)
+    expect(result.workRowsCovered).toBe(10)
     expect(result.totalRows).toBe(19)
     expect(result.finalReal).toBe(20)
     expect(result.lack).toBe(0)
@@ -22,11 +22,11 @@ describe('число рядов и убавочные ряды', () => {
   // §12.1, случай 1.
   it('60 → 16 через ряд: 11 убавочных рядов, 21 ряд, половина уходит с 30 до 8', () => {
     const result = toe({ final: 16 })
-    expect(result.decRowsNeeded).toBe(11)
+    expect(result.workRowsNeeded).toBe(11)
     expect(result.totalRows).toBe(21)
     expect(halfStitchesAfter(60, 0, 'cuff-down')).toBe(30)
-    expect(halfStitchesAfter(60, result.decRowsNeeded, 'cuff-down')).toBe(8)
-    expect(roundStitchesAfter(60, result.decRowsNeeded, 'cuff-down')).toBe(16)
+    expect(halfStitchesAfter(60, result.workRowsNeeded, 'cuff-down')).toBe(8)
+    expect(roundStitchesAfter(60, result.workRowsNeeded, 'cuff-down')).toBe(16)
     expect(result.rows[result.rows.length - 1].stitches).toBe(16)
   })
 
@@ -77,7 +77,7 @@ describe('недобор и перебор сегментов', () => {
     })
     expect(result.lack).toBe(4)
     expect(result.finalReal).toBe(36)
-    expect(result.decRowsCovered).toBe(6)
+    expect(result.workRowsCovered).toBe(6)
   })
 
   it('перебор кончается на конечных петлях: лишние шаги не выполняются', () => {
@@ -85,7 +85,7 @@ describe('недобор и перебор сегментов', () => {
       rhythm: { kind: 'custom', segments: [{ interval: 1, repeats: 12 }] },
     })
     expect(result.lack).toBe(-2)
-    expect(result.decRowsCovered).toBe(12)
+    expect(result.workRowsCovered).toBe(12)
     expect(result.finalReal).toBe(20)
     // Число рядов не считает невыполненные шаги: столько же, сколько у сходящегося {1, 10}.
     expect(result.totalRows).toBe(19)
@@ -136,7 +136,7 @@ describe('минимум конечных петель', () => {
 describe('пустой расчёт', () => {
   it('конечных не меньше начальных — убавочных рядов нет', () => {
     const result = toe({ final: 60, rhythm: { kind: 'custom', segments: [] } })
-    expect(result.decRowsNeeded).toBe(0)
+    expect(result.workRowsNeeded).toBe(0)
     expect(result.totalRows).toBe(0)
   })
 })
@@ -165,7 +165,7 @@ describe('закрытая формула числа рядов', () => {
 describe('пресет пересчитывается живьём, свой ритм — нет', () => {
   it('пресет при смене петель снова покрывает все убавочные ряды', () => {
     const same = toe({ rhythm: preset('even'), final: 16 })
-    expect(same.decRowsCovered).toBe(same.decRowsNeeded)
+    expect(same.workRowsCovered).toBe(same.workRowsNeeded)
     expect(same.segments).toEqual([{ interval: 1, repeats: 11 }])
   })
 
@@ -193,8 +193,8 @@ describe('мысок от мыска: модель и ряды (§3, §5.2, §5.
   it('дефолт 24 → 64 через ряд: 10 прибавочных рядов, 20 рядов всего, ряд 1 промежуточный', () => {
     const result = toeUp()
     expect(result.direction).toBe('toe-up')
-    expect(result.decRowsNeeded).toBe(10)
-    expect(result.decRowsCovered).toBe(10)
+    expect(result.workRowsNeeded).toBe(10)
+    expect(result.workRowsCovered).toBe(10)
     expect(result.totalRows).toBe(20)
     expect(result.finalReal).toBe(64)
     expect(result.lack).toBe(0)
@@ -222,8 +222,8 @@ describe('мысок от мыска: модель и ряды (§3, §5.2, §5.
   it('петли в половине растут: 24 → 64 при кромке на арифметику не влияют', () => {
     const result = toeUp()
     expect(halfStitchesAfter(24, 0, 'toe-up')).toBe(12)
-    expect(halfStitchesAfter(24, result.decRowsNeeded, 'toe-up')).toBe(32)
-    expect(roundStitchesAfter(24, result.decRowsNeeded, 'toe-up')).toBe(64)
+    expect(halfStitchesAfter(24, result.workRowsNeeded, 'toe-up')).toBe(32)
+    expect(roundStitchesAfter(24, result.workRowsNeeded, 'toe-up')).toBe(64)
     const rows = [0, 1, 2].map((edge) => toeUp({ edge }).totalRows)
     expect(rows).toEqual([20, 20, 20])
   })
@@ -242,7 +242,7 @@ describe('мысок от мыска: модель и ряды (§3, §5.2, §5.
 
   it('конечных не больше начальных — прибавочных рядов нет, ряд 1 без прибавок не считается', () => {
     const result = toeUp({ initial: 64, final: 64, rhythm: { kind: 'custom', segments: [] } })
-    expect(result.decRowsNeeded).toBe(0)
+    expect(result.workRowsNeeded).toBe(0)
     expect(result.totalRows).toBe(0)
   })
 })

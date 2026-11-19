@@ -8,23 +8,23 @@
 import type { Direction, Row, Segment } from './types'
 
 /** Убавочный (прибавочный) ряд меняет круг на 4 петли — по 2 с каждой половины (§3). */
-export const STITCHES_PER_DEC_ROW = 4
+export const STITCHES_PER_WORK_ROW = 4
 
 /**
  * Насколько рабочий ряд меняет круг со знаком: −4 у cuff-down, +4 у toe-up. Единственное
  * место, где знак зависит от направления, — счёт петель после `r` рядов строится на нём.
  */
 function stitchStep(direction: Direction): number {
-  return direction === 'toe-up' ? STITCHES_PER_DEC_ROW : -STITCHES_PER_DEC_ROW
+  return direction === 'toe-up' ? STITCHES_PER_WORK_ROW : -STITCHES_PER_WORK_ROW
 }
 
 /**
  * Сколько убавочных (прибавочных) рядов нужно: `N = |начальные − конечные| / 4` (§3).
  * У toe-up начальных меньше конечных, поэтому модуль.
  */
-export function decRowsFor(initial: number, final: number): number {
+export function workRowsFor(initial: number, final: number): number {
   const diff = Math.abs(initial - final)
-  return diff > 0 ? Math.floor(diff / STITCHES_PER_DEC_ROW) : 0
+  return diff > 0 ? Math.floor(diff / STITCHES_PER_WORK_ROW) : 0
 }
 
 /**
@@ -67,11 +67,11 @@ export function buildRows(initial: number, segments: Segment[], direction: Direc
 }
 
 /** Петель в половине после `r` убавочных (прибавочных) рядов (§5.3). */
-export function halfStitchesAfter(initial: number, decRows: number, direction: Direction): number {
-  return roundStitchesAfter(initial, decRows, direction) / 2
+export function halfStitchesAfter(initial: number, workRows: number, direction: Direction): number {
+  return roundStitchesAfter(initial, workRows, direction) / 2
 }
 
 /** Петель в круге после `r` убавочных (прибавочных) рядов (§5.3). */
-export function roundStitchesAfter(initial: number, decRows: number, direction: Direction): number {
-  return initial + stitchStep(direction) * decRows
+export function roundStitchesAfter(initial: number, workRows: number, direction: Direction): number {
+  return initial + stitchStep(direction) * workRows
 }

@@ -14,7 +14,7 @@
  */
 import type { Direction, PresetName, Rhythm, Segment } from './types'
 import { buildRows } from './rows'
-import { decRowsWord } from './plural'
+import { workRowsWord } from './plural'
 
 export type Preset = {
   code: PresetName
@@ -25,7 +25,7 @@ export type Preset = {
   /** Описание самих сегментов. Формы клина словами не обещаем (§5.4). */
   how: string
   /** Сегменты при N убавочных рядах. */
-  segments: (decRowsNeeded: number) => Segment[]
+  segments: (workRowsNeeded: number) => Segment[]
 }
 
 /** «Через ряд» у обоих направлений одинаков сегментами, описание называет свой рабочий ряд. */
@@ -78,7 +78,7 @@ export const PRESETS: Preset[] = [
       { interval: 1, repeats: 1 },
       // Ниже `min` (5) фиксированный хвост в 4 ряда сам превышает N. Отрицательные
       // `repeats` здесь молча разошлись бы с `buildRows`: цикл `r < repeats` их
-      // пропускает, а `decRowsCovered` (плоская сумма) — нет, и получался лживый
+      // пропускает, а `workRowsCovered` (плоская сумма) — нет, и получался лживый
       // «перебора нет» при фактическом перекрытии на 44 петлях вместо честных 52
       // (карточка «с разгоном», выбранная на N = 10, при сужении петель до N = 2).
       // Зажимаем в 0 — тогда обе величины считают одинаковые 4 ряда, и недостача
@@ -106,8 +106,10 @@ export const PRESETS_TOE_UP: Preset[] = [
 
 /** Пресеты по направлению (§11 спеки toe-up): наборы не пересекаются, кроме «через ряд». */
 export function presetsFor(direction: Direction): Preset[] {
-  return direction === 'toe-up' ? PRESETS_TOE_UP : PRESETS
+  return PRESETS_BY_DIRECTION[direction]
 }
+
+const PRESETS_BY_DIRECTION: Record<Direction, Preset[]> = { 'cuff-down': PRESETS, 'toe-up': PRESETS_TOE_UP }
 
 /**
  * Пресет по коду **в наборе своего направления**. У наборов нет общих чужих кодов:
@@ -135,14 +137,14 @@ export function rhythmName(rhythm: Rhythm, direction: Direction): string {
  * Живое число рядов для подписи карточки. `null` — ритм при этих петлях не собирается;
  * карточку показывают неактивной с причиной, а не подменяют другим ритмом (§5.4).
  */
-export function presetRowCount(preset: Preset, decRowsNeeded: number, initial: number, direction: Direction): number | null {
-  if (decRowsNeeded < preset.min) return null
-  return buildRows(initial, preset.segments(decRowsNeeded), direction).length
+export function presetRowCount(preset: Preset, workRowsNeeded: number, initial: number, direction: Direction): number | null {
+  if (workRowsNeeded < preset.min) return null
+  return buildRows(initial, preset.segments(workRowsNeeded), direction).length
 }
 
 /** Причина, по которой ритм неактивен: «нужно 3 убавочных ряда, сейчас 2». */
-export function presetWhyOff(preset: Preset, decRowsNeeded: number, direction: Direction): string {
+export function presetWhyOff(preset: Preset, workRowsNeeded: number, direction: Direction): string {
   // Прототип склонял только слово «ряд» и на пороге 1 выдавал «1 убавочных ряд»;
   // склоняется вся связка целиком.
-  return `нужно ${decRowsWord(preset.min, direction)}, сейчас ${decRowsNeeded}`
+  return `нужно ${workRowsWord(preset.min, direction)}, сейчас ${workRowsNeeded}`
 }

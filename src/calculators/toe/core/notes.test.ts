@@ -32,9 +32,9 @@ describe('coverageNote', () => {
   })
 
   it('склоняется вся связка, а не одно слово', () => {
-    expect(coverageNote({ lack: -1, decRowsNeeded: 10, final: 20, finalReal: 16, direction: 'cuff-down' }).text).toContain('Лишний 1 шаг:')
-    expect(coverageNote({ lack: -5, decRowsNeeded: 10, final: 20, finalReal: 0, direction: 'cuff-down' }).text).toContain('Лишних 5 шагов:')
-    expect(coverageNote({ lack: 1, decRowsNeeded: 10, final: 20, finalReal: 24, direction: 'cuff-down' }).text).toBe(
+    expect(coverageNote({ lack: -1, workRowsNeeded: 10, final: 20, finalReal: 16, direction: 'cuff-down' }).text).toContain('Лишний 1 шаг:')
+    expect(coverageNote({ lack: -5, workRowsNeeded: 10, final: 20, finalReal: 0, direction: 'cuff-down' }).text).toContain('Лишних 5 шагов:')
+    expect(coverageNote({ lack: 1, workRowsNeeded: 10, final: 20, finalReal: 24, direction: 'cuff-down' }).text).toBe(
       'Не хватает 1 убавочного ряда: останется 24 петли вместо 20',
     )
   })

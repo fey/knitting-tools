@@ -60,9 +60,9 @@ export type ToeCalculation = ToeParams & {
   /** Сегменты, которыми ритм разложился на этом расчёте. */
   segments: Segment[]
   /** Сколько убавочных (прибавочных) рядов нужно: `|начальные − конечные| / 4`. */
-  decRowsNeeded: number
+  workRowsNeeded: number
   /** Сколько убавочных (прибавочных) рядов покрыто сегментами. */
-  decRowsCovered: number
+  workRowsCovered: number
   rows: Row[]
   /**
    * Число рядов мыска. Самостоятельная величина модели (§13): расчёт по плотности
