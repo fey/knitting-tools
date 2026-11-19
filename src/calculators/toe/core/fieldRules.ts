@@ -87,12 +87,16 @@ export function converges(
  * отдаёт всё, что вообще достижимо, самое близкое к диапазону сверху.
  */
 export function finalCandidates(initial: number, edge: number): number[] {
-  const min = minFinalStitches(edge)
+  return candidates(initial - 4, minFinalStitches(edge), TYPICAL_FINAL_MIN, TYPICAL_FINAL_MAX)
+}
+
+/** Достижимые значения с шагом 4 от `top` вниз до `floor`: обычные, иначе три верхних. */
+function candidates(top: number, floor: number, typicalMin: number, typicalMax: number): number[] {
   const achievable: number[] = []
-  for (let v = initial - 4; v >= min; v -= 4) achievable.push(v)
+  for (let v = top; v >= floor; v -= 4) achievable.push(v)
   achievable.reverse()
 
-  const typical = achievable.filter((v) => v >= TYPICAL_FINAL_MIN && v <= TYPICAL_FINAL_MAX)
+  const typical = achievable.filter((v) => v >= typicalMin && v <= typicalMax)
   return typical.length > 0 ? typical : achievable.slice(-3)
 }
 
@@ -103,12 +107,7 @@ export function finalCandidates(initial: number, edge: number): number[] {
  * что вообще достижимо сверху.
  */
 export function initialCandidates(final: number): number[] {
-  const achievable: number[] = []
-  for (let v = final - 4; v >= INITIAL_FLOOR_TOE_UP; v -= 4) achievable.push(v)
-  achievable.reverse()
-
-  const typical = achievable.filter((v) => v >= TYPICAL_INITIAL_MIN && v <= TYPICAL_INITIAL_MAX)
-  return typical.length > 0 ? typical : achievable.slice(-3)
+  return candidates(final - 4, INITIAL_FLOOR_TOE_UP, TYPICAL_INITIAL_MIN, TYPICAL_INITIAL_MAX)
 }
 
 /* ------------------------------------------------------------------------- *
@@ -204,9 +203,7 @@ function initialFloor(edge: EdgeValue): number {
 }
 
 /** Минимум конечных у toe-up: прибавочному ряду нужно подняться с пола начальных. */
-function finalFloorToeUp(): number {
-  return INITIAL_FLOOR_TOE_UP + 4
-}
+const FINAL_FLOOR_TOE_UP = INITIAL_FLOOR_TOE_UP + 4
 
 /** Наименьшие сходящиеся конечные при этих начальных и кромке (cuff-down). */
 function lowestFinal(initial: number, edge: EdgeValue): number {
@@ -371,12 +368,12 @@ function normalizeToeUp(draft: FieldsDraft, previous: { initial: number; final: 
     finalReason = 'final-ceiling'
     finalNeighbour = null
   }
-  if (final < finalFloorToeUp()) {
-    final = finalFloorToeUp()
+  if (final < FINAL_FLOOR_TOE_UP) {
+    final = FINAL_FLOOR_TOE_UP
     finalReason = 'final-floor'
     finalNeighbour = null
   }
-  if (finalNeighbour !== null && (finalNeighbour > MAX_STITCHES || finalNeighbour < finalFloorToeUp())) {
+  if (finalNeighbour !== null && (finalNeighbour > MAX_STITCHES || finalNeighbour < FINAL_FLOOR_TOE_UP)) {
     finalNeighbour = null
   }
   if (finalReason) {
@@ -466,7 +463,7 @@ export function fieldsFromLink(
       linkFinal !== null &&
       isPositiveEvenInt(linkFinal) &&
       linkFinal <= MAX_STITCHES &&
-      linkFinal >= finalFloorToeUp()
+      linkFinal >= FINAL_FLOOR_TOE_UP
         ? linkFinal
         : defaults.final
 

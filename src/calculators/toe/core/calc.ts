@@ -26,9 +26,7 @@ export const DEFAULT_PARAMS_TOE_UP: ToeParams = {
 
 /** Дефолт по направлению (§4, §4 спеки toe-up). */
 export function defaultParams(direction: Direction): ToeParams {
-  return direction === 'toe-up'
-    ? { ...DEFAULT_PARAMS_TOE_UP, rhythm: { ...DEFAULT_PARAMS_TOE_UP.rhythm } }
-    : { ...DEFAULT_PARAMS, rhythm: { ...DEFAULT_PARAMS.rhythm } }
+  return structuredClone(direction === 'toe-up' ? DEFAULT_PARAMS_TOE_UP : DEFAULT_PARAMS)
 }
 
 /**

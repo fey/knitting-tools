@@ -190,6 +190,7 @@ export type ChartRow = {
  * (§3, §7.1 спеки toe-up).
  */
 function layoutRow(row: Row, y: number, cols: number, edge: number, direction: Direction): ChartRow {
+  const up = direction === 'toe-up'
   const active = row.stitches / 2
   // active = cols ± 2r всегда чётно-выравнено с cols той же чётности, off — целое.
   const off = (cols - active) / 2
@@ -208,7 +209,6 @@ function layoutRow(row: Row, y: number, cols: number, edge: number, direction: D
     // Номер живой петли от начала половины — то есть от правого края (§7, круговое чтение).
     const p = off + active - 1 - j
     const isEdge = p < edge || p >= active - edge
-    const up = direction === 'toe-up'
     // Ряд с изменением числа петель несёт два значка на половине, оба за кромкой:
     // «k лицевых · пара · лицевые · пара · k лицевых» (§3). У cuff-down это убавки,
     // у toe-up — прибавки; наклон один: в начале половины влево, в конце вправо.
