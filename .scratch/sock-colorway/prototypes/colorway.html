@@ -169,7 +169,7 @@ function whiteState() {
 /* ---------- состояние ---------- */
 const q = reactive({ del: 'first', preset: 'синий + лён' })
 const st = reactive(defaultState(q.preset))
-const ui = reactive({ view: 'sock', open: { 1: true }, toast: null, lastGen: '', delAsk: null, presets: false, canUndo: false, canRedo: false })
+const ui = reactive({ outline: 'thin', view: 'sock', open: { 1: true }, toast: null, lastGen: '', delAsk: null, presets: false, canUndo: false, canRedo: false })
 function replaceState(next) { Object.assign(st, JSON.parse(JSON.stringify(next))) }
 watch(() => q.preset, p => replaceState(defaultState(p)))
 
@@ -451,18 +451,25 @@ const SockL = {
       toe: parts[2] + 'Z',
       heel: abs(parts[4], '123.435,116.829'),
     }
-    return { SIL, ZONE, groups, op, pick, SEC, VEC_T, VEC_LINES, VEC_ZONE }
+    // силуэт по середине линий; верх картинки упирается в край кадра — срезаем по середине верхней линии
+    const SIL_MID = SIL.replace(/(\d+),(\d+)/g, (m, x, y) => x + ',' + Math.max(+y, 12))
+    return { SIL, SIL_MID, ZONE, groups, op, pick, SEC, VEC_T, VEC_LINES, VEC_ZONE, s }
   },
   template: `
   <svg viewBox="170 -6 480 812" :style="{ width: '100%', maxWidth: maxw + 'px', maxHeight: '56vh', display: 'block', margin: '0 auto' }" role="img" aria-label="Носок">
     <defs>
-      <clipPath v-for="(d, k) in VEC_ZONE" :key="k" :id="'z-' + k"><path :d="d" :transform="VEC_T"/></clipPath>
+      <!-- тело — по внешнему краю иконки; резинка, пятка, мысок — до середины её линий (обводка по пикселям) -->
+      <clipPath id="z-body"><path :d="SIL_MID"/></clipPath>
+      <clipPath v-for="k in ['cuff', 'heel', 'toe']" :key="k" :id="'z-' + k"><path :d="ZONE[k]"/></clipPath>
     </defs>
     <g v-for="k in ['body', 'heel', 'cuff', 'toe']" :key="k" :clip-path="'url(#z-' + k + ')'">
       <polygon v-for="(o, i) in groups[k]" :key="i" :points="o.pts" :fill="o.fill" :opacity="op(o.sec)"
                :style="{ cursor: selectable ? 'pointer' : 'default' }" @click="pick(o.sec)"/>
     </g>
-    <path :d="VEC_LINES" :transform="VEC_T" fill="#475569"/>
+    <g v-if="s.ui.outline === 'thin'" fill="none" stroke="#475569" stroke-linejoin="round">
+      <path v-for="k in ['cuff', 'heel', 'toe']" :key="k" :d="ZONE[k]" stroke-width="4" stroke-opacity=".7"/>
+      <path :d="SIL_MID" stroke-width="5.5"/>
+    </g>
   </svg>`,
 }
 
@@ -607,6 +614,10 @@ createApp({
     <div class="grid" style="margin-top:10px">
       <div class="stage col">
         <div class="row" style="justify-content:flex-end">
+          <div class="seg" role="group" aria-label="Обводка" title="ПРОТОТИП: сравнить обводку">
+            <button :class="{ on: ui.outline === 'thin' }" @click="ui.outline = 'thin'">тонкая</button>
+            <button :class="{ on: ui.outline === 'none' }" @click="ui.outline = 'none'">без обводки</button>
+          </div>
           <div class="seg" role="group" aria-label="Вид">
             <button :class="{ on: ui.view !== 'tube' }" @click="ui.view = 'sock'">Носок</button>
             <button :class="{ on: ui.view === 'tube' }" @click="ui.view = 'tube'">Развёртка</button>
