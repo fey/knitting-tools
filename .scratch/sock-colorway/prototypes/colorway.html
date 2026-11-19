@@ -94,11 +94,16 @@ const { createApp, reactive, computed, ref, watch } = Vue
 /* ---------- ядро (будущий core/) ---------- */
 const SECTIONS = ['резинка', 'паголенок', 'пятка', 'стопа', 'мысок']
 const DEFAULT_ROWS = [20, 50, 30, 60, 20]
+// готовые палитры; первая — расцветка по умолчанию
 const PRESETS = {
   'синий + лён': ['#2f3e5c', '#e8e2d4'],
   'графит + горчица': ['#3a3a3c', '#d4a72c'],
   'бордо + серый меланж': ['#6d1f2f', '#b9b7b2'],
   'белый + красный': ['#f7f7f5', '#c8102e'],
+  'лес': ['#264d36', '#8fae5d', '#e9dfc4'],
+  'море': ['#1d3557', '#457b9d', '#a8dadc', '#f1faee'],
+  'конфетти': ['#e63946', '#f4a261', '#2a9d8f', '#f1faee'],
+  'осень': ['#7f2f1d', '#c96a2b', '#e8b04a', '#4a3b2f'],
 }
 function plural(n, one, few, many) {
   const a = n % 10, b = n % 100
@@ -162,9 +167,9 @@ function whiteState() {
 }
 
 /* ---------- состояние ---------- */
-const q = reactive({ del: 'first', reset: 'twotap', preset: 'синий + лён' })
+const q = reactive({ del: 'first', preset: 'синий + лён' })
 const st = reactive(defaultState(q.preset))
-const ui = reactive({ view: 'sock', open: { 1: true }, confirming: false, modal: false, toast: null, lastGen: '' })
+const ui = reactive({ view: 'sock', open: { 1: true }, toast: null, lastGen: '', delAsk: null, presets: false, canUndo: false, canRedo: false })
 function replaceState(next) { Object.assign(st, JSON.parse(JSON.stringify(next))) }
 watch(() => q.preset, p => replaceState(defaultState(p)))
 
@@ -292,16 +297,56 @@ function rollSock() { genSections(); stamp('носок') }
 function rollSection(i) { if (!st.sections[i].lock) { genSections(i); stamp(st.sections[i].name) } }
 
 /* сброс */
-let snapshot = null
-function doReset() { snapshot = JSON.parse(JSON.stringify(st)); replaceState(whiteState()); ui.confirming = false; ui.modal = false }
-function askReset() {
-  if (q.reset === 'twotap') ui.confirming = true
-  else if (q.reset === 'modal') ui.modal = true
-  else { doReset(); ui.toast = 'Носок сброшен'; clearTimeout(ui.t); ui.t = setTimeout(() => ui.toast = null, 6000) }
+/*
+ * История действий: снимок расцветки до каждого изменения. Изменения, идущие подряд быстрее
+ * 400 мс (перетаскивание границы, набор числа), склеиваются в один шаг. Живёт в памяти сессии.
+ */
+const past = [], future = []
+let applying = false, pending = null, timer = null
+const syncFlags = () => { ui.canUndo = past.length > 0 || pending != null; ui.canRedo = future.length > 0 }
+const flush = () => { if (pending != null) { past.push(pending); if (past.length > 200) past.shift(); pending = null } clearTimeout(timer); syncFlags() }
+watch(() => JSON.stringify(st), (now, before) => {
+  if (applying) return
+  if (pending == null) pending = before
+  future.length = 0
+  clearTimeout(timer); timer = setTimeout(flush, 400); syncFlags()
+})
+function travel(from, to) {
+  flush(); if (!from.length) return
+  to.push(JSON.stringify(st)); applying = true; replaceState(JSON.parse(from.pop()))
+  Promise.resolve().then(() => { applying = false; syncFlags() })
 }
-function undoReset() { if (snapshot) replaceState(snapshot); ui.toast = null }
+const undo = () => travel(past, future), redo = () => travel(future, past)
+addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return
+  const mod = e.ctrlKey || e.metaKey; if (!mod) return
+  const k = e.key.toLowerCase()
+  if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
+  else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); redo() }
+})
 
-const store = { st, q, ui, rows, totals, rowsText, plural, isLight, usages, canDelete, deleteColor, addColor, rollPalette, rollSock, rollSection, askReset, doReset, undoReset,
+/** Сброс без подтверждения: его откатывает «Отменить», как любое действие. */
+function doReset() {
+  replaceState(whiteState())
+  ui.toast = 'Носок сброшен'; clearTimeout(ui.t); ui.t = setTimeout(() => ui.toast = null, 6000)
+}
+function undoReset() { undo(); ui.toast = null }
+
+/** Готовая палитра заменяет текущую; полосы с номером цвета за её пределами берут цвет по кругу. */
+function applyPreset(name) {
+  const hexes = PRESETS[name]
+  st.palette = hexes.map(hex => ({ hex, lock: false }))
+  st.sections.forEach(s => s.stripes.forEach(p => { if (p.c >= hexes.length) p.c = p.c % hexes.length }))
+  ui.presets = false
+}
+/** Неиспользуемый цвет уходит сразу, используемый — после подтверждения; его полосы станут цветом 1. */
+function askDeleteColor(i) {
+  if (!canDelete(i)) return
+  if (usages(i).length) ui.delAsk = i
+  else deleteColor(i)
+}
+
+const store = { st, q, ui, rows, totals, rowsText, plural, isLight, usages, canDelete, deleteColor, addColor, rollPalette, rollSock, rollSection, doReset, undoReset, undo, redo, applyPreset, askDeleteColor, PRESETS,
   addStripe, removeStripe, setStripeRows, moveBorder, moveStripe, reorderStripe, setSectionRows }
 
 /* ---------- куски экрана ---------- */
@@ -387,21 +432,37 @@ const SockL = {
     const SEC = { cuff: 0, heel: 2, toe: 4 }
     const op = sec => (props.selectable && s.ui.selected != null && s.ui.selected !== sec) ? 0.3 : 1
     const pick = sec => props.selectable && emit('pick', sec)
-    return { SIL, ZONE, groups, op, pick, SEC }
+    /*
+     * Линии и области — векторный оригинал: «socks», Alex Pour, коллекция «Men Outfit Line Vectors»,
+     * SVG Repo (https://www.svgrepo.com/svg/426769/socks), лицензия CC Attribution — на живой
+     * странице нужна подпись автора. Иконка — один залитый путь из обводок: внешний контур
+     * и четыре внутренних края (резинка, мысок, тело, пятка). Внутренние края — области под
+     * заливку, обводки рисуются поверх и закрывают стыки. VEC_T переводит координаты иконки
+     * в пиксели картинки 800×800, где посчитаны направления рядов (ZONE выше — обводка той же
+     * картинки по пикселям, нужна только для этих расчётов).
+     */
+    const VEC_T = 'scale(25) translate(-100.664 -96.528)'
+    const VEC_LINES = 'M125.435,112.359c0-.011-.008-.022-.012-.033a11.618,11.618,0,0,1-.934-4.407l-.006-10.892a.5.5,0,0,0-.5-.5l-7.575,0a.5.5,0,0,0-.5.5l0,3.071v.005l.006,9.3a6.758,6.758,0,0,1-1.282,4.544l-6.031,7.656a.477.477,0,0,0-.068.086v0l-.112.141a4.14,4.14,0,0,0,6.309,5.352l7.279-7.881a11.388,11.388,0,0,1,1.745-1.48c.141-.1.249-.18.314-.233a4.5,4.5,0,0,0,1.710-3.531A4.418,4.418,0,0,0,125.435,112.359Zm-1.952-14.831v2.077H116.91l0-2.075ZM109.562,126.7a3.146,3.146,0,0,1-.438-4.1,16.067,16.067,0,0,1,4.756,4.025A3.227,3.227,0,0,1,109.562,126.7Zm5.012-.806a17.1,17.1,0,0,0-4.839-4.1l5.685-7.218a7.794,7.794,0,0,0,1.5-5.163l-.006-8.806h6.574l0,7.314a11.684,11.684,0,0,0,.383,2.858,7.782,7.782,0,0,0-2.1,7.36c-.166.154-.334.318-.5.5Zm8.861-9.065c-.056.046-.146.11-.263.194-.144.1-.327.238-.522.387a7.045,7.045,0,0,1-.089-1.2,6.892,6.892,0,0,1,1.641-4.323c.089.262.174.524.282.787l.016.046a3.421,3.421,0,0,1,.28,1.352A3.519,3.519,0,0,1,123.435,116.826Z'
+    const parts = VEC_LINES.split('Z').filter(Boolean)
+    const abs = (sub, start) => 'M' + start + sub.replace(/^m[^a-zA-Z]*/, '') + 'Z'
+    const VEC_ZONE = {
+      body: parts[0] + 'Z',                                  // внешний контур: под резинкой, пяткой и мыском тоже тело, их рисуют поверх
+      cuff: abs(parts[1], '123.483,97.528'),
+      toe: parts[2] + 'Z',
+      heel: abs(parts[4], '123.435,116.829'),
+    }
+    return { SIL, ZONE, groups, op, pick, SEC, VEC_T, VEC_LINES, VEC_ZONE }
   },
   template: `
-  <svg viewBox="185 -2 450 790" :style="{ width: '100%', maxWidth: maxw + 'px', maxHeight: '56vh', display: 'block', margin: '0 auto' }" role="img" aria-label="Носок">
+  <svg viewBox="170 -6 480 812" :style="{ width: '100%', maxWidth: maxw + 'px', maxHeight: '56vh', display: 'block', margin: '0 auto' }" role="img" aria-label="Носок">
     <defs>
-      <clipPath v-for="(d, k) in ZONE" :key="k" :id="'z-' + k"><path :d="d"/></clipPath>
+      <clipPath v-for="(d, k) in VEC_ZONE" :key="k" :id="'z-' + k"><path :d="d" :transform="VEC_T"/></clipPath>
     </defs>
     <g v-for="k in ['body', 'heel', 'cuff', 'toe']" :key="k" :clip-path="'url(#z-' + k + ')'">
       <polygon v-for="(o, i) in groups[k]" :key="i" :points="o.pts" :fill="o.fill" :opacity="op(o.sec)"
                :style="{ cursor: selectable ? 'pointer' : 'default' }" @click="pick(o.sec)"/>
     </g>
-    <g fill="none" stroke="#475569" stroke-width="7" stroke-linejoin="round">
-      <path v-for="k in ['heel', 'toe', 'cuff']" :key="k" :d="ZONE[k]" stroke-width="5" stroke-opacity=".55"/>
-      <path :d="SIL" stroke-opacity=".8"/>
-    </g>
+    <path :d="VEC_LINES" :transform="VEC_T" fill="#475569"/>
   </svg>`,
 }
 
@@ -531,20 +592,7 @@ const Questions = {
   setup() { const dump = computed(() => JSON.stringify(store.st, null, 1)); return { ...store, dump, PRESETS } },
   template: `
   <details class="q">
-    <summary><span class="proto-tag">ПРОТОТИП</span> Вопросы §13</summary>
-    <fieldset><legend>Удаление цвета, который где-то используется</legend>
-      <label><input type="radio" value="first" v-model="q.del"> заменить на цвет 1</label><br>
-      <label><input type="radio" value="nearest" v-model="q.del"> заменить ближайшим по цвету</label><br>
-      <label><input type="radio" value="forbid" v-model="q.del"> не давать удалить, пока используется</label>
-    </fieldset>
-    <fieldset><legend>Цвета по умолчанию (меняет носок)</legend>
-      <select v-model="q.preset"><option v-for="(v, k) in PRESETS" :key="k">{{ k }}</option></select>
-    </fieldset>
-    <fieldset><legend>Подтверждение сброса</legend>
-      <label><input type="radio" value="twotap" v-model="q.reset"> вторым нажатием</label><br>
-      <label><input type="radio" value="modal" v-model="q.reset"> окном на странице</label><br>
-      <label><input type="radio" value="undo" v-model="q.reset"> сразу, но с «Вернуть» несколько секунд</label>
-    </fieldset>
+    <summary><span class="proto-tag">ПРОТОТИП</span> Отладка</summary>
     <div class="mute">Последняя генерация: {{ ui.lastGen || '—' }}</div>
     <details><summary class="mute">Состояние</summary><pre class="dump">{{ dump }}</pre></details>
   </details>`,
@@ -590,23 +638,31 @@ createApp({
     <div v-for="(p, i) in st.palette" :key="i" class="chip" :class="{ locked: p.lock }">
       <input type="color" v-model="p.hex"><span style="font-size:12px">{{ i + 1 }}</span>
       <Lock small :on="p.lock" @toggle="p.lock = !p.lock"/>
-      <button class="ghost" style="min-height:28px;padding:0 4px" :disabled="!canDelete(i)" :title="usages(i).length ? 'Используется: ' + usages(i).join(', ') : 'Убрать цвет'" @click="deleteColor(i)">✕</button>
+      <button class="ghost" style="min-height:28px;padding:0 4px" :disabled="!canDelete(i)" :title="usages(i).length ? 'Используется: ' + usages(i).join(', ') : 'Убрать цвет'" @click="askDeleteColor(i)">✕</button>
     </div>
     <button :disabled="st.palette.length >= 6" @click="addColor">+ цвет</button>
-    <button @click="askReset">Сбросить</button>
+    <button @click="ui.presets = !ui.presets">Готовые ▾</button>
+    <span style="flex:1"></span>
+    <button :disabled="!ui.canUndo" @click="undo" title="Отменить (Ctrl+Z)">↶</button>
+    <button :disabled="!ui.canRedo" @click="redo" title="Вернуть (Ctrl+Shift+Z)">↷</button>
+    <button @click="doReset">Сбросить</button>
   </div>
-  <div v-if="ui.confirming" class="confirm">
-    <div class="row"><span>Сбросить всё, и замки тоже?</span>
-      <button @click="doReset" style="border-color:#dc2626;color:#dc2626">Да</button><button @click="ui.confirming = false">Нет</button></div>
-  </div>
-  <div v-if="ui.modal" class="modal-back" @click.self="ui.modal = false">
-    <div class="modal col">
-      <b>Сбросить носок?</b>
-      <span class="mute">Носок станет белым, палитра — из одного цвета, замки снимутся.</span>
-      <div class="row"><button @click="doReset" style="border-color:#dc2626;color:#dc2626">Сбросить</button><button @click="ui.modal = false">Отмена</button></div>
+  <div v-if="ui.presets" class="confirm" style="padding-bottom:120px">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px"><b>Готовые палитры</b><button class="ghost" @click="ui.presets = false">Закрыть</button></div>
+    <div class="col" style="gap:6px">
+      <button v-for="(hexes, name) in PRESETS" :key="name" class="row" style="justify-content:flex-start" @click="applyPreset(name)">
+        <span v-for="h in hexes" :key="h" class="sw" :style="{ background: h, width: '24px', height: '24px' }"></span>
+        <span style="margin-left:6px">{{ name }}</span>
+      </button>
     </div>
   </div>
-  <div v-if="ui.toast" class="toast">{{ ui.toast }} <button @click="undoReset">Вернуть</button></div>
+  <div v-if="ui.delAsk != null" class="confirm" style="padding-bottom:120px">
+    <div class="col" style="gap:8px">
+      <span>Убрать цвет {{ ui.delAsk + 1 }}? Он в участках: {{ usages(ui.delAsk).join(', ') }} — там полосы станут цветом 1.</span>
+      <div class="row"><button @click="deleteColor(ui.delAsk); ui.delAsk = null" style="border-color:#dc2626;color:#dc2626">Убрать</button><button @click="ui.delAsk = null">Отмена</button></div>
+    </div>
+  </div>
+  <div v-if="ui.toast" class="toast">{{ ui.toast }} <button @click="undoReset">Отменить</button></div>
   <div class="proto-bar"><span class="proto-tag">ПРОТОТИП</span> участки из полос</div>`,
 }).mount('#app')
 </script>
