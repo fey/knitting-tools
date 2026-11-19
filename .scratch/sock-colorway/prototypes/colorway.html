@@ -56,6 +56,8 @@
   .sec-body { padding:4px 10px 12px 28px; background:#f8fafc; }
   .bar { position:relative; height:40px; display:flex; border-radius:8px; overflow:hidden; border:1px solid #0003; touch-action:none; margin:6px 0 10px; }
   .bar .part { height:100%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; min-width:0; }
+  .bar .part.movable { cursor:grab; }
+  .bar .part.dragging { cursor:grabbing; box-shadow:inset 0 0 0 3px #fff, inset 0 0 0 5px #0f172a; }
   .bar .grip { position:absolute; top:0; bottom:0; width:24px; margin-left:-12px; cursor:ew-resize; display:flex; justify-content:center; }
   .bar .grip::after { content:''; width:4px; height:100%; background:#fff; box-shadow:0 0 0 1px #0005; }
   .stripe { display:flex; align-items:center; gap:6px; padding:3px 0; }
@@ -199,6 +201,14 @@ function moveBorder(sec, i, delta) { // граница между полосам
   const d = Math.max(1 - a.r, Math.min(delta, b.r - 1))
   a.r += d; b.r -= d
 }
+/** Полосу двигают целиком, как раздел на диске: её длина та же, левая соседка растёт, правая сжимается. */
+function moveStripe(sec, i, delta) {
+  const L = sec.stripes[i - 1], R = sec.stripes[i + 1]
+  if (!L || !R) return 0
+  const d = Math.max(1 - L.r, Math.min(delta, R.r - 1))
+  L.r += d; R.r -= d
+  return d
+}
 function setSectionRows(sec, v) {
   const n = Math.max(sec.stripes.length, Math.round(v) || 1)
   const r = apportion(sec.stripes.map(p => p.r), n)
@@ -264,7 +274,7 @@ function askReset() {
 function undoReset() { if (snapshot) replaceState(snapshot); ui.toast = null }
 
 const store = { st, q, ui, rows, totals, rowsText, plural, isLight, usages, canDelete, deleteColor, addColor, generate, askReset, doReset, undoReset,
-  addStripe, removeStripe, setStripeRows, moveBorder, setSectionRows }
+  addStripe, removeStripe, setStripeRows, moveBorder, moveStripe, setSectionRows }
 
 /* ---------- куски экрана ---------- */
 const Lock = {
@@ -405,17 +415,24 @@ const SectionNode = {
   props: ['s', 'k'],
   setup(props) {
     const barEl = ref(null)
-    let drag = null
-    const down = (i, e) => { drag = { i, x: e.clientX, acc: 0 }; e.target.setPointerCapture(e.pointerId) }
-    const move = e => {
-      if (!drag) return
-      const w = barEl.value.getBoundingClientRect().width, perRow = w / props.s.rows
-      const rowsMoved = Math.trunc((e.clientX - drag.x) / perRow) - drag.acc
-      if (rowsMoved) { store.moveBorder(props.s, drag.i, rowsMoved); drag.acc += rowsMoved }
+    // kind: 'edge' — граница между полосами i и i+1, 'stripe' — полоса i целиком
+    const drag = ref(null)
+    const down = (kind, i, e) => {
+      if (kind === 'stripe' && (i === 0 || i === props.s.stripes.length - 1)) return
+      drag.value = { kind, i, x: e.clientX, acc: 0 }; barEl.value.setPointerCapture(e.pointerId); e.preventDefault()
     }
-    const up = () => { drag = null }
+    const move = e => {
+      const d = drag.value; if (!d) return
+      const perRow = barEl.value.getBoundingClientRect().width / props.s.rows
+      const want = Math.round((e.clientX - d.x) / perRow) - d.acc
+      if (!want) return
+      if (d.kind === 'edge') { store.moveBorder(props.s, d.i, want); d.acc += want }
+      else d.acc += store.moveStripe(props.s, d.i, want)
+    }
+    const up = () => { drag.value = null }
+    const movable = i => i > 0 && i < props.s.stripes.length - 1
     const grips = computed(() => { let a = 0; return props.s.stripes.slice(0, -1).map(p => (a += p.r) / props.s.rows * 100) })
-    return { ...store, barEl, down, move, up, grips }
+    return { ...store, barEl, down, move, up, grips, drag, movable }
   },
   template: `
   <div class="sec">
@@ -429,9 +446,14 @@ const SectionNode = {
     <div v-if="ui.open[k]" class="sec-body">
       <label class="row mute" style="gap:6px">рядов в участке
         <input type="number" min="1" :value="s.rows" @change="e => setSectionRows(s, +e.target.value)"></label>
+      <div class="mute">Край полосы тянется — меняется размер. Полосу в середине можно прижать и сдвинуть целиком.</div>
       <div class="bar" ref="barEl" @pointermove="move" @pointerup="up" @pointercancel="up">
-        <div v-for="(p, i) in s.stripes" :key="i" class="part" :style="{ flex: p.r, background: st.palette[p.c]?.hex, color: isLight(st.palette[p.c]?.hex || '#fff') ? '#0f172a' : '#fff' }">{{ p.r }}</div>
-        <div v-for="(g, i) in grips" :key="'g' + i" class="grip" :style="{ left: g + '%' }" @pointerdown="e => down(i, e)"></div>
+        <div v-for="(p, i) in s.stripes" :key="i" class="part"
+             :class="{ movable: movable(i), dragging: drag && drag.kind === 'stripe' && drag.i === i }"
+             :style="{ flex: p.r, background: st.palette[p.c]?.hex, color: isLight(st.palette[p.c]?.hex || '#fff') ? '#0f172a' : '#fff' }"
+             :title="movable(i) ? 'Прижми и тащи: полоса сдвинется, соседи подстроятся' : ''"
+             @pointerdown="e => down('stripe', i, e)">{{ p.r }}</div>
+        <div v-for="(g, i) in grips" :key="'g' + i" class="grip" :style="{ left: g + '%' }" @pointerdown.stop="e => down('edge', i, e)"></div>
       </div>
       <div v-for="(p, i) in s.stripes" :key="i" class="stripe">
         <div class="swatches">
