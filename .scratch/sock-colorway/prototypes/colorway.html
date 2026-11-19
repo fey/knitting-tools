@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ПРОТОТИП — конструктор расцветки носка</title>
+<!--
+  ПРОТОТИП. Одноразовый код, отвечающий на вопросы §13 спеки ../spec.md.
+  В main не мержится, живёт на ветке prototype/sock-colorway.
+
+  Три структурно разных экрана, переключаются ?variant= и стрелками ← →:
+    A — «Носок сверху»: силуэт сбоку (L-образный) над столбиком блоков в порядке §8.1;
+        от 800 px — две колонки, носок липнет слева
+    B — «Развёртка»: носок прямой трубкой с подписями участков, стоит рядом
+        с блоками даже на телефоне; участки — плотной таблицей
+    C — «Тап по носку»: носок на весь экран, участок правят тапом по нему
+        (шторка снизу / панель справа), палитра и генерация — плашкой внизу
+
+  Панель «Вопросы §13» (внизу каждого варианта) переключает политики, по которым
+  спека ещё не решила: удаление использованного цвета, стык раппорта,
+  подтверждение сброса, цвета по умолчанию. Там же — состояние целиком.
+  Хранения нет: всё в памяти, адрес несёт только ?variant=.
+-->
+<script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
+<style>
+  :root { --ink:#0f172a; --mute:#64748b; --line:#cbd5e1; --bg:#fff; --soft:#f1f5f9; --acc:#0f766e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.4 system-ui, sans-serif; color:var(--ink); background:var(--bg); }
+  h1 { font-size:20px; margin:0; } h2 { font-size:15px; margin:0 0 8px; }
+  button, select, input { font:inherit; color:inherit; }
+  button { border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 10px; min-height:40px; cursor:pointer; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+  button.ghost { border-color:transparent; background:transparent; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  input[type=number] { width:64px; padding:6px; border:1px solid var(--line); border-radius:6px; }
+  input.hex { width:84px; padding:6px; border:1px solid var(--line); border-radius:6px; font-family:ui-monospace,monospace; }
+  input[type=color] { width:44px; height:40px; padding:0; border:1px solid var(--line); border-radius:8px; background:none; }
+  select { padding:6px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  .page { max-width:1100px; margin:0 auto; padding:12px 16px 120px; }
+  .block { border:1px solid var(--line); border-radius:12px; padding:12px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .col { display:flex; flex-direction:column; gap:12px; }
+  .mute { color:var(--mute); font-size:13px; }
+  .lock { min-width:40px; padding:6px; color:#94a3b8; border-color:#e2e8f0; display:inline-flex; align-items:center; justify-content:center; gap:4px; }
+  .lock.on { background:#f59e0b; border-color:#d97706; color:#fff; }
+  .lock .t { font-size:12px; font-weight:600; }
+  .chip.locked { border-color:#f59e0b; box-shadow:0 0 0 2px #fde68a; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:999px; padding:2px; }
+  .seg button { border:none; border-radius:999px; min-height:34px; padding:4px 14px; }
+  .seg button.on { background:var(--ink); color:#fff; }
+  .sw { display:inline-block; width:18px; height:18px; border-radius:4px; border:1px solid #0003; vertical-align:middle; }
+  .proto-bar { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:50; display:flex; gap:6px; align-items:center;
+    background:#111; color:#fff; border-radius:999px; padding:4px 6px; box-shadow:0 4px 16px #0005; font-size:13px; }
+  .proto-bar button { background:transparent; color:#fff; border:none; min-height:32px; }
+  .proto-tag { background:#fde047; color:#111; font-weight:600; font-size:11px; padding:2px 6px; border-radius:4px; }
+  details.q { margin-top:16px; border:2px dashed #f59e0b; border-radius:12px; padding:10px; background:#fffbeb; }
+  details.q summary { cursor:pointer; font-weight:600; }
+  details.q fieldset { border:none; padding:6px 0; margin:0; }
+  details.q legend { font-weight:600; font-size:13px; }
+  pre.dump { font-size:11px; background:#fff; border:1px solid var(--line); padding:8px; max-height:260px; overflow:auto; }
+  .toast { position:fixed; left:50%; bottom:64px; transform:translateX(-50%); background:#1e293b; color:#fff; padding:8px 12px;
+    border-radius:10px; display:flex; gap:12px; align-items:center; z-index:60; }
+  .toast button { background:transparent; color:#5eead4; border:none; min-height:32px; font-weight:600; }
+  .modal-back { position:fixed; inset:0; background:#0006; display:flex; align-items:center; justify-content:center; z-index:70; }
+  .modal { background:#fff; border-radius:14px; padding:16px; max-width:340px; }
+  /* A */
+  .a-grid { display:flex; flex-direction:column; gap:12px; }
+  @media (min-width:800px) { .a-grid { display:grid; grid-template-columns: 420px 1fr; align-items:start; }
+    .a-sock { position:sticky; top:12px; } }
+  /* B */
+  .b-grid { display:grid; grid-template-columns: 96px 1fr; gap:12px; align-items:start; }
+  .b-tube { position:sticky; top:8px; }
+  @media (min-width:800px) { .b-grid { grid-template-columns: 1fr 1fr 220px; } .b-tube { grid-column:3; grid-row:1 / span 3; } }
+  table.sect { border-collapse:collapse; width:100%; font-size:14px; }
+  table.sect td { padding:4px 3px; border-bottom:1px solid var(--soft); }
+  /* C */
+  .c-stage { display:flex; justify-content:center; padding-top:8px; }
+  .c-dock { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:8px 12px 56px; z-index:40;
+    display:flex; gap:8px; align-items:center; overflow-x:auto; }
+  .c-sheet { position:fixed; left:0; right:0; bottom:0; background:#fff; border-radius:16px 16px 0 0; box-shadow:0 -6px 24px #0003;
+    padding:14px 16px 64px; z-index:45; max-height:70vh; overflow:auto; }
+  @media (min-width:800px) { .c-sheet { left:auto; top:0; width:380px; max-height:none; border-radius:0; } }
+  .chip { display:flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:999px; padding:2px 6px 2px 2px; white-space:nowrap; }
+  .chip input[type=color] { width:32px; height:32px; border-radius:999px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { createApp, reactive, computed, ref, watch, onMounted, onUnmounted } = Vue
+
+/* ---------- ядро (будущий core/) ---------- */
+const SECTIONS = ['резинка', 'паголенок', 'пятка', 'стопа', 'мысок']
+const DEFAULT_ROWS = [20, 50, 30, 60, 20]
+const RULES = { even: 'ровные', inc: 'нарастающие', dec: 'убывающие', fib: 'Фибоначчи', rnd: 'случайные', own: 'свой' }
+const PRESETS = {
+  'синий + лён': ['#2f3e5c', '#e8e2d4'],
+  'графит + горчица': ['#3a3a3c', '#d4a72c'],
+  'бордо + серый меланж': ['#6d1f2f', '#b9b7b2'],
+  'белый + красный': ['#f7f7f5', '#c8102e'],
+}
+
+function plural(n, one, few, many) {
+  const a = n % 10, b = n % 100
+  if (a === 1 && b !== 11) return one
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few
+  return many
+}
+const rowsText = n => `${n} ${plural(n, 'ряд', 'ряда', 'рядов')}`
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1))
+const pick = arr => arr[Math.floor(Math.random() * arr.length)]
+
+function hexToOklab(hex) {
+  const v = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  const [r, g, b] = v
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+          1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+          0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s]
+}
+const dist = (a, b) => { const p = hexToOklab(a), q = hexToOklab(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) }
+function hsl(h, s, l) {
+  s /= 100; l /= 100
+  const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l)
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))
+  return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('')
+}
+
+function ruleLengths(rule, p, n) {
+  if (rule === 'even') return Array(n).fill(p.N)
+  if (rule === 'inc') return Array.from({ length: p.k }, (_, i) => i + 1)
+  if (rule === 'dec') return Array.from({ length: p.k }, (_, i) => p.k - i)
+  if (rule === 'fib') { const f = [1, 1]; while (f.length < p.k) f.push(f.at(-1) + f.at(-2)); return f.slice(0, p.k) }
+  if (rule === 'rnd') return Array.from({ length: p.k }, () => rnd(p.min, p.max))
+  return []
+}
+function buildStripes(rule, p, n) {
+  return ruleLengths(rule, p, n).map((r, i) => ({ c: i % n, r }))
+}
+const seamClash = (stripes, n) => n > 1 && stripes.length > 1 && stripes[0].c === stripes.at(-1).c
+
+/** Раскладка рядов сверху вниз (§5.2): раппорт продолжается только по участкам в полоску. */
+function layout(st) {
+  const rap = st.rapport.stripes.flatMap(s => Array(Math.max(1, s.r)).fill(s.c))
+  const out = []; let k = 0
+  st.sections.forEach((s, si) => {
+    for (let i = 0; i < s.rows; i++) {
+      out.push({ s: si, c: s.mode === 'solid' ? s.color : rap[k++ % rap.length] })
+    }
+  })
+  return out
+}
+
+function defaultState(preset) {
+  const pal = PRESETS[preset]
+  return {
+    palette: pal.map(hex => ({ hex, lock: false })),
+    rapport: { rule: 'even', p: { N: 2, k: 5, min: 1, max: 6 }, stripes: buildStripes('even', { N: 2 }, 2), lock: false },
+    sections: SECTIONS.map((name, i) => ({ name, rows: DEFAULT_ROWS[i], mode: 'solid', color: [0, 1, 0, 1, 0][i], lock: false })),
+  }
+}
+function whiteState() {
+  return {
+    palette: [{ hex: '#ffffff', lock: false }],
+    rapport: { rule: 'even', p: { N: 2, k: 5, min: 1, max: 6 }, stripes: [{ c: 0, r: 2 }], lock: false },
+    sections: SECTIONS.map((name, i) => ({ name, rows: DEFAULT_ROWS[i], mode: 'solid', color: 0, lock: false })),
+  }
+}
+
+/* ---------- состояние ---------- */
+const q = reactive({ del: 'first', seam: 'avoid', reset: 'twotap', preset: 'синий + лён', tilt: 32 })
+const st = reactive(defaultState(q.preset))
+const ui = reactive({ view: 'sock', confirming: false, modal: false, toast: null, selected: null, lastGen: '' })
+
+function replaceState(next) { Object.assign(st, JSON.parse(JSON.stringify(next))) }
+watch(() => q.preset, p => replaceState(defaultState(p)))
+
+const rows = computed(() => layout(st))
+const totals = computed(() => {
+  const t = st.palette.map(() => 0); rows.value.forEach(r => t[r.c]++)
+  const all = rows.value.length
+  return t.map((n, i) => ({ i, n, pct: Math.round(100 * n / all) }))
+})
+const striped = computed(() => st.sections.some(s => s.mode === 'stripes'))
+
+function usages(i) {
+  const u = []
+  st.sections.forEach(s => { if (s.mode === 'solid' && s.color === i) u.push(s.name) })
+  if (st.rapport.stripes.some(s => s.c === i)) u.push('раппорт')
+  return u
+}
+function canDelete(i) { return st.palette.length > 1 && !(q.del === 'forbid' && usages(i).length) }
+function deleteColor(i) {
+  const hex = st.palette[i].hex
+  st.palette.splice(i, 1)
+  const repl = old => {
+    if (old !== i) return old > i ? old - 1 : old
+    if (q.del === 'nearest') {
+      let best = 0, bd = Infinity
+      st.palette.forEach((p, j) => { const d = dist(p.hex, hex); if (d < bd) { bd = d; best = j } })
+      return best
+    }
+    return 0
+  }
+  st.sections.forEach(s => s.color = repl(s.color))
+  st.rapport.stripes.forEach(s => s.c = repl(s.c))
+}
+function addColor() {
+  if (st.palette.length >= 6) return
+  st.palette.push({ hex: genColor(st.palette.map(p => p.hex)), lock: false })
+}
+
+function genColor(others) {
+  for (let t = 0; t < 300; t++) {
+    const c = hsl(rnd(0, 359), rnd(20, 85), rnd(18, 88))
+    if (others.every(o => dist(o, c) > 0.14)) return c
+  }
+  return hsl(rnd(0, 359), 60, 50)
+}
+function genPalette() {
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const hexes = st.palette.map(p => p.lock ? p.hex : null)
+    hexes.forEach((h, i) => { if (!h) hexes[i] = genColor(hexes.filter(Boolean)) })
+    const L = hexes.map(h => hexToOklab(h)[0])
+    if (hexes.length < 2 || Math.max(...L) - Math.min(...L) > 0.3 || attempt === 59) {
+      hexes.forEach((h, i) => st.palette[i].hex = h); return
+    }
+  }
+}
+function applyRule() {
+  const n = st.palette.length
+  st.rapport.stripes = buildStripes(st.rapport.rule, st.rapport.p, n)
+}
+function genRapport() {
+  const n = st.palette.length
+  for (let t = 0; t < 30; t++) {
+    const rule = pick(['even', 'inc', 'dec', 'fib', 'rnd'])
+    const p = { N: rnd(1, 6), k: rule === 'fib' ? rnd(4, 7) : rnd(3, 8), min: rnd(1, 2), max: rnd(3, 8) }
+    const stripes = buildStripes(rule, p, n)
+    if (q.seam === 'avoid' && seamClash(stripes, n) && t < 29) continue
+    Object.assign(st.rapport, { rule, p, stripes }); return
+  }
+}
+function genSections() {
+  const n = st.palette.length
+  const accent = rnd(0, n - 1)
+  const plan = [
+    Math.random() < 0.9 ? { mode: 'solid', color: Math.random() < 0.7 ? accent : rnd(0, n - 1) } : { mode: 'stripes' },
+    Math.random() < 0.85 ? { mode: 'stripes' } : { mode: 'solid', color: rnd(0, n - 1) },
+    Math.random() < 0.7 ? { mode: 'solid', color: accent } : { mode: 'stripes' },
+    Math.random() < 0.85 ? { mode: 'stripes' } : { mode: 'solid', color: rnd(0, n - 1) },
+    Math.random() < 0.9 ? { mode: 'solid', color: Math.random() < 0.8 ? accent : rnd(0, n - 1) } : { mode: 'stripes' },
+  ]
+  st.sections.forEach((s, i) => { if (!s.lock) { s.mode = plan[i].mode; if (plan[i].color != null) s.color = plan[i].color } })
+}
+function generate() {
+  // после сброса палитра из одного цвета: полосы одним цветом неотличимы от однотона
+  if (st.palette.length === 1) while (st.palette.length < 3) st.palette.push({ hex: '#ffffff', lock: false })
+  genPalette()
+  if (!st.rapport.lock) genRapport()
+  genSections()
+  ui.lastGen = new Date().toLocaleTimeString()
+}
+
+let snapshot = null
+function doReset() { snapshot = JSON.parse(JSON.stringify(st)); replaceState(whiteState()); ui.confirming = false; ui.modal = false; ui.selected = null }
+function askReset() {
+  if (q.reset === 'twotap') ui.confirming = true
+  else if (q.reset === 'modal') ui.modal = true
+  else { doReset(); ui.toast = 'Носок сброшен'; clearTimeout(ui.t); ui.t = setTimeout(() => ui.toast = null, 6000) }
+}
+function undoReset() { if (snapshot) replaceState(snapshot); ui.toast = null }
+
+function editStripe() { st.rapport.rule = 'own' }
+
+const store = { st, q, ui, rows, totals, striped, SECTIONS, RULES, PRESETS, rowsText, usages, canDelete, deleteColor, addColor,
+  generate, askReset, doReset, undoReset, applyRule, editStripe, seamClash, dist }
+
+/* ---------- общие куски ---------- */
+const Lock = {
+  props: { on: Boolean, label: Boolean, small: Boolean }, emits: ['toggle'],
+  template: `<button class="lock" :class="{on}" :style="small ? 'min-height:28px;min-width:28px;padding:3px;border-radius:999px' : ''"
+    :aria-pressed="on" :title="on ? 'Закреплено: генерация не меняет' : 'Не закреплено: генерация меняет'" @click.stop="$emit('toggle')">
+    <svg :width="small ? 14 : 18" :height="small ? 14 : 18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="11" width="16" height="10" rx="2" :fill="on ? 'currentColor' : 'none'"/>
+      <path v-if="on" d="M8 11V7a4 4 0 0 1 8 0v4"/>
+      <path v-else d="M8 11V7a4 4 0 0 1 7.5-2"/>
+    </svg>
+    <span v-if="label" class="t">{{ on ? 'закреплено' : 'закрепить' }}</span>
+  </button>`,
+}
+
+const SockL = {
+  /*
+   * Силуэт обведён с картинки мастера (sock-reference.png, 800×800) по середине её линий:
+   * силуэт и четыре замкнутые области — резинка, тело (паголенок и стопа), пятка-линза
+   * сзади, мысок-шапочка. Ничего не дорисовано: контуры сняты с пикселей.
+   *
+   * Ряды режутся полосами поперёк направления вязания и обрезаются своей областью:
+   * резинка — горизонтально; тело — поперёк средней линии (паголенок отвесно, изгиб,
+   * стопа по диагонали), ряды паголенка до середины изгиба, дальше стопа; пятка — поперёк
+   * длинной оси линзы; мысок — поперёк стопы. Внутри участка ряды одной толщины.
+   */
+  props: { u: { default: 3 }, selectable: Boolean, maxw: { default: 420 } },
+  emits: ['pick'],
+  setup(props, { emit }) {
+    const s = store
+    const SIL = 'M402,0L574,0L577,5L577,7L583,11L583,74L584,75L584,302L585,303L585,313L586,314L586,321L587,322L588,333L589,334L589,338L590,339L590,343L591,344L594,359L602,383L608,396L614,416L615,431L616,432L616,443L615,444L614,460L610,472L610,475L601,492L592,504L576,519L564,527L545,542L523,563L353,748L329,771L320,777L304,784L292,786L291,787L282,787L274,791L266,787L254,786L240,782L222,772L209,761L199,749L192,738L185,718L184,706L183,705L183,686L184,685L184,679L185,678L185,674L189,660L198,644L359,440L370,422L383,393L383,390L387,380L387,377L390,368L390,363L392,356L392,345L393,344L393,326L392,325L392,11L395,9L397,9L399,7L401,1Z'
+    const ZONE = { cuff: 'M406,13L569,13L574,16L576,16L578,18L578,20L581,25L581,76L578,81L578,83L576,85L574,85L569,88L406,88L401,85L399,85L397,83L397,81L394,76L394,25L397,20L397,18L399,16L405,14Z', body: 'M406,90L570,90L575,93L577,93L579,95L579,97L582,102L582,304L583,305L583,313L584,314L584,322L585,323L586,334L587,335L587,339L588,340L588,344L589,345L591,356L588,361L588,363L570,383L557,402L546,424L540,442L537,459L536,460L536,464L535,465L534,486L533,487L534,515L535,516L535,523L536,524L537,534L539,539L536,544L536,546L522,560L368,728L354,742L352,742L347,745L342,742L340,742L323,722L287,687L255,662L237,650L221,641L218,638L218,636L215,631L218,626L218,624L223,617L235,603L260,570L360,444L374,422L383,403L391,376L393,358L394,357L394,346L395,345L395,324L394,323L394,102L397,97L397,95L399,93L405,91Z', heel: 'M588,372L593,375L595,375L597,377L611,415L612,423L613,424L613,429L614,430L613,452L612,453L612,458L609,465L609,468L606,473L606,475L601,486L592,500L578,514L561,527L551,532L549,532L544,529L542,529L540,527L540,525L537,520L536,496L535,495L535,491L536,490L536,476L538,469L538,463L540,458L541,450L547,432L560,404L570,388L581,375L587,373Z', toe: 'M211,640L226,647L257,667L279,684L295,698L320,723L338,744L338,746L341,751L338,757L338,759L332,765L318,774L316,774L304,780L295,783L286,784L285,785L266,785L265,784L255,783L241,778L236,775L234,775L218,765L204,751L196,738L196,736L193,731L193,729L188,718L187,709L186,708L186,701L185,700L186,684L191,666L201,646L204,643L210,641Z' }
+    const pts = d => d.slice(1, -1).split('L').map(q => q.split(',').map(Number))
+    const norm = v => { const l = Math.hypot(v[0], v[1]); return [v[0] / l, v[1] / l] }
+    // средняя линия тела
+    const X = 494, Y0 = 88, D = norm([-0.593, 0.805]), Rc = 150, tg = Rc * Math.tan(Math.asin(-D[0]) / 2)
+    const K = [X, 393], Bs = [X, K[1] - tg], Be = [K[0] + D[0] * tg, K[1] + D[1] * tg], C = [X - Rc, Bs[1]]
+    const L1 = Bs[1] - Y0, A = Rc * Math.asin(-D[0]), END = L1 + A + Math.hypot(Be[0] - 275, Be[1] - 690)
+    function at(x) {
+      if (x <= L1) return { p: [X, Y0 + x], h: [0, 1] }
+      if (x <= L1 + A) { const f = (x - L1) / Rc; return { p: [C[0] + Rc * Math.cos(f), C[1] + Rc * Math.sin(f)], h: [-Math.sin(f), Math.cos(f)] } }
+      const t = x - L1 - A; return { p: [Be[0] + D[0] * t, Be[1] + D[1] * t], h: D }
+    }
+    const P = p => p.map(v => v.toFixed(1)).join(',')
+    // полоса [a, b] вдоль прямой оси dir от точки o, поперёк — с запасом
+    const band = (o, dir, a, b, half = 400) => {
+      const n = [dir[1], -dir[0]], q = (t, k) => [o[0] + dir[0] * t + n[0] * k, o[1] + dir[1] * t + n[1] * k]
+      return [q(a, -half), q(b, -half), q(b, half), q(a, half)].map(P).join(' ')
+    }
+    // полоса [a, b] вдоль средней линии тела
+    const bodyBand = (a, b) => {
+      const k = Math.max(1, Math.ceil((b - a) / 4)), xs = []; for (let i = 0; i <= k; i++) xs.push(a + (b - a) * i / k)
+      const side = d => xs.map(x => { const { p, h } = at(x), n = [h[1], -h[0]]; return [p[0] + n[0] * d, p[1] + n[1] * d] })
+      return [...side(140), ...side(-140).reverse()].map(P).join(' ')
+    }
+    // диапазон проекции области на ось
+    const span = (d, o, dir) => { const pr = pts(d).map(p => (p[0] - o[0]) * dir[0] + (p[1] - o[1]) * dir[1]); return [Math.min(...pr), Math.max(...pr)] }
+    const heelAxis = norm([548 - 590, 530 - 372]), heelO = [590, 372], heelSpan = span(ZONE.heel, heelO, heelAxis)
+    const toeO = [275, 690], toeSpan = span(ZONE.toe, toeO, D)
+    const cuffO = [494, 0], cuffSpan = span(ZONE.cuff, cuffO, [0, 1])
+    const groups = computed(() => {
+      const rows = s.rows.value, pal = s.st.palette, R = s.st.sections.map(x => x.rows)
+      const start = R.map((_, k) => R.slice(0, k).reduce((x, y) => x + y, 0))
+      // ряды участка k → [доля начала, доля конца] по участку
+      const runs = (ks) => {
+        const out = []
+        ks.forEach(k => { let i = 0; while (i < R[k]) { let j = i; while (j + 1 < R[k] && rows[start[k] + j + 1].c === rows[start[k] + i].c) j++; out.push({ k, i, j, c: rows[start[k] + i].c }); i = j + 1 } })
+        return out
+      }
+      const fill = c => pal[c]?.hex ?? '#f0f'
+      const g = { cuff: [], body: [], heel: [], toe: [] }
+      runs([0]).forEach(r => { const [a, b] = cuffSpan, h = (b - a) / R[0]; g.cuff.push({ pts: band(cuffO, [0, 1], a + r.i * h - (r.i ? 0 : 20), a + (r.j + 1) * h + 0.5), fill: fill(r.c), sec: 0 }) })
+      const mid = L1 + A / 2
+      runs([1, 3]).forEach(r => {
+        const [a0, a1] = r.k === 1 ? [-20, mid] : [mid, END + 40], n = R[r.k], h = (a1 - a0) / n
+        g.body.push({ pts: bodyBand(a0 + r.i * h, a0 + (r.j + 1) * h + 0.5), fill: fill(r.c), sec: r.k })
+      })
+      runs([2]).forEach(r => { const [a, b] = heelSpan, h = (b - a) / R[2]; g.heel.push({ pts: band(heelO, heelAxis, a + r.i * h - (r.i ? 0 : 20), a + (r.j + 1) * h + (r.j === R[2] - 1 ? 20 : 0.5), 200), fill: fill(r.c), sec: 2 }) })
+      runs([4]).forEach(r => { const [a, b] = toeSpan, h = (b - a) / R[4]; g.toe.push({ pts: band(toeO, D, a + r.i * h - (r.i ? 0 : 20), a + (r.j + 1) * h + (r.j === R[4] - 1 ? 20 : 0.5), 300), fill: fill(r.c), sec: 4 }) })
+      return g
+    })
+    const SEC = { cuff: 0, heel: 2, toe: 4 }
+    const op = sec => (props.selectable && s.ui.selected != null && s.ui.selected !== sec) ? 0.3 : 1
+    const pick = sec => props.selectable && emit('pick', sec)
+    return { SIL, ZONE, groups, op, pick, SEC }
+  },
+  template: `
+  <svg viewBox="185 -2 450 790" :style="{ width: '100%', maxWidth: maxw + 'px', maxHeight: '56vh', display: 'block', margin: '0 auto' }" role="img" aria-label="Носок">
+    <defs>
+      <clipPath v-for="(d, k) in ZONE" :key="k" :id="'z-' + k"><path :d="d"/></clipPath>
+    </defs>
+    <g v-for="k in ['body', 'heel', 'cuff', 'toe']" :key="k" :clip-path="'url(#z-' + k + ')'">
+      <polygon v-for="(o, i) in groups[k]" :key="i" :points="o.pts" :fill="o.fill" :opacity="op(o.sec)"
+               :style="{ cursor: selectable ? 'pointer' : 'default' }" @click="pick(o.sec)"/>
+    </g>
+    <g fill="none" stroke="#475569" stroke-width="7" stroke-linejoin="round">
+      <path v-for="k in ['heel', 'toe', 'cuff']" :key="k" :d="ZONE[k]" stroke-width="5" stroke-opacity=".55"/>
+      <path :d="SIL" stroke-opacity=".8"/>
+    </g>
+  </svg>`,
+}
+
+const SockTube = {
+  props: { u: { default: 2.6 }, selectable: Boolean, big: Boolean },
+  emits: ['pick'],
+  setup(props, { emit }) {
+    const s = store
+    const bands = computed(() => {
+      const pal = s.st.palette
+      return s.rows.value.map((r, i) => ({ y: i * props.u, fill: pal[r.c]?.hex ?? '#f0f', s: r.s }))
+    })
+    const op = sec => (props.selectable && s.ui.selected != null && s.ui.selected !== sec) ? 0.3 : 1
+    const pick = sec => props.selectable && emit('pick', sec)
+    const marks = computed(() => {
+      let y = 0
+      return s.st.sections.map(x => { const m = { name: x.name, rows: x.rows, y, h: x.rows * props.u }; y += x.rows * props.u; return m })
+    })
+    const H = computed(() => s.rows.value.length * props.u)
+    return { bands, marks, H, u: props.u, op, pick, sections: s.st.sections }
+  },
+  template: `
+  <svg :viewBox="'0 0 96 ' + H" :style="big ? 'height:56vh;max-width:100%;display:block;margin:0 auto' : 'width:96px;display:block'" role="img" aria-label="Носок развёрткой">
+    <rect v-for="(b, i) in bands" :key="i" x="52" :y="b.y" width="40" :height="u + 0.3" :fill="b.fill" :opacity="op(b.s)"
+          :style="{ cursor: selectable ? 'pointer' : 'default' }" @click="pick(b.s)"/>
+    <rect x="52" y="0" width="40" :height="H" fill="none" stroke="#334155"/>
+    <g v-for="(m, k) in marks" :key="m.name" :style="{ cursor: selectable ? 'pointer' : 'default' }" @click="pick(k)">
+      <line x1="46" x2="96" :y1="m.y" :y2="m.y" stroke="#334155" stroke-width=".8"/>
+      <text x="46" :y="m.y + m.h / 2" text-anchor="end" font-size="9" fill="#334155">{{ m.name }}</text>
+      <text x="46" :y="m.y + m.h / 2 + 10" text-anchor="end" font-size="8" fill="#64748b">{{ m.rows }}</text>
+    </g>
+  </svg>`,
+}
+
+const PaletteEditor = {
+  components: { Lock },
+  props: { compact: Boolean },
+  setup() { return store },
+  template: `
+  <div class="col" style="gap:8px">
+    <div v-for="(p, i) in st.palette" :key="i" class="row">
+      <span style="width:58px">цвет {{ i + 1 }}</span>
+      <input type="color" v-model="p.hex">
+      <input v-if="!compact" class="hex" v-model.lazy="p.hex">
+      <Lock :on="p.lock" @toggle="p.lock = !p.lock"/>
+      <button class="ghost" :disabled="!canDelete(i)" :title="usages(i).length ? 'Используется: ' + usages(i).join(', ') : ''" @click="deleteColor(i)">✕</button>
+      <span v-if="q.del === 'forbid' && usages(i).length && st.palette.length > 1" class="mute">в деле: {{ usages(i).join(', ') }}</span>
+    </div>
+    <div><button :disabled="st.palette.length >= 6" @click="addColor">+ цвет</button></div>
+  </div>`,
+}
+
+const SectionRow = {
+  components: { Lock },
+  props: ['s'],
+  setup() { return store },
+  template: `
+  <div class="row">
+    <label class="row" style="gap:4px"><input type="number" min="1" v-model.number="s.rows"> {{ s.rows === 1 ? 'ряд' : 'рядов' }}</label>
+    <select v-model="s.mode"><option value="solid">однотон</option><option value="stripes">в полоску</option></select>
+    <select v-if="s.mode === 'solid'" v-model.number="s.color">
+      <option v-for="(p, i) in st.palette" :key="i" :value="i">цвет {{ i + 1 }}</option>
+    </select>
+    <span v-if="s.mode === 'solid'" class="sw" :style="{ background: st.palette[s.color]?.hex }"></span>
+    <Lock label :on="s.lock" @toggle="s.lock = !s.lock"/>
+  </div>`,
+}
+
+const RapportEditor = {
+  components: { Lock },
+  setup() {
+    const clash = computed(() => store.seamClash(store.st.rapport.stripes, store.st.palette.length))
+    return { ...store, clash }
+  },
+  template: `
+  <div class="col" style="gap:8px">
+    <div class="row">
+      <select v-model="st.rapport.rule" @change="st.rapport.rule !== 'own' && applyRule()">
+        <option v-for="(t, k) in RULES" :key="k" :value="k">{{ t }}</option>
+      </select>
+      <template v-if="st.rapport.rule === 'even'">по <input type="number" min="1" v-model.number="st.rapport.p.N" @change="applyRule"> ряда</template>
+      <template v-if="['inc','dec','fib','rnd'].includes(st.rapport.rule)">полос <input type="number" min="1" v-model.number="st.rapport.p.k" @change="applyRule"></template>
+      <template v-if="st.rapport.rule === 'rnd'">от <input type="number" min="1" v-model.number="st.rapport.p.min" @change="applyRule"> до <input type="number" min="1" v-model.number="st.rapport.p.max" @change="applyRule"></template>
+      <Lock :on="st.rapport.lock" @toggle="st.rapport.lock = !st.rapport.lock"/>
+    </div>
+    <div v-for="(x, i) in st.rapport.stripes" :key="i" class="row">
+      <span class="sw" :style="{ background: st.palette[x.c]?.hex }"></span>
+      <select v-model.number="x.c" @change="editStripe"><option v-for="(p, j) in st.palette" :key="j" :value="j">цвет {{ j + 1 }}</option></select>
+      <input type="number" min="1" v-model.number="x.r" @change="editStripe"> {{ rowsText(x.r).split(' ')[1] }}
+      <button class="ghost" :disabled="st.rapport.stripes.length < 2" @click="st.rapport.stripes.splice(i, 1); editStripe()">✕</button>
+    </div>
+    <div><button @click="st.rapport.stripes.push({ c: 0, r: 2 }); editStripe()">+ полоса</button></div>
+    <div v-if="clash" class="mute">⚠ стык: последняя полоса того же цвета, что первая — на носке сольются в одну</div>
+    <div v-if="!striped" class="mute">Ни один участок не в полоску — раппорт сейчас не виден на носке.</div>
+  </div>`,
+}
+
+const Totals = {
+  setup() { return store },
+  template: `
+  <div class="col" style="gap:6px">
+    <div><b>Раппорт:</b> {{ st.rapport.stripes.map(x => 'цвет ' + (x.c + 1) + ' — ' + rowsText(x.r)).join(', ') }}</div>
+    <div v-for="t in totals" :key="t.i" class="row" style="gap:6px">
+      <span class="sw" :style="{ background: st.palette[t.i].hex }"></span> цвет {{ t.i + 1 }} — {{ rowsText(t.n) }}, ~{{ t.pct }} %
+    </div>
+  </div>`,
+}
+
+const Actions = {
+  setup() { return store },
+  template: `
+  <div class="row">
+    <button class="primary" @click="generate">Сгенерировать</button>
+    <template v-if="!ui.confirming"><button @click="askReset">Сбросить</button></template>
+    <template v-else>
+      <span>Сбросить всё, и замки тоже?</span>
+      <button @click="doReset" style="border-color:#dc2626;color:#dc2626">Да, сбросить</button>
+      <button @click="ui.confirming = false">Нет</button>
+    </template>
+  </div>`,
+}
+
+const Overlays = {
+  setup() { return store },
+  template: `
+  <div v-if="ui.modal" class="modal-back" @click.self="ui.modal = false">
+    <div class="modal col">
+      <b>Сбросить носок?</b>
+      <span class="mute">Носок станет белым, палитра — из одного цвета, замки снимутся.</span>
+      <div class="row"><button @click="doReset" style="border-color:#dc2626;color:#dc2626">Сбросить</button><button @click="ui.modal = false">Отмена</button></div>
+    </div>
+  </div>
+  <div v-if="ui.toast" class="toast">{{ ui.toast }} <button @click="undoReset">Вернуть</button></div>`,
+}
+
+const Questions = {
+  setup() { const dump = computed(() => JSON.stringify(store.st, null, 1)); return { ...store, dump } },
+  template: `
+  <details class="q" open>
+    <summary><span class="proto-tag">ПРОТОТИП</span> Вопросы §13</summary>
+    <fieldset><legend>3. Стопа ниже горизонтали на {{ q.tilt }}° (угол носка {{ 90 + q.tilt }}°)</legend>
+      <input type="range" min="0" max="60" step="5" v-model.number="q.tilt" style="width:100%">
+    </fieldset>
+    <fieldset><legend>1. Удаление цвета, который где-то используется</legend>
+      <label><input type="radio" value="first" v-model="q.del"> заменить на цвет 1</label><br>
+      <label><input type="radio" value="nearest" v-model="q.del"> заменить ближайшим по цвету</label><br>
+      <label><input type="radio" value="forbid" v-model="q.del"> не давать удалить, пока используется</label>
+    </fieldset>
+    <fieldset><legend>2. Стык повторов раппорта одного цвета</legend>
+      <label><input type="radio" value="avoid" v-model="q.seam"> генерация таких раппортов не даёт</label><br>
+      <label><input type="radio" value="allow" v-model="q.seam"> пусть сливаются (предупреждение под раппортом)</label>
+    </fieldset>
+    <fieldset><legend>5. Цвета по умолчанию (меняет носок)</legend>
+      <select v-model="q.preset"><option v-for="(v, k) in PRESETS" :key="k">{{ k }}</option></select>
+    </fieldset>
+    <fieldset><legend>6. Подтверждение сброса</legend>
+      <label><input type="radio" value="twotap" v-model="q.reset"> вторым нажатием на месте кнопки</label><br>
+      <label><input type="radio" value="modal" v-model="q.reset"> окном на странице</label><br>
+      <label><input type="radio" value="undo" v-model="q.reset"> сразу, но с «Вернуть» несколько секунд</label>
+    </fieldset>
+    <div class="mute">Последняя генерация: {{ ui.lastGen || '—' }}</div>
+    <details><summary class="mute">Состояние</summary><pre class="dump">{{ dump }}</pre></details>
+  </details>`,
+}
+
+/* ---------- варианты ---------- */
+const VariantA = {
+  name: 'Носок сверху',
+  components: { SockL, PaletteEditor, SectionRow, RapportEditor, Totals, Actions, Questions },
+  setup() { return store },
+  template: `
+  <div class="page">
+    <h1 style="margin-bottom:12px">Расцветка носка</h1>
+    <div class="a-grid">
+      <div class="a-sock col"><SockL :u="3"/><Actions/></div>
+      <div class="col">
+        <section class="block"><h2>Палитра</h2><PaletteEditor/></section>
+        <section class="block"><h2>Участки</h2>
+          <div v-for="s in st.sections" :key="s.name" style="margin-bottom:8px"><div class="mute">{{ s.name }}</div><SectionRow :s="s"/></div>
+        </section>
+        <section class="block"><h2>Раппорт</h2><RapportEditor/></section>
+        <section class="block"><h2>Итог</h2><Totals/></section>
+      </div>
+    </div>
+    <Questions/>
+  </div>`,
+}
+
+const VariantB = {
+  name: 'Развёртка',
+  components: { SockTube, PaletteEditor, Lock, RapportEditor, Totals, Actions, Questions },
+  setup() { return store },
+  template: `
+  <div class="page">
+    <h1 style="margin-bottom:12px">Расцветка носка</h1>
+    <div class="b-grid">
+      <div class="b-tube"><SockTube/></div>
+      <div class="col">
+        <Actions/>
+        <section><h2>Палитра</h2><PaletteEditor compact/></section>
+        <section><h2>Участки</h2>
+          <table class="sect"><tbody>
+            <tr v-for="s in st.sections" :key="s.name">
+              <td>{{ s.name }}</td>
+              <td><input type="number" min="1" v-model.number="s.rows" style="width:52px"></td>
+              <td>
+                <select :value="s.mode === 'stripes' ? 'S' : s.color"
+                        @change="e => { const v = e.target.value; if (v === 'S') s.mode = 'stripes'; else { s.mode = 'solid'; s.color = +v } }">
+                  <option value="S">полоски</option>
+                  <option v-for="(p, i) in st.palette" :key="i" :value="i">цвет {{ i + 1 }}</option>
+                </select>
+              </td>
+              <td><Lock :on="s.lock" @toggle="s.lock = !s.lock"/></td>
+            </tr>
+          </tbody></table>
+        </section>
+      </div>
+      <div class="col">
+        <section><h2>Раппорт</h2><RapportEditor/></section>
+        <section><h2>Итог</h2><Totals/></section>
+      </div>
+    </div>
+    <Questions/>
+  </div>`,
+}
+
+const VariantC = {
+  name: 'Тап по носку',
+  components: { SockL, SockTube, SectionRow, RapportEditor, Totals, Lock, Questions },
+  setup() {
+    const sel = computed(() => store.ui.selected == null ? null : store.st.sections[store.ui.selected])
+    const pickSec = i => store.ui.selected = store.ui.selected === i ? null : i
+    return { ...store, sel, pickSec }
+  },
+  template: `
+  <div class="page" style="padding-bottom:200px">
+    <h1>Расцветка носка</h1>
+    <div class="row" style="justify-content:space-between;margin-top:6px">
+      <span class="mute">Нажми на участок, чтобы его раскрасить.</span>
+      <div class="seg" role="group" aria-label="Вид">
+        <button :class="{ on: ui.view !== 'tube' }" @click="ui.view = 'sock'">Носок</button>
+        <button :class="{ on: ui.view === 'tube' }" @click="ui.view = 'tube'">Развёртка</button>
+      </div>
+    </div>
+    <div class="c-stage">
+      <SockL v-if="ui.view !== 'tube'" :u="3.6" selectable :maxw="560" @pick="pickSec"/>
+      <SockTube v-else big selectable @pick="pickSec"/>
+    </div>
+    <div style="max-width:560px;margin:12px auto 0"><Totals/></div>
+    <Questions/>
+    <div class="c-dock">
+      <button class="primary" @click="generate">🎲</button>
+      <div v-for="(p, i) in st.palette" :key="i" class="chip" :class="{ locked: p.lock }">
+        <input type="color" v-model="p.hex"><span style="font-size:12px">{{ i + 1 }}</span>
+        <Lock small :on="p.lock" @toggle="p.lock = !p.lock"/>
+      </div>
+      <button :disabled="st.palette.length >= 6" @click="addColor">+</button>
+      <button @click="ui.selected = 'rap'">Полосы</button>
+      <button @click="askReset">Сбросить</button>
+    </div>
+    <div v-if="ui.confirming" class="c-sheet">
+      <div class="row"><span>Сбросить всё, и замки тоже?</span>
+        <button @click="doReset" style="border-color:#dc2626;color:#dc2626">Да</button><button @click="ui.confirming = false">Нет</button></div>
+    </div>
+    <div v-else-if="sel" class="c-sheet">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">{{ sel.name }}</h2><button class="ghost" @click="ui.selected = null">Готово</button></div>
+      <SectionRow :s="sel"/>
+      <p class="mute">Удалить цвет — <button class="ghost" style="min-height:28px" v-for="(p, i) in st.palette" :key="i" :disabled="!canDelete(i)" @click="deleteColor(i)">✕ {{ i + 1 }}</button></p>
+    </div>
+    <div v-else-if="ui.selected === 'rap'" class="c-sheet">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Раппорт</h2><button class="ghost" @click="ui.selected = null">Готово</button></div>
+      <RapportEditor/>
+    </div>
+  </div>`,
+}
+
+/* ---------- переключатель ---------- */
+const VARIANTS = { C: VariantC, A: VariantA, B: VariantB }
+createApp({
+  components: { VariantA, VariantB, VariantC, Overlays },
+  setup() {
+    const keys = Object.keys(VARIANTS)
+    const cur = ref(new URLSearchParams(location.search).get('variant') ?? 'C')
+    if (!keys.includes(cur.value)) cur.value = 'C'
+    const go = d => {
+      cur.value = keys[(keys.indexOf(cur.value) + d + keys.length) % keys.length]
+      const u = new URL(location.href); u.searchParams.set('variant', cur.value); history.replaceState(null, '', u)
+      store.ui.selected = null; store.ui.confirming = false
+    }
+    const onKey = e => {
+      if (e.target.closest('input, textarea, select, [contenteditable]')) return
+      if (e.key === 'ArrowLeft') go(-1); if (e.key === 'ArrowRight') go(1)
+    }
+    onMounted(() => addEventListener('keydown', onKey)); onUnmounted(() => removeEventListener('keydown', onKey))
+    const comp = computed(() => VARIANTS[cur.value])
+    return { cur, go, comp }
+  },
+  template: `
+  <component :is="comp"/>
+  <Overlays/>
+  <div class="proto-bar"><span class="proto-tag">ПРОТОТИП</span>
+    <button @click="go(-1)">←</button><span>{{ cur }} ({{ comp.name }})</span><button @click="go(1)">→</button></div>`,
+}).mount('#app')
+</script>
+</body>
+</html>
