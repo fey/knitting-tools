@@ -253,6 +253,7 @@ function genSections(only) {
   const pickNot = c => { if (n < 2) return 0; let x; do { x = rnd(0, n - 1) } while (x === c); return x }
   st.sections.forEach((s, i) => {
     if (s.lock || (only != null && i !== only)) return
+    if (s.stripes.some(p => p.lock)) return regenAround(s)
     // резинка, пятка, мысок чаще однотон и общим акцентом; паголенок и стопа чаще в 2–4 полосы
     const edge = i === 0 || i === 2 || i === 4
     const k = Math.min(s.rows, edge ? (Math.random() < 0.75 ? 1 : 2) : [1, 2, 2, 3, 3, 4, 4][rnd(0, 6)])
@@ -260,6 +261,22 @@ function genSections(only) {
     for (let j = 0; j < k; j++) { cols.push(c); c = pickNot(c) }
     const r = apportion(Array.from({ length: k }, () => 0.4 + Math.random()), s.rows)
     s.stripes = cols.map((c, j) => ({ c, r: r[j] }))
+  })
+}
+/**
+ * В участке есть закреплённые полосы: они остаются цветом, длиной и местом. Незакреплённые
+ * получают новые цвета (по возможности не как у соседей) и делят оставшиеся ряды заново.
+ */
+function regenAround(sec) {
+  const n = st.palette.length, free = sec.stripes.map((p, i) => p.lock ? -1 : i).filter(i => i >= 0)
+  if (!free.length) return
+  const rest = sec.rows - sec.stripes.reduce((a, p) => a + (p.lock ? p.r : 0), 0)
+  const r = apportion(free.map(() => 0.4 + Math.random()), rest)
+  free.forEach((i, j) => {
+    const p = sec.stripes[i], ban = [sec.stripes[i - 1]?.c, sec.stripes[i + 1]?.lock ? sec.stripes[i + 1].c : undefined]
+    const ok = [...Array(n).keys()].filter(c => !ban.includes(c))
+    p.c = ok.length ? ok[rnd(0, ok.length - 1)] : rnd(0, n - 1)
+    p.r = r[j]
   })
 }
 const stamp = what => ui.lastGen = what + ', ' + new Date().toLocaleTimeString()
@@ -458,7 +475,7 @@ const SectionNode = {
              :class="{ movable: movable(i), dragging: drag && drag.kind === 'stripe' && drag.i === i }"
              :style="{ flex: p.r, background: st.palette[p.c]?.hex, color: isLight(st.palette[p.c]?.hex || '#fff') ? '#0f172a' : '#fff' }"
              :title="movable(i) ? 'Прижми и тащи: полоса сдвинется, соседи подстроятся' : ''"
-             @pointerdown="e => down('stripe', i, e)">{{ p.r }}</div>
+             @pointerdown="e => down('stripe', i, e)">{{ p.lock ? '🔒 ' : '' }}{{ p.r }}</div>
         <div v-for="(g, i) in grips" :key="'g' + i" class="grip" :style="{ left: g + '%' }" @pointerdown.stop="e => down('edge', i, e)"></div>
       </div>
       <div v-for="(p, i) in s.stripes" :key="i" class="stripe">
@@ -466,7 +483,8 @@ const SectionNode = {
           <button v-for="(c, j) in st.palette" :key="j" :class="{ on: p.c === j }" :style="{ background: c.hex }" :title="'цвет ' + (j + 1)" @click="p.c = j"></button>
         </div>
         <input type="number" min="1" :value="p.r" @change="e => setStripeRows(s, i, +e.target.value)" :disabled="s.stripes.length < 2">
-        <span class="mute">{{ plural(p.r, 'ряд', 'ряда', 'рядов') }}</span>
+        <span class="mute" style="width:44px">{{ plural(p.r, 'ряд', 'ряда', 'рядов') }}</span>
+        <Lock small :on="!!p.lock" @toggle="p.lock = !p.lock"/>
         <button class="ghost" :disabled="s.stripes.length < 2" @click="removeStripe(s, i)" title="Убрать полосу">✕</button>
       </div>
       <button @click="addStripe(s)" :disabled="s.stripes.length >= s.rows">+ полоса</button>
