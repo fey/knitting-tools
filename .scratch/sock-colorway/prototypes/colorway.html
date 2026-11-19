@@ -453,22 +453,36 @@ const SockL = {
     }
     // силуэт по середине линий; верх картинки упирается в край кадра — срезаем по середине верхней линии
     const SIL_MID = SIL.replace(/(\d+),(\d+)/g, (m, x, y) => x + ',' + Math.max(+y, 12))
-    return { SIL, SIL_MID, ZONE, groups, op, pick, SEC, VEC_T, VEC_LINES, VEC_ZONE, s }
+    const LINE = '#475569'
+    const T = computed(() => s.ui.outline === 'thin' ? 0.09 : 0)
+    return { SIL, SIL_MID, ZONE, groups, op, pick, SEC, VEC_T, VEC_LINES, VEC_ZONE, s, LINE, T }
   },
   template: `
   <svg viewBox="170 -6 480 812" :style="{ width: '100%', maxWidth: maxw + 'px', maxHeight: '56vh', display: 'block', margin: '0 auto' }" role="img" aria-label="Носок">
+    <!--
+      Всё на векторе иконки. Её линии — залитые фигуры толщиной 1 (в единицах иконки):
+      внешний контур VEC_ZONE.body и внутренние края участков. Граница цвета идёт по середине
+      бывшей линии: силуэт — внешний контур, сжатый маской на 0,5 (чёрная обводка шириной 1),
+      участок — внутренний край, расширенный на 0,5 (белая обводка шириной 1). Тонкая обводка —
+      тёмный слой под цветом, у которого цвет сжат ещё на T: остаётся кольцо ширины T.
+    -->
     <defs>
-      <!-- тело — по внешнему краю иконки; резинка, пятка, мысок — до середины её линий (обводка по пикселям) -->
-      <clipPath id="z-body"><path :d="SIL_MID"/></clipPath>
-      <clipPath v-for="k in ['cuff', 'heel', 'toe']" :key="k" :id="'z-' + k"><path :d="ZONE[k]"/></clipPath>
+      <mask id="m-sil"><path :d="VEC_ZONE.body" :transform="VEC_T" fill="#fff" stroke="#000" stroke-width="1"/></mask>
+      <mask id="m-sil-in"><path :d="VEC_ZONE.body" :transform="VEC_T" fill="#fff" stroke="#000" :stroke-width="1 + 2 * T"/></mask>
+      <template v-for="k in ['cuff', 'heel', 'toe']" :key="k">
+        <mask :id="'m-' + k"><path :d="VEC_ZONE[k]" :transform="VEC_T" fill="#fff" stroke="#fff" stroke-width="1" :stroke-linejoin="k === 'cuff' ? 'miter' : 'round'"/></mask>
+        <mask :id="'m-' + k + '-in'"><path :d="VEC_ZONE[k]" :transform="VEC_T" fill="#fff" stroke="#fff" :stroke-width="1 - 2 * T" :stroke-linejoin="k === 'cuff' ? 'miter' : 'round'"/></mask>
+      </template>
     </defs>
-    <g v-for="k in ['body', 'heel', 'cuff', 'toe']" :key="k" :clip-path="'url(#z-' + k + ')'">
-      <polygon v-for="(o, i) in groups[k]" :key="i" :points="o.pts" :fill="o.fill" :opacity="op(o.sec)"
-               :style="{ cursor: selectable ? 'pointer' : 'default' }" @click="pick(o.sec)"/>
-    </g>
-    <g v-if="s.ui.outline === 'thin'" fill="none" stroke="#475569" stroke-linejoin="round">
-      <path v-for="k in ['cuff', 'heel', 'toe']" :key="k" :d="ZONE[k]" stroke-width="4" stroke-opacity=".7"/>
-      <path :d="SIL_MID" stroke-width="5.5"/>
+    <g v-if="T" mask="url(#m-sil)"><rect x="0" y="-20" width="800" height="840" :fill="LINE"/></g>
+    <g mask="url(#m-sil-in)">
+      <polygon v-for="(o, i) in groups.body" :key="'b' + i" :points="o.pts" :fill="o.fill"/>
+      <template v-for="k in ['heel', 'cuff', 'toe']" :key="k">
+        <g v-if="T" :mask="'url(#m-' + k + ')'"><rect x="0" y="-20" width="800" height="840" :fill="LINE"/></g>
+        <g :mask="'url(#m-' + k + '-in)'">
+          <polygon v-for="(o, i) in groups[k]" :key="i" :points="o.pts" :fill="o.fill"/>
+        </g>
+      </template>
     </g>
   </svg>`,
 }
