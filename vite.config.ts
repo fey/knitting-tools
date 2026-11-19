@@ -32,7 +32,7 @@ export default defineConfig({
   plugins: [vue(), tailwindcss(), goatCounter],
   build: {
     // Многостраничная сборка вместо роутера (§11): корень — витрина разделов,
-    // калькуляторы — своими входами на `/toe-band/` и `/french-heel/`, справочник набора
+    // калькуляторы — своими входами на `/toe-band/`, `/toe-up-band/` и `/french-heel/`, справочник набора
     // петель — на `/sock-cast-on/`. Роутер здесь не нужен вовсе:
     // в hash-режиме он занял бы тот же hash, где лежат параметры расчёта (§10.1),
     // а в history-режиме потребовал бы копию index.html в 404.html. Настоящие
@@ -41,6 +41,7 @@ export default defineConfig({
       input: {
         home: new URL('index.html', import.meta.url).pathname,
         toeBand: new URL('toe-band/index.html', import.meta.url).pathname,
+        toeUpBand: new URL('toe-up-band/index.html', import.meta.url).pathname,
         frenchHeel: new URL('french-heel/index.html', import.meta.url).pathname,
         sockCastOn: new URL('sock-cast-on/index.html', import.meta.url).pathname,
       },

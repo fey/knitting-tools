@@ -49,7 +49,7 @@ test('слева возврат к витрине, кнопки прижаты �
 test('шапка стоит над заголовком и уезжает при прокрутке — она не липнет (§6.4)', async ({
   page,
 }) => {
-  const title = await page.getByRole('heading', { name: 'Ленточный мысок носка' }).boundingBox()
+  const title = await page.getByRole('heading', { name: 'Ленточный мысок от манжеты' }).boundingBox()
   const before = await page.getByTestId('app-header').boundingBox()
   expect(before!.y + before!.height).toBeLessThanOrEqual(title!.y)
 

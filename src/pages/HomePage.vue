@@ -53,9 +53,22 @@ import AppFooter from '../shared/AppFooter.vue'
               href="toe-band/"
               data-testid="calculator-link-toe-band"
             >
-              <span class="font-medium">Ленточный мысок носка</span>
+              <span class="font-medium">Ленточный мысок от манжеты</span>
               <span class="text-sm text-slate-600">
                 Вязание сверху вниз: начальные и конечные петли, кромка и ритм убавок — на выходе
+                схема, число рядов и счёт связанного.
+              </span>
+            </a>
+          </li>
+          <li>
+            <a
+              class="flex flex-col gap-1 rounded-lg border border-slate-300 p-4 max-w-[42rem]"
+              href="toe-up-band/"
+              data-testid="calculator-link-toe-up-band"
+            >
+              <span class="font-medium">Ленточный мысок от мыска</span>
+              <span class="text-sm text-slate-600">
+                Вязание снизу вверх: петли набора и круг стопы, кромка и ритм прибавок — на выходе
                 схема, число рядов и счёт связанного.
               </span>
             </a>
@@ -75,7 +88,7 @@ import AppFooter from '../shared/AppFooter.vue'
           </li>
         </ul>
         <p class="max-w-[42rem] text-sm text-slate-600">
-          Круглый мысок, звёздочка, вязание от мыска, стенка пятки и клинья пока не считаются —
+          Круглый мысок, звёздочка, стенка пятки и клинья пока не считаются —
           под них встанут отдельные калькуляторы.
         </p>
       </section>

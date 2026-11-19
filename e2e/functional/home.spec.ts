@@ -30,6 +30,21 @@ test('ссылка витрины открывает калькулятор на
   await expect(page.getByTestId('toe-chart')).toBeVisible()
 })
 
+test('обе страницы мыска стоят парой, и ссылки между ними работают', async ({ page }) => {
+  await page.goto('./')
+  await expect(page.getByTestId('calculator-link-toe-band')).toContainText('Ленточный мысок от манжеты')
+  await expect(page.getByTestId('calculator-link-toe-up-band')).toContainText('Ленточный мысок от мыска')
+
+  await page.getByTestId('calculator-link-toe-up-band').click()
+  await expect(page).toHaveURL(/\/knitting-tools\/toe-up-band\/#s=24&e=64&k=1&r=even$/)
+
+  await page.getByTestId('intro-sibling-link').click()
+  await expect(page).toHaveURL(/\/knitting-tools\/toe-band\/#s=60&e=20&k=1&r=even$/)
+
+  await page.getByTestId('intro-sibling-link').click()
+  await expect(page).toHaveURL(/\/knitting-tools\/toe-up-band\/#s=24&e=64&k=1&r=even$/)
+})
+
 test('карточка пятки ведёт на подстраницу французской пятки, посчитанную на дефолте', async ({ page }) => {
   await page.goto('./')
   await page.getByTestId('calculator-link-french-heel').click()

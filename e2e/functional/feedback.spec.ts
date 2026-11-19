@@ -39,7 +39,7 @@ test('кнопка стоит в шапке и открывает диалог',
 
   // Шапка — над заголовком, кнопки к расчёту не относятся (§6.4).
   const header = await page.getByTestId('app-header').boundingBox()
-  const title = await page.getByRole('heading', { name: 'Ленточный мысок носка' }).boundingBox()
+  const title = await page.getByRole('heading', { name: 'Ленточный мысок от манжеты' }).boundingBox()
   expect(header!.y + header!.height).toBeLessThanOrEqual(title!.y)
 
   await openDialog(page)

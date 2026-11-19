@@ -7,3 +7,9 @@ test('схема мыска на прибитом вьюпорте — обоз�
   await page.goto('./toe-band/')
   await expect(page.getByTestId('toe-chart')).toHaveScreenshot('toe-chart.png')
 })
+
+// Мысок от мыска (§7 спеки toe-up): ряд 1 внизу, у набора, «нет петли» над растущей зоной.
+test('схема мыска от мыска — набор внизу, прибавки растят зону вверх', async ({ page }) => {
+  await page.goto('./toe-up-band/')
+  await expect(page.getByTestId('toe-chart')).toHaveScreenshot('toe-up-chart.png')
+})

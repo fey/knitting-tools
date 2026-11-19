@@ -46,12 +46,11 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
-import { minFinalStitches } from '../core/calc'
 import {
   converges,
   edgeWhyOff,
   finalCandidates,
-  MAX_STITCHES,
+  initialCandidates,
   normalizeStitchFields,
   type EdgeValue,
   type Fix,
@@ -62,6 +61,7 @@ const STEP = 4
 
 const { params, setParams, calculation } = useToeCalculator()
 const direction = computed(() => calculation.value.direction)
+const toeUp = computed(() => direction.value === 'toe-up')
 
 /** Черновики полей: то, что реально набрано, может не совпадать со сходящимся `params`. */
 const initialDraft = ref(String(params.initial))
@@ -185,18 +185,26 @@ function stepFinal(delta: number): void {
   setParams({ final: params.final + delta })
 }
 
-const canDecInitial = computed(() => params.initial - STEP > params.final)
-const canIncInitial = computed(() => params.initial + STEP <= MAX_STITCHES)
-const canDecFinal = computed(() => params.final - STEP >= minFinalStitches(params.edge))
-const canIncFinal = computed(() => params.final + STEP < params.initial && params.final + STEP <= MAX_STITCHES)
+/** Кнопка шага доступна, пока сходится то, к чему она приведёт: одно правило на оба направления (§9.4). */
+function canStep(field: 'initial' | 'final', delta: number): boolean {
+  return converges({ initial: params.initial, final: params.final, edge: params.edge, [field]: params[field] + delta }, direction.value)
+}
 
+const canDecInitial = computed(() => canStep('initial', -STEP))
+const canIncInitial = computed(() => canStep('initial', STEP))
+const canDecFinal = computed(() => canStep('final', -STEP))
+const canIncFinal = computed(() => canStep('final', STEP))
+
+/** Живая подсказка — у уступающего поля: у cuff-down конечные, у toe-up начальные (§4). */
+const initialHintCandidates = computed(() => initialCandidates(params.final))
 const finalHintCandidates = computed(() => finalCandidates(params.initial, params.edge))
 
-const edgeOptions = [
+/** «широкий мысок» — слово cuff-down: у toe-up его нет, двойка там голая цифра (§4 спеки toe-up). */
+const edgeOptions = computed(() => [
   { value: 0 as const, label: '0' },
   { value: 1 as const, label: '1' },
-  { value: 2 as const, label: '2 · широкий мысок' },
-]
+  { value: 2 as const, label: toeUp.value ? '2' : '2 · широкий мысок' },
+])
 
 /**
  * Почему кромка недоступна, или `null`. Выбор гасится с причиной, а конечные петли
@@ -251,7 +259,13 @@ function setEdge(value: EdgeValue): void {
           +4
         </button>
       </div>
-      <p class="mt-1 text-sm text-slate-500" data-testid="initial-hint">
+      <p v-if="toeUp" class="mt-1 text-sm text-slate-500" data-testid="initial-hint">
+        {{ params.initial }}<template v-if="initialHintCandidates.length">
+          (шаг 4: {{ initialHintCandidates.join(', ') }})</template
+        >
+        · обычно 16–28: чем больше набор, тем тупее и короче мысок · своё число вписывается прямо в поле
+      </p>
+      <p v-else class="mt-1 text-sm text-slate-500" data-testid="initial-hint">
         чётное · своё число вписывается прямо в поле, не только кнопками
       </p>
       <p v-if="initialFix" class="mt-1 text-sm text-amber-700" data-testid="initial-fix">
@@ -302,13 +316,17 @@ function setEdge(value: EdgeValue): void {
           +4
         </button>
       </div>
-      <p class="mt-1 text-sm text-slate-500" data-testid="final-hint">
+      <p v-if="toeUp" class="mt-1 text-sm text-slate-500" data-testid="final-hint">
+        круг стопы, в круге, а не с одной стороны · своё число вписывается так же ·
+        <a class="underline" href="../sock-cast-on/" data-testid="final-cast-on-link">сколько петель на круге по размеру и пряже</a>
+      </p>
+      <p v-else class="mt-1 text-sm text-slate-500" data-testid="final-hint">
         {{ params.final }}<template v-if="finalHintCandidates.length">
           (шаг 4: {{ finalHintCandidates.join(', ') }})</template
         >
         · обычно 16–24 · своё число вписывается так же
       </p>
-      <p class="mt-1 text-sm text-slate-500" data-testid="final-explainer">
+      <p v-if="!toeUp" class="mt-1 text-sm text-slate-500" data-testid="final-explainer">
         Под трикотажный шов оставляют 16–24 петли, для стягивания — около 8. Считаются петли
         в круге, а не с одной стороны: на схеме половина, и спутать легко.
       </p>
@@ -332,7 +350,10 @@ function setEdge(value: EdgeValue): void {
       <!-- Объяснение кромки стоит здесь, а не во вводке (§6.1): вводка называет инструмент
            и конструкцию целиком, а подпись у ручки читают в момент выбора. Двойка названа
            отдельной конструкцией, а не «на петлю больше», — так её называют источники (§2). -->
-      <p class="mt-1 text-sm text-slate-500" data-testid="edge-explainer">
+      <p v-if="toeUp" class="mt-1 text-sm text-slate-500" data-testid="edge-explainer">
+        Кромка — сколько петель остаётся с краю половины до места прибавки; обычно одна.
+      </p>
+      <p v-else class="mt-1 text-sm text-slate-500" data-testid="edge-explainer">
         Кромка — сколько петель остаётся с краю половины до места убавки. Единица — обычный
         ленточный мысок, двойка — широкий мысок, отдельная конструкция, а не «на петлю больше».
       </p>
