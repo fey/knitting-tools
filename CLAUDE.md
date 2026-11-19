@@ -227,7 +227,7 @@ gh run watch --exit-status $(gh run list --commit "$(git rev-parse origin/main)"
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` и `docs/adr/` в корне — адрес на будущее, сегодня их нет и это
+Single-context: `CONTEXT.md` в корне — словарь сайта и разделов без спеки; `docs/adr/` — адрес на будущее, сегодня его нет и это
 нормально. См. `docs/agents/domain.md`.
 
 ## Язык
