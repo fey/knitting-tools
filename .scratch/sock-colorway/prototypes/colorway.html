@@ -5,101 +5,95 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ПРОТОТИП — конструктор расцветки носка</title>
 <!--
-  ПРОТОТИП. Одноразовый код, отвечающий на вопросы §13 спеки ../spec.md.
-  В main не мержится, живёт на ветке prototype/sock-colorway.
+  ПРОТОТИП. Одноразовый код, в main не мержится, живёт на ветке prototype/sock-colorway.
+  Предыдущая итерация (общий раппорт, режимы «однотон / в полоску», три варианта экрана) —
+  коммит bae124e на той же ветке.
 
-  Три структурно разных экрана, переключаются ?variant= и стрелками ← →:
-    A — «Носок сверху»: силуэт сбоку (L-образный) над столбиком блоков в порядке §8.1;
-        от 800 px — две колонки, носок липнет слева
-    B — «Развёртка»: носок прямой трубкой с подписями участков, стоит рядом
-        с блоками даже на телефоне; участки — плотной таблицей
-    C — «Тап по носку»: носок на весь экран, участок правят тапом по нему
-        (шторка снизу / панель справа), палитра и генерация — плашкой внизу
-
-  Панель «Вопросы §13» (внизу каждого варианта) переключает политики, по которым
-  спека ещё не решила: удаление использованного цвета, стык раппорта,
-  подтверждение сброса, цвета по умолчанию. Там же — состояние целиком.
-  Хранения нет: всё в памяти, адрес несёт только ?variant=.
+  Модель этой итерации (решения мастера 2026-11-19):
+    - участок — последовательность полос из цветов палитры, полосы идут один раз;
+      однотон — участок из одной полосы; общего раппорта и правил нет;
+    - тапа по носку нет: носок — картинка, правят в дереве участков под ним;
+    - новая полоса встаёт в конец и пропорционально забирает ряды у предыдущих;
+    - генерация режет незакрытые участки на 1–4 полосы.
+  Вид «Носок / Развёртка» переключается над картинкой. Хранения нет: всё в памяти.
 -->
 <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
 <style>
   :root { --ink:#0f172a; --mute:#64748b; --line:#cbd5e1; --bg:#fff; --soft:#f1f5f9; --acc:#0f766e; }
   * { box-sizing: border-box; }
   body { margin:0; font:15px/1.4 system-ui, sans-serif; color:var(--ink); background:var(--bg); }
-  h1 { font-size:20px; margin:0; } h2 { font-size:15px; margin:0 0 8px; }
+  h1 { font-size:20px; margin:0; } h2 { font-size:15px; margin:0; }
   button, select, input { font:inherit; color:inherit; }
   button { border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 10px; min-height:40px; cursor:pointer; }
   button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
   button.ghost { border-color:transparent; background:transparent; }
   button:disabled { opacity:.4; cursor:not-allowed; }
-  input[type=number] { width:64px; padding:6px; border:1px solid var(--line); border-radius:6px; }
+  input[type=number] { width:60px; padding:6px; border:1px solid var(--line); border-radius:6px; }
   input.hex { width:84px; padding:6px; border:1px solid var(--line); border-radius:6px; font-family:ui-monospace,monospace; }
-  input[type=color] { width:44px; height:40px; padding:0; border:1px solid var(--line); border-radius:8px; background:none; }
-  select { padding:6px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  input[type=color] { width:40px; height:40px; padding:0; border:1px solid var(--line); border-radius:8px; background:none; }
   .page { max-width:1100px; margin:0 auto; padding:12px 16px 120px; }
-  .block { border:1px solid var(--line); border-radius:12px; padding:12px; }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .col { display:flex; flex-direction:column; gap:12px; }
   .mute { color:var(--mute); font-size:13px; }
+  .sw { display:inline-block; width:18px; height:18px; border-radius:4px; border:1px solid #0003; vertical-align:middle; }
   .lock { min-width:40px; padding:6px; color:#94a3b8; border-color:#e2e8f0; display:inline-flex; align-items:center; justify-content:center; gap:4px; }
   .lock.on { background:#f59e0b; border-color:#d97706; color:#fff; }
   .lock .t { font-size:12px; font-weight:600; }
+  .chip { display:flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:999px; padding:2px 4px 2px 2px; white-space:nowrap; }
   .chip.locked { border-color:#f59e0b; box-shadow:0 0 0 2px #fde68a; }
+  .chip input[type=color] { width:32px; height:32px; border-radius:999px; }
   .seg { display:inline-flex; border:1px solid var(--line); border-radius:999px; padding:2px; }
   .seg button { border:none; border-radius:999px; min-height:34px; padding:4px 14px; }
   .seg button.on { background:var(--ink); color:#fff; }
-  .sw { display:inline-block; width:18px; height:18px; border-radius:4px; border:1px solid #0003; vertical-align:middle; }
+  .grid { display:flex; flex-direction:column; gap:16px; }
+  @media (min-width:800px) { .grid { display:grid; grid-template-columns: 1fr 1fr; align-items:start; } .stage { position:sticky; top:12px; } }
+  /* дерево участков */
+  .tree { border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .sec + .sec { border-top:1px solid var(--line); }
+  .sec-head { display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer; user-select:none; }
+  .sec-head .name { font-weight:600; width:86px; }
+  .mini { flex:1; height:14px; display:flex; border-radius:4px; overflow:hidden; border:1px solid #0002; }
+  .sec-body { padding:4px 10px 12px 28px; background:#f8fafc; }
+  .bar { position:relative; height:40px; display:flex; border-radius:8px; overflow:hidden; border:1px solid #0003; touch-action:none; margin:6px 0 10px; }
+  .bar .part { height:100%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; min-width:0; }
+  .bar .grip { position:absolute; top:0; bottom:0; width:24px; margin-left:-12px; cursor:ew-resize; display:flex; justify-content:center; }
+  .bar .grip::after { content:''; width:4px; height:100%; background:#fff; box-shadow:0 0 0 1px #0005; }
+  .stripe { display:flex; align-items:center; gap:6px; padding:3px 0; }
+  .swatches { display:flex; gap:4px; }
+  .swatches button { width:28px; min-width:28px; height:28px; min-height:28px; padding:0; border-radius:6px; border:2px solid transparent; }
+  .swatches button.on { border-color:var(--ink); box-shadow:inset 0 0 0 2px #fff; }
+  .dock { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:8px 12px 56px; z-index:40;
+    display:flex; gap:8px; align-items:center; overflow-x:auto; }
   .proto-bar { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:50; display:flex; gap:6px; align-items:center;
-    background:#111; color:#fff; border-radius:999px; padding:4px 6px; box-shadow:0 4px 16px #0005; font-size:13px; }
-  .proto-bar button { background:transparent; color:#fff; border:none; min-height:32px; }
+    background:#111; color:#fff; border-radius:999px; padding:6px 12px; box-shadow:0 4px 16px #0005; font-size:13px; }
   .proto-tag { background:#fde047; color:#111; font-weight:600; font-size:11px; padding:2px 6px; border-radius:4px; }
   details.q { margin-top:16px; border:2px dashed #f59e0b; border-radius:12px; padding:10px; background:#fffbeb; }
   details.q summary { cursor:pointer; font-weight:600; }
   details.q fieldset { border:none; padding:6px 0; margin:0; }
   details.q legend { font-weight:600; font-size:13px; }
   pre.dump { font-size:11px; background:#fff; border:1px solid var(--line); padding:8px; max-height:260px; overflow:auto; }
-  .toast { position:fixed; left:50%; bottom:64px; transform:translateX(-50%); background:#1e293b; color:#fff; padding:8px 12px;
+  .toast { position:fixed; left:50%; bottom:110px; transform:translateX(-50%); background:#1e293b; color:#fff; padding:8px 12px;
     border-radius:10px; display:flex; gap:12px; align-items:center; z-index:60; }
   .toast button { background:transparent; color:#5eead4; border:none; min-height:32px; font-weight:600; }
   .modal-back { position:fixed; inset:0; background:#0006; display:flex; align-items:center; justify-content:center; z-index:70; }
   .modal { background:#fff; border-radius:14px; padding:16px; max-width:340px; }
-  /* A */
-  .a-grid { display:flex; flex-direction:column; gap:12px; }
-  @media (min-width:800px) { .a-grid { display:grid; grid-template-columns: 420px 1fr; align-items:start; }
-    .a-sock { position:sticky; top:12px; } }
-  /* B */
-  .b-grid { display:grid; grid-template-columns: 96px 1fr; gap:12px; align-items:start; }
-  .b-tube { position:sticky; top:8px; }
-  @media (min-width:800px) { .b-grid { grid-template-columns: 1fr 1fr 220px; } .b-tube { grid-column:3; grid-row:1 / span 3; } }
-  table.sect { border-collapse:collapse; width:100%; font-size:14px; }
-  table.sect td { padding:4px 3px; border-bottom:1px solid var(--soft); }
-  /* C */
-  .c-stage { display:flex; justify-content:center; padding-top:8px; }
-  .c-dock { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:8px 12px 56px; z-index:40;
-    display:flex; gap:8px; align-items:center; overflow-x:auto; }
-  .c-sheet { position:fixed; left:0; right:0; bottom:0; background:#fff; border-radius:16px 16px 0 0; box-shadow:0 -6px 24px #0003;
-    padding:14px 16px 64px; z-index:45; max-height:70vh; overflow:auto; }
-  @media (min-width:800px) { .c-sheet { left:auto; top:0; width:380px; max-height:none; border-radius:0; } }
-  .chip { display:flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:999px; padding:2px 6px 2px 2px; white-space:nowrap; }
-  .chip input[type=color] { width:32px; height:32px; border-radius:999px; }
+  .confirm { position:fixed; left:0; right:0; bottom:0; background:#fff; border-radius:16px 16px 0 0; box-shadow:0 -6px 24px #0003; padding:14px 16px 64px; z-index:45; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-const { createApp, reactive, computed, ref, watch, onMounted, onUnmounted } = Vue
+const { createApp, reactive, computed, ref, watch } = Vue
 
 /* ---------- ядро (будущий core/) ---------- */
 const SECTIONS = ['резинка', 'паголенок', 'пятка', 'стопа', 'мысок']
 const DEFAULT_ROWS = [20, 50, 30, 60, 20]
-const RULES = { even: 'ровные', inc: 'нарастающие', dec: 'убывающие', fib: 'Фибоначчи', rnd: 'случайные', own: 'свой' }
 const PRESETS = {
   'синий + лён': ['#2f3e5c', '#e8e2d4'],
   'графит + горчица': ['#3a3a3c', '#d4a72c'],
   'бордо + серый меланж': ['#6d1f2f', '#b9b7b2'],
   'белый + красный': ['#f7f7f5', '#c8102e'],
 }
-
 function plural(n, one, few, many) {
   const a = n % 10, b = n % 100
   if (a === 1 && b !== 11) return one
@@ -108,7 +102,6 @@ function plural(n, one, few, many) {
 }
 const rowsText = n => `${n} ${plural(n, 'ряд', 'ряда', 'рядов')}`
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1))
-const pick = arr => arr[Math.floor(Math.random() * arr.length)]
 
 function hexToOklab(hex) {
   const v = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
@@ -122,6 +115,7 @@ function hexToOklab(hex) {
           0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s]
 }
 const dist = (a, b) => { const p = hexToOklab(a), q = hexToOklab(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) }
+const isLight = hex => hexToOklab(hex)[0] > 0.7
 function hsl(h, s, l) {
   s /= 100; l /= 100
   const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l)
@@ -129,52 +123,42 @@ function hsl(h, s, l) {
   return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('')
 }
 
-function ruleLengths(rule, p, n) {
-  if (rule === 'even') return Array(n).fill(p.N)
-  if (rule === 'inc') return Array.from({ length: p.k }, (_, i) => i + 1)
-  if (rule === 'dec') return Array.from({ length: p.k }, (_, i) => p.k - i)
-  if (rule === 'fib') { const f = [1, 1]; while (f.length < p.k) f.push(f.at(-1) + f.at(-2)); return f.slice(0, p.k) }
-  if (rule === 'rnd') return Array.from({ length: p.k }, () => rnd(p.min, p.max))
-  return []
+/** Целые доли total по весам, сумма ровно total, каждая ≥ 1 (метод наибольшего остатка). */
+function apportion(weights, total) {
+  const n = weights.length, base = Array(n).fill(1); let left = total - n
+  if (left < 0) return base.slice(0, total).concat(Array(n - total).fill(0))
+  const W = weights.reduce((a, b) => a + b, 0) || n
+  const exact = weights.map(w => (W ? w / W : 1 / n) * left), fl = exact.map(Math.floor)
+  let rest = left - fl.reduce((a, b) => a + b, 0)
+  exact.map((e, i) => [e - fl[i], i]).sort((a, b) => b[0] - a[0]).slice(0, rest).forEach(([, i]) => fl[i]++)
+  return base.map((b, i) => b + fl[i])
 }
-function buildStripes(rule, p, n) {
-  return ruleLengths(rule, p, n).map((r, i) => ({ c: i % n, r }))
-}
-const seamClash = (stripes, n) => n > 1 && stripes.length > 1 && stripes[0].c === stripes.at(-1).c
 
-/** Раскладка рядов сверху вниз (§5.2): раппорт продолжается только по участкам в полоску. */
+/** Раскладка рядов сверху вниз: полосы каждого участка подряд. */
 function layout(st) {
-  const rap = st.rapport.stripes.flatMap(s => Array(Math.max(1, s.r)).fill(s.c))
-  const out = []; let k = 0
-  st.sections.forEach((s, si) => {
-    for (let i = 0; i < s.rows; i++) {
-      out.push({ s: si, c: s.mode === 'solid' ? s.color : rap[k++ % rap.length] })
-    }
-  })
+  const out = []
+  st.sections.forEach((s, si) => s.stripes.forEach(p => { for (let i = 0; i < p.r; i++) out.push({ s: si, c: p.c }) }))
   return out
 }
 
+const solid = (rows, c) => [{ c, r: rows }]
 function defaultState(preset) {
-  const pal = PRESETS[preset]
   return {
-    palette: pal.map(hex => ({ hex, lock: false })),
-    rapport: { rule: 'even', p: { N: 2, k: 5, min: 1, max: 6 }, stripes: buildStripes('even', { N: 2 }, 2), lock: false },
-    sections: SECTIONS.map((name, i) => ({ name, rows: DEFAULT_ROWS[i], mode: 'solid', color: [0, 1, 0, 1, 0][i], lock: false })),
+    palette: PRESETS[preset].map(hex => ({ hex, lock: false })),
+    sections: SECTIONS.map((name, i) => ({ name, rows: DEFAULT_ROWS[i], lock: false, stripes: solid(DEFAULT_ROWS[i], [0, 1, 0, 1, 0][i]) })),
   }
 }
 function whiteState() {
   return {
     palette: [{ hex: '#ffffff', lock: false }],
-    rapport: { rule: 'even', p: { N: 2, k: 5, min: 1, max: 6 }, stripes: [{ c: 0, r: 2 }], lock: false },
-    sections: SECTIONS.map((name, i) => ({ name, rows: DEFAULT_ROWS[i], mode: 'solid', color: 0, lock: false })),
+    sections: SECTIONS.map((name, i) => ({ name, rows: DEFAULT_ROWS[i], lock: false, stripes: solid(DEFAULT_ROWS[i], 0) })),
   }
 }
 
 /* ---------- состояние ---------- */
-const q = reactive({ del: 'first', seam: 'avoid', reset: 'twotap', preset: 'синий + лён', tilt: 32 })
+const q = reactive({ del: 'first', reset: 'twotap', preset: 'синий + лён' })
 const st = reactive(defaultState(q.preset))
-const ui = reactive({ view: 'sock', confirming: false, modal: false, toast: null, selected: null, lastGen: '' })
-
+const ui = reactive({ view: 'sock', open: { 1: true }, confirming: false, modal: false, toast: null, lastGen: '' })
 function replaceState(next) { Object.assign(st, JSON.parse(JSON.stringify(next))) }
 watch(() => q.preset, p => replaceState(defaultState(p)))
 
@@ -184,89 +168,94 @@ const totals = computed(() => {
   const all = rows.value.length
   return t.map((n, i) => ({ i, n, pct: Math.round(100 * n / all) }))
 })
-const striped = computed(() => st.sections.some(s => s.mode === 'stripes'))
 
-function usages(i) {
-  const u = []
-  st.sections.forEach(s => { if (s.mode === 'solid' && s.color === i) u.push(s.name) })
-  if (st.rapport.stripes.some(s => s.c === i)) u.push('раппорт')
-  return u
+/* полосы участка */
+function addStripe(sec) {
+  const n = sec.stripes.length
+  if (n >= sec.rows) return
+  const last = sec.stripes[n - 1].c
+  const c = st.palette.length > 1 ? (last + 1) % st.palette.length : 0
+  // новая полоса берёт долю 1/(n+1), предыдущие отдают пропорционально своей длине
+  const share = Math.max(1, Math.round(sec.rows / (n + 1)))
+  const kept = apportion(sec.stripes.map(p => p.r), sec.rows - share)
+  sec.stripes.forEach((p, i) => p.r = kept[i])
+  sec.stripes.push({ c, r: share })
 }
+function removeStripe(sec, i) {
+  if (sec.stripes.length < 2) return
+  const [gone] = sec.stripes.splice(i, 1)
+  sec.stripes[Math.max(0, i - 1)].r += gone.r
+}
+/** Длину полосы правят числом: разницу забирает или отдаёт следующая (у последней — предыдущая). */
+function setStripeRows(sec, i, v) {
+  const nb = i + 1 < sec.stripes.length ? i + 1 : i - 1
+  if (nb < 0) return
+  const p = sec.stripes[i], o = sec.stripes[nb]
+  const want = Math.max(1, Math.min(Math.round(v) || 1, p.r + o.r - 1))
+  o.r += p.r - want; p.r = want
+}
+function moveBorder(sec, i, delta) { // граница между полосами i и i+1
+  const a = sec.stripes[i], b = sec.stripes[i + 1]
+  const d = Math.max(1 - a.r, Math.min(delta, b.r - 1))
+  a.r += d; b.r -= d
+}
+function setSectionRows(sec, v) {
+  const n = Math.max(sec.stripes.length, Math.round(v) || 1)
+  const r = apportion(sec.stripes.map(p => p.r), n)
+  sec.stripes.forEach((p, i) => p.r = r[i]); sec.rows = n
+}
+
+/* палитра */
+function usages(i) { return st.sections.filter(s => s.stripes.some(p => p.c === i)).map(s => s.name) }
 function canDelete(i) { return st.palette.length > 1 && !(q.del === 'forbid' && usages(i).length) }
 function deleteColor(i) {
   const hex = st.palette[i].hex
   st.palette.splice(i, 1)
   const repl = old => {
     if (old !== i) return old > i ? old - 1 : old
-    if (q.del === 'nearest') {
-      let best = 0, bd = Infinity
-      st.palette.forEach((p, j) => { const d = dist(p.hex, hex); if (d < bd) { bd = d; best = j } })
-      return best
-    }
+    if (q.del === 'nearest') { let best = 0, bd = Infinity; st.palette.forEach((p, j) => { const d = dist(p.hex, hex); if (d < bd) { bd = d; best = j } }); return best }
     return 0
   }
-  st.sections.forEach(s => s.color = repl(s.color))
-  st.rapport.stripes.forEach(s => s.c = repl(s.c))
+  st.sections.forEach(s => s.stripes.forEach(p => p.c = repl(p.c)))
 }
-function addColor() {
-  if (st.palette.length >= 6) return
-  st.palette.push({ hex: genColor(st.palette.map(p => p.hex)), lock: false })
-}
-
 function genColor(others) {
-  for (let t = 0; t < 300; t++) {
-    const c = hsl(rnd(0, 359), rnd(20, 85), rnd(18, 88))
-    if (others.every(o => dist(o, c) > 0.14)) return c
-  }
+  for (let t = 0; t < 300; t++) { const c = hsl(rnd(0, 359), rnd(20, 85), rnd(18, 88)); if (others.every(o => dist(o, c) > 0.14)) return c }
   return hsl(rnd(0, 359), 60, 50)
 }
+function addColor() { if (st.palette.length < 6) st.palette.push({ hex: genColor(st.palette.map(p => p.hex)), lock: false }) }
+
+/* генерация */
 function genPalette() {
   for (let attempt = 0; attempt < 60; attempt++) {
     const hexes = st.palette.map(p => p.lock ? p.hex : null)
     hexes.forEach((h, i) => { if (!h) hexes[i] = genColor(hexes.filter(Boolean)) })
     const L = hexes.map(h => hexToOklab(h)[0])
-    if (hexes.length < 2 || Math.max(...L) - Math.min(...L) > 0.3 || attempt === 59) {
-      hexes.forEach((h, i) => st.palette[i].hex = h); return
-    }
-  }
-}
-function applyRule() {
-  const n = st.palette.length
-  st.rapport.stripes = buildStripes(st.rapport.rule, st.rapport.p, n)
-}
-function genRapport() {
-  const n = st.palette.length
-  for (let t = 0; t < 30; t++) {
-    const rule = pick(['even', 'inc', 'dec', 'fib', 'rnd'])
-    const p = { N: rnd(1, 6), k: rule === 'fib' ? rnd(4, 7) : rnd(3, 8), min: rnd(1, 2), max: rnd(3, 8) }
-    const stripes = buildStripes(rule, p, n)
-    if (q.seam === 'avoid' && seamClash(stripes, n) && t < 29) continue
-    Object.assign(st.rapport, { rule, p, stripes }); return
+    if (hexes.length < 2 || Math.max(...L) - Math.min(...L) > 0.3 || attempt === 59) { hexes.forEach((h, i) => st.palette[i].hex = h); return }
   }
 }
 function genSections() {
-  const n = st.palette.length
-  const accent = rnd(0, n - 1)
-  const plan = [
-    Math.random() < 0.9 ? { mode: 'solid', color: Math.random() < 0.7 ? accent : rnd(0, n - 1) } : { mode: 'stripes' },
-    Math.random() < 0.85 ? { mode: 'stripes' } : { mode: 'solid', color: rnd(0, n - 1) },
-    Math.random() < 0.7 ? { mode: 'solid', color: accent } : { mode: 'stripes' },
-    Math.random() < 0.85 ? { mode: 'stripes' } : { mode: 'solid', color: rnd(0, n - 1) },
-    Math.random() < 0.9 ? { mode: 'solid', color: Math.random() < 0.8 ? accent : rnd(0, n - 1) } : { mode: 'stripes' },
-  ]
-  st.sections.forEach((s, i) => { if (!s.lock) { s.mode = plan[i].mode; if (plan[i].color != null) s.color = plan[i].color } })
+  const n = st.palette.length, accent = rnd(0, n - 1)
+  const pickNot = c => { if (n < 2) return 0; let x; do { x = rnd(0, n - 1) } while (x === c); return x }
+  st.sections.forEach((s, i) => {
+    if (s.lock) return
+    // резинка, пятка, мысок чаще однотон и общим акцентом; паголенок и стопа чаще в 2–4 полосы
+    const edge = i === 0 || i === 2 || i === 4
+    const k = Math.min(s.rows, edge ? (Math.random() < 0.75 ? 1 : 2) : [1, 2, 2, 3, 3, 4, 4][rnd(0, 6)])
+    const cols = []; let c = edge && Math.random() < 0.8 ? accent : rnd(0, n - 1)
+    for (let j = 0; j < k; j++) { cols.push(c); c = pickNot(c) }
+    const r = apportion(Array.from({ length: k }, () => 0.4 + Math.random()), s.rows)
+    s.stripes = cols.map((c, j) => ({ c, r: r[j] }))
+  })
 }
 function generate() {
-  // после сброса палитра из одного цвета: полосы одним цветом неотличимы от однотона
   if (st.palette.length === 1) while (st.palette.length < 3) st.palette.push({ hex: '#ffffff', lock: false })
-  genPalette()
-  if (!st.rapport.lock) genRapport()
-  genSections()
+  genPalette(); genSections()
   ui.lastGen = new Date().toLocaleTimeString()
 }
 
+/* сброс */
 let snapshot = null
-function doReset() { snapshot = JSON.parse(JSON.stringify(st)); replaceState(whiteState()); ui.confirming = false; ui.modal = false; ui.selected = null }
+function doReset() { snapshot = JSON.parse(JSON.stringify(st)); replaceState(whiteState()); ui.confirming = false; ui.modal = false }
 function askReset() {
   if (q.reset === 'twotap') ui.confirming = true
   else if (q.reset === 'modal') ui.modal = true
@@ -274,12 +263,10 @@ function askReset() {
 }
 function undoReset() { if (snapshot) replaceState(snapshot); ui.toast = null }
 
-function editStripe() { st.rapport.rule = 'own' }
+const store = { st, q, ui, rows, totals, rowsText, plural, isLight, usages, canDelete, deleteColor, addColor, generate, askReset, doReset, undoReset,
+  addStripe, removeStripe, setStripeRows, moveBorder, setSectionRows }
 
-const store = { st, q, ui, rows, totals, striped, SECTIONS, RULES, PRESETS, rowsText, usages, canDelete, deleteColor, addColor,
-  generate, askReset, doReset, undoReset, applyRule, editStripe, seamClash, dist }
-
-/* ---------- общие куски ---------- */
+/* ---------- куски экрана ---------- */
 const Lock = {
   props: { on: Boolean, label: Boolean, small: Boolean }, emits: ['toggle'],
   template: `<button class="lock" :class="{on}" :style="small ? 'min-height:28px;min-width:28px;padding:3px;border-radius:999px' : ''"
@@ -380,6 +367,7 @@ const SockL = {
   </svg>`,
 }
 
+
 const SockTube = {
   props: { u: { default: 2.6 }, selectable: Boolean, big: Boolean },
   emits: ['pick'],
@@ -411,66 +399,50 @@ const SockTube = {
   </svg>`,
 }
 
-const PaletteEditor = {
-  components: { Lock },
-  props: { compact: Boolean },
-  setup() { return store },
-  template: `
-  <div class="col" style="gap:8px">
-    <div v-for="(p, i) in st.palette" :key="i" class="row">
-      <span style="width:58px">цвет {{ i + 1 }}</span>
-      <input type="color" v-model="p.hex">
-      <input v-if="!compact" class="hex" v-model.lazy="p.hex">
-      <Lock :on="p.lock" @toggle="p.lock = !p.lock"/>
-      <button class="ghost" :disabled="!canDelete(i)" :title="usages(i).length ? 'Используется: ' + usages(i).join(', ') : ''" @click="deleteColor(i)">✕</button>
-      <span v-if="q.del === 'forbid' && usages(i).length && st.palette.length > 1" class="mute">в деле: {{ usages(i).join(', ') }}</span>
-    </div>
-    <div><button :disabled="st.palette.length >= 6" @click="addColor">+ цвет</button></div>
-  </div>`,
-}
 
-const SectionRow = {
+const SectionNode = {
   components: { Lock },
-  props: ['s'],
-  setup() { return store },
-  template: `
-  <div class="row">
-    <label class="row" style="gap:4px"><input type="number" min="1" v-model.number="s.rows"> {{ s.rows === 1 ? 'ряд' : 'рядов' }}</label>
-    <select v-model="s.mode"><option value="solid">однотон</option><option value="stripes">в полоску</option></select>
-    <select v-if="s.mode === 'solid'" v-model.number="s.color">
-      <option v-for="(p, i) in st.palette" :key="i" :value="i">цвет {{ i + 1 }}</option>
-    </select>
-    <span v-if="s.mode === 'solid'" class="sw" :style="{ background: st.palette[s.color]?.hex }"></span>
-    <Lock label :on="s.lock" @toggle="s.lock = !s.lock"/>
-  </div>`,
-}
-
-const RapportEditor = {
-  components: { Lock },
-  setup() {
-    const clash = computed(() => store.seamClash(store.st.rapport.stripes, store.st.palette.length))
-    return { ...store, clash }
+  props: ['s', 'k'],
+  setup(props) {
+    const barEl = ref(null)
+    let drag = null
+    const down = (i, e) => { drag = { i, x: e.clientX, acc: 0 }; e.target.setPointerCapture(e.pointerId) }
+    const move = e => {
+      if (!drag) return
+      const w = barEl.value.getBoundingClientRect().width, perRow = w / props.s.rows
+      const rowsMoved = Math.trunc((e.clientX - drag.x) / perRow) - drag.acc
+      if (rowsMoved) { store.moveBorder(props.s, drag.i, rowsMoved); drag.acc += rowsMoved }
+    }
+    const up = () => { drag = null }
+    const grips = computed(() => { let a = 0; return props.s.stripes.slice(0, -1).map(p => (a += p.r) / props.s.rows * 100) })
+    return { ...store, barEl, down, move, up, grips }
   },
   template: `
-  <div class="col" style="gap:8px">
-    <div class="row">
-      <select v-model="st.rapport.rule" @change="st.rapport.rule !== 'own' && applyRule()">
-        <option v-for="(t, k) in RULES" :key="k" :value="k">{{ t }}</option>
-      </select>
-      <template v-if="st.rapport.rule === 'even'">по <input type="number" min="1" v-model.number="st.rapport.p.N" @change="applyRule"> ряда</template>
-      <template v-if="['inc','dec','fib','rnd'].includes(st.rapport.rule)">полос <input type="number" min="1" v-model.number="st.rapport.p.k" @change="applyRule"></template>
-      <template v-if="st.rapport.rule === 'rnd'">от <input type="number" min="1" v-model.number="st.rapport.p.min" @change="applyRule"> до <input type="number" min="1" v-model.number="st.rapport.p.max" @change="applyRule"></template>
-      <Lock :on="st.rapport.lock" @toggle="st.rapport.lock = !st.rapport.lock"/>
+  <div class="sec">
+    <div class="sec-head" @click="ui.open[k] = !ui.open[k]">
+      <span style="width:14px">{{ ui.open[k] ? '▾' : '▸' }}</span>
+      <span class="name">{{ s.name }}</span>
+      <div class="mini"><div v-for="(p, i) in s.stripes" :key="i" :style="{ flex: p.r, background: st.palette[p.c]?.hex }"></div></div>
+      <span class="mute" style="width:64px;text-align:right">{{ rowsText(s.rows) }}</span>
+      <Lock small :on="s.lock" @toggle="s.lock = !s.lock"/>
     </div>
-    <div v-for="(x, i) in st.rapport.stripes" :key="i" class="row">
-      <span class="sw" :style="{ background: st.palette[x.c]?.hex }"></span>
-      <select v-model.number="x.c" @change="editStripe"><option v-for="(p, j) in st.palette" :key="j" :value="j">цвет {{ j + 1 }}</option></select>
-      <input type="number" min="1" v-model.number="x.r" @change="editStripe"> {{ rowsText(x.r).split(' ')[1] }}
-      <button class="ghost" :disabled="st.rapport.stripes.length < 2" @click="st.rapport.stripes.splice(i, 1); editStripe()">✕</button>
+    <div v-if="ui.open[k]" class="sec-body">
+      <label class="row mute" style="gap:6px">рядов в участке
+        <input type="number" min="1" :value="s.rows" @change="e => setSectionRows(s, +e.target.value)"></label>
+      <div class="bar" ref="barEl" @pointermove="move" @pointerup="up" @pointercancel="up">
+        <div v-for="(p, i) in s.stripes" :key="i" class="part" :style="{ flex: p.r, background: st.palette[p.c]?.hex, color: isLight(st.palette[p.c]?.hex || '#fff') ? '#0f172a' : '#fff' }">{{ p.r }}</div>
+        <div v-for="(g, i) in grips" :key="'g' + i" class="grip" :style="{ left: g + '%' }" @pointerdown="e => down(i, e)"></div>
+      </div>
+      <div v-for="(p, i) in s.stripes" :key="i" class="stripe">
+        <div class="swatches">
+          <button v-for="(c, j) in st.palette" :key="j" :class="{ on: p.c === j }" :style="{ background: c.hex }" :title="'цвет ' + (j + 1)" @click="p.c = j"></button>
+        </div>
+        <input type="number" min="1" :value="p.r" @change="e => setStripeRows(s, i, +e.target.value)" :disabled="s.stripes.length < 2">
+        <span class="mute">{{ plural(p.r, 'ряд', 'ряда', 'рядов') }}</span>
+        <button class="ghost" :disabled="s.stripes.length < 2" @click="removeStripe(s, i)" title="Убрать полосу">✕</button>
+      </div>
+      <button @click="addStripe(s)" :disabled="s.stripes.length >= s.rows">+ полоса</button>
     </div>
-    <div><button @click="st.rapport.stripes.push({ c: 0, r: 2 }); editStripe()">+ полоса</button></div>
-    <div v-if="clash" class="mute">⚠ стык: последняя полоса того же цвета, что первая — на носке сольются в одну</div>
-    <div v-if="!striped" class="mute">Ни один участок не в полоску — раппорт сейчас не виден на носке.</div>
   </div>`,
 }
 
@@ -478,62 +450,27 @@ const Totals = {
   setup() { return store },
   template: `
   <div class="col" style="gap:6px">
-    <div><b>Раппорт:</b> {{ st.rapport.stripes.map(x => 'цвет ' + (x.c + 1) + ' — ' + rowsText(x.r)).join(', ') }}</div>
     <div v-for="t in totals" :key="t.i" class="row" style="gap:6px">
       <span class="sw" :style="{ background: st.palette[t.i].hex }"></span> цвет {{ t.i + 1 }} — {{ rowsText(t.n) }}, ~{{ t.pct }} %
     </div>
   </div>`,
 }
 
-const Actions = {
-  setup() { return store },
-  template: `
-  <div class="row">
-    <button class="primary" @click="generate">Сгенерировать</button>
-    <template v-if="!ui.confirming"><button @click="askReset">Сбросить</button></template>
-    <template v-else>
-      <span>Сбросить всё, и замки тоже?</span>
-      <button @click="doReset" style="border-color:#dc2626;color:#dc2626">Да, сбросить</button>
-      <button @click="ui.confirming = false">Нет</button>
-    </template>
-  </div>`,
-}
-
-const Overlays = {
-  setup() { return store },
-  template: `
-  <div v-if="ui.modal" class="modal-back" @click.self="ui.modal = false">
-    <div class="modal col">
-      <b>Сбросить носок?</b>
-      <span class="mute">Носок станет белым, палитра — из одного цвета, замки снимутся.</span>
-      <div class="row"><button @click="doReset" style="border-color:#dc2626;color:#dc2626">Сбросить</button><button @click="ui.modal = false">Отмена</button></div>
-    </div>
-  </div>
-  <div v-if="ui.toast" class="toast">{{ ui.toast }} <button @click="undoReset">Вернуть</button></div>`,
-}
-
 const Questions = {
-  setup() { const dump = computed(() => JSON.stringify(store.st, null, 1)); return { ...store, dump } },
+  setup() { const dump = computed(() => JSON.stringify(store.st, null, 1)); return { ...store, dump, PRESETS } },
   template: `
-  <details class="q" open>
+  <details class="q">
     <summary><span class="proto-tag">ПРОТОТИП</span> Вопросы §13</summary>
-    <fieldset><legend>3. Стопа ниже горизонтали на {{ q.tilt }}° (угол носка {{ 90 + q.tilt }}°)</legend>
-      <input type="range" min="0" max="60" step="5" v-model.number="q.tilt" style="width:100%">
-    </fieldset>
-    <fieldset><legend>1. Удаление цвета, который где-то используется</legend>
+    <fieldset><legend>Удаление цвета, который где-то используется</legend>
       <label><input type="radio" value="first" v-model="q.del"> заменить на цвет 1</label><br>
       <label><input type="radio" value="nearest" v-model="q.del"> заменить ближайшим по цвету</label><br>
       <label><input type="radio" value="forbid" v-model="q.del"> не давать удалить, пока используется</label>
     </fieldset>
-    <fieldset><legend>2. Стык повторов раппорта одного цвета</legend>
-      <label><input type="radio" value="avoid" v-model="q.seam"> генерация таких раппортов не даёт</label><br>
-      <label><input type="radio" value="allow" v-model="q.seam"> пусть сливаются (предупреждение под раппортом)</label>
-    </fieldset>
-    <fieldset><legend>5. Цвета по умолчанию (меняет носок)</legend>
+    <fieldset><legend>Цвета по умолчанию (меняет носок)</legend>
       <select v-model="q.preset"><option v-for="(v, k) in PRESETS" :key="k">{{ k }}</option></select>
     </fieldset>
-    <fieldset><legend>6. Подтверждение сброса</legend>
-      <label><input type="radio" value="twotap" v-model="q.reset"> вторым нажатием на месте кнопки</label><br>
+    <fieldset><legend>Подтверждение сброса</legend>
+      <label><input type="radio" value="twotap" v-model="q.reset"> вторым нажатием</label><br>
       <label><input type="radio" value="modal" v-model="q.reset"> окном на странице</label><br>
       <label><input type="radio" value="undo" v-model="q.reset"> сразу, но с «Вернуть» несколько секунд</label>
     </fieldset>
@@ -542,143 +479,55 @@ const Questions = {
   </details>`,
 }
 
-/* ---------- варианты ---------- */
-const VariantA = {
-  name: 'Носок сверху',
-  components: { SockL, PaletteEditor, SectionRow, RapportEditor, Totals, Actions, Questions },
-  setup() { return store },
-  template: `
-  <div class="page">
-    <h1 style="margin-bottom:12px">Расцветка носка</h1>
-    <div class="a-grid">
-      <div class="a-sock col"><SockL :u="3"/><Actions/></div>
-      <div class="col">
-        <section class="block"><h2>Палитра</h2><PaletteEditor/></section>
-        <section class="block"><h2>Участки</h2>
-          <div v-for="s in st.sections" :key="s.name" style="margin-bottom:8px"><div class="mute">{{ s.name }}</div><SectionRow :s="s"/></div>
-        </section>
-        <section class="block"><h2>Раппорт</h2><RapportEditor/></section>
-        <section class="block"><h2>Итог</h2><Totals/></section>
-      </div>
-    </div>
-    <Questions/>
-  </div>`,
-}
-
-const VariantB = {
-  name: 'Развёртка',
-  components: { SockTube, PaletteEditor, Lock, RapportEditor, Totals, Actions, Questions },
-  setup() { return store },
-  template: `
-  <div class="page">
-    <h1 style="margin-bottom:12px">Расцветка носка</h1>
-    <div class="b-grid">
-      <div class="b-tube"><SockTube/></div>
-      <div class="col">
-        <Actions/>
-        <section><h2>Палитра</h2><PaletteEditor compact/></section>
-        <section><h2>Участки</h2>
-          <table class="sect"><tbody>
-            <tr v-for="s in st.sections" :key="s.name">
-              <td>{{ s.name }}</td>
-              <td><input type="number" min="1" v-model.number="s.rows" style="width:52px"></td>
-              <td>
-                <select :value="s.mode === 'stripes' ? 'S' : s.color"
-                        @change="e => { const v = e.target.value; if (v === 'S') s.mode = 'stripes'; else { s.mode = 'solid'; s.color = +v } }">
-                  <option value="S">полоски</option>
-                  <option v-for="(p, i) in st.palette" :key="i" :value="i">цвет {{ i + 1 }}</option>
-                </select>
-              </td>
-              <td><Lock :on="s.lock" @toggle="s.lock = !s.lock"/></td>
-            </tr>
-          </tbody></table>
-        </section>
-      </div>
-      <div class="col">
-        <section><h2>Раппорт</h2><RapportEditor/></section>
-        <section><h2>Итог</h2><Totals/></section>
-      </div>
-    </div>
-    <Questions/>
-  </div>`,
-}
-
-const VariantC = {
-  name: 'Тап по носку',
-  components: { SockL, SockTube, SectionRow, RapportEditor, Totals, Lock, Questions },
-  setup() {
-    const sel = computed(() => store.ui.selected == null ? null : store.st.sections[store.ui.selected])
-    const pickSec = i => store.ui.selected = store.ui.selected === i ? null : i
-    return { ...store, sel, pickSec }
-  },
-  template: `
-  <div class="page" style="padding-bottom:200px">
-    <h1>Расцветка носка</h1>
-    <div class="row" style="justify-content:space-between;margin-top:6px">
-      <span class="mute">Нажми на участок, чтобы его раскрасить.</span>
-      <div class="seg" role="group" aria-label="Вид">
-        <button :class="{ on: ui.view !== 'tube' }" @click="ui.view = 'sock'">Носок</button>
-        <button :class="{ on: ui.view === 'tube' }" @click="ui.view = 'tube'">Развёртка</button>
-      </div>
-    </div>
-    <div class="c-stage">
-      <SockL v-if="ui.view !== 'tube'" :u="3.6" selectable :maxw="560" @pick="pickSec"/>
-      <SockTube v-else big selectable @pick="pickSec"/>
-    </div>
-    <div style="max-width:560px;margin:12px auto 0"><Totals/></div>
-    <Questions/>
-    <div class="c-dock">
-      <button class="primary" @click="generate">🎲</button>
-      <div v-for="(p, i) in st.palette" :key="i" class="chip" :class="{ locked: p.lock }">
-        <input type="color" v-model="p.hex"><span style="font-size:12px">{{ i + 1 }}</span>
-        <Lock small :on="p.lock" @toggle="p.lock = !p.lock"/>
-      </div>
-      <button :disabled="st.palette.length >= 6" @click="addColor">+</button>
-      <button @click="ui.selected = 'rap'">Полосы</button>
-      <button @click="askReset">Сбросить</button>
-    </div>
-    <div v-if="ui.confirming" class="c-sheet">
-      <div class="row"><span>Сбросить всё, и замки тоже?</span>
-        <button @click="doReset" style="border-color:#dc2626;color:#dc2626">Да</button><button @click="ui.confirming = false">Нет</button></div>
-    </div>
-    <div v-else-if="sel" class="c-sheet">
-      <div class="row" style="justify-content:space-between"><h2 style="margin:0">{{ sel.name }}</h2><button class="ghost" @click="ui.selected = null">Готово</button></div>
-      <SectionRow :s="sel"/>
-      <p class="mute">Удалить цвет — <button class="ghost" style="min-height:28px" v-for="(p, i) in st.palette" :key="i" :disabled="!canDelete(i)" @click="deleteColor(i)">✕ {{ i + 1 }}</button></p>
-    </div>
-    <div v-else-if="ui.selected === 'rap'" class="c-sheet">
-      <div class="row" style="justify-content:space-between"><h2 style="margin:0">Раппорт</h2><button class="ghost" @click="ui.selected = null">Готово</button></div>
-      <RapportEditor/>
-    </div>
-  </div>`,
-}
-
-/* ---------- переключатель ---------- */
-const VARIANTS = { C: VariantC, A: VariantA, B: VariantB }
 createApp({
-  components: { VariantA, VariantB, VariantC, Overlays },
-  setup() {
-    const keys = Object.keys(VARIANTS)
-    const cur = ref(new URLSearchParams(location.search).get('variant') ?? 'C')
-    if (!keys.includes(cur.value)) cur.value = 'C'
-    const go = d => {
-      cur.value = keys[(keys.indexOf(cur.value) + d + keys.length) % keys.length]
-      const u = new URL(location.href); u.searchParams.set('variant', cur.value); history.replaceState(null, '', u)
-      store.ui.selected = null; store.ui.confirming = false
-    }
-    const onKey = e => {
-      if (e.target.closest('input, textarea, select, [contenteditable]')) return
-      if (e.key === 'ArrowLeft') go(-1); if (e.key === 'ArrowRight') go(1)
-    }
-    onMounted(() => addEventListener('keydown', onKey)); onUnmounted(() => removeEventListener('keydown', onKey))
-    const comp = computed(() => VARIANTS[cur.value])
-    return { cur, go, comp }
-  },
+  components: { SockL, SockTube, SectionNode, Totals, Lock, Questions },
+  setup() { return store },
   template: `
-  <component :is="comp"/>
-  <Overlays/>
-  <div class="proto-bar"><span class="proto-tag">ПРОТОТИП</span>
-    <button @click="go(-1)">←</button><span>{{ cur }} ({{ comp.name }})</span><button @click="go(1)">→</button></div>`,
+  <div class="page" style="padding-bottom:180px">
+    <h1>Расцветка носка</h1>
+    <div class="grid" style="margin-top:10px">
+      <div class="stage col">
+        <div class="row" style="justify-content:flex-end">
+          <div class="seg" role="group" aria-label="Вид">
+            <button :class="{ on: ui.view !== 'tube' }" @click="ui.view = 'sock'">Носок</button>
+            <button :class="{ on: ui.view === 'tube' }" @click="ui.view = 'tube'">Развёртка</button>
+          </div>
+        </div>
+        <SockL v-if="ui.view !== 'tube'" :maxw="460"/>
+        <SockTube v-else big/>
+      </div>
+      <div class="col">
+        <div class="tree">
+          <SectionNode v-for="(s, k) in st.sections" :key="s.name" :s="s" :k="k"/>
+        </div>
+        <section><h2 style="margin-bottom:6px">Итог</h2><Totals/></section>
+      </div>
+    </div>
+    <Questions/>
+  </div>
+  <div class="dock">
+    <button class="primary" @click="generate" title="Сгенерировать">🎲</button>
+    <div v-for="(p, i) in st.palette" :key="i" class="chip" :class="{ locked: p.lock }">
+      <input type="color" v-model="p.hex"><span style="font-size:12px">{{ i + 1 }}</span>
+      <Lock small :on="p.lock" @toggle="p.lock = !p.lock"/>
+      <button class="ghost" style="min-height:28px;padding:0 4px" :disabled="!canDelete(i)" :title="usages(i).length ? 'Используется: ' + usages(i).join(', ') : 'Убрать цвет'" @click="deleteColor(i)">✕</button>
+    </div>
+    <button :disabled="st.palette.length >= 6" @click="addColor">+ цвет</button>
+    <button @click="askReset">Сбросить</button>
+  </div>
+  <div v-if="ui.confirming" class="confirm">
+    <div class="row"><span>Сбросить всё, и замки тоже?</span>
+      <button @click="doReset" style="border-color:#dc2626;color:#dc2626">Да</button><button @click="ui.confirming = false">Нет</button></div>
+  </div>
+  <div v-if="ui.modal" class="modal-back" @click.self="ui.modal = false">
+    <div class="modal col">
+      <b>Сбросить носок?</b>
+      <span class="mute">Носок станет белым, палитра — из одного цвета, замки снимутся.</span>
+      <div class="row"><button @click="doReset" style="border-color:#dc2626;color:#dc2626">Сбросить</button><button @click="ui.modal = false">Отмена</button></div>
+    </div>
+  </div>
+  <div v-if="ui.toast" class="toast">{{ ui.toast }} <button @click="undoReset">Вернуть</button></div>
+  <div class="proto-bar"><span class="proto-tag">ПРОТОТИП</span> участки из полос</div>`,
 }).mount('#app')
 </script>
 </body>
