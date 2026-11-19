@@ -30,7 +30,7 @@ import { computed } from 'vue'
 import { useToeCalculator } from '../useToeCalculator'
 import { centimetreView } from '../core/centimetres'
 import { FOOT_CHECK, coverageNote } from '../core/notes'
-import { decRowsWord, rowsWord } from '../core/plural'
+import { workRowsWord, rowsWord } from '../core/plural'
 import { summaryLine } from '../core/text'
 import GaugeButton from './GaugeButton.vue'
 
@@ -57,7 +57,7 @@ const params = computed(() => summaryLine(calculation.value))
       {{ params }}
     </p>
     <p class="mt-1 text-slate-900">
-      <span data-testid="summary-dec-rows">{{ decRowsWord(calculation.decRowsNeeded) }}</span>
+      <span data-testid="summary-dec-rows">{{ workRowsWord(calculation.workRowsNeeded, calculation.direction) }}</span>
       ·
       <span data-testid="summary-total-rows">{{ rowsWord(calculation.totalRows) }} всего</span>
     </p>

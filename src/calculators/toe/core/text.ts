@@ -10,11 +10,17 @@
  *
  * Ядро — чистый TypeScript: импортов из Vue здесь нет и быть не должно.
  */
-import type { ToeCalculation } from './types'
+import type { Direction, ToeCalculation } from './types'
 import { rhythmName } from './presets'
 import { rowsWord, stitchesWord } from './plural'
 
-type Described = Pick<ToeCalculation, 'initial' | 'finalReal' | 'edge' | 'totalRows' | 'rhythm'>
+/** Слова расчёта по направлению: у toe-up мысок «от мыска» и ряды прибавок (§7, §10.5 спеки toe-up). */
+const WORDS: Record<Direction, { toe: string; change: string }> = {
+  'cuff-down': { toe: 'Мысок', change: 'убавки' },
+  'toe-up': { toe: 'Мысок от мыска', change: 'прибавки' },
+}
+
+type Described = Pick<ToeCalculation, 'initial' | 'finalReal' | 'edge' | 'totalRows' | 'rhythm' | 'direction'>
 
 /** «60 → 20 петель» — от начальных к тем, на которых мысок кончится. */
 function stitchesSpan(calculation: Pick<ToeCalculation, 'initial' | 'finalReal'>): string {
@@ -32,7 +38,8 @@ export function paramsLine(calculation: Described, lengthCm: string | null = nul
 
 /** Строка «Итога»: «Мысок: 60 → 20 петель, кромка 1, убавки через ряд». */
 export function summaryLine(calculation: Described): string {
-  return `Мысок: ${stitchesSpan(calculation)}, кромка ${calculation.edge}, убавки ${rhythmName(calculation.rhythm)}`
+  const { toe, change } = WORDS[calculation.direction]
+  return `${toe}: ${stitchesSpan(calculation)}, кромка ${calculation.edge}, ${change} ${rhythmName(calculation.rhythm, calculation.direction)}`
 }
 
 /**
@@ -40,15 +47,18 @@ export function summaryLine(calculation: Described): string {
  * ряд, 19 рядов» — читается даже без перехода по ссылке.
  */
 export function shareText(calculation: Described): string {
-  return `Мысок: ${stitchesSpan(calculation)}, убавки ${rhythmName(calculation.rhythm)}, ${rowsWord(calculation.totalRows)}`
+  const { toe, change } = WORDS[calculation.direction]
+  return `${toe}: ${stitchesSpan(calculation)}, ${change} ${rhythmName(calculation.rhythm, calculation.direction)}, ${rowsWord(calculation.totalRows)}`
 }
 
-/** Подпись над схемой (§7): «↑ 20 петель на закрытие». */
-export function closingCaption(calculation: Pick<ToeCalculation, 'finalReal'>): string {
-  return `↑ ${stitchesWord(calculation.finalReal)} на закрытие`
+/** Подпись над схемой (§7): «↑ 20 петель на закрытие», у toe-up — «64 петли — мысок готов, дальше стопа». */
+export function closingCaption(calculation: Pick<ToeCalculation, 'finalReal' | 'direction'>): string {
+  const stitches = stitchesWord(calculation.finalReal)
+  return calculation.direction === 'toe-up' ? `${stitches} — мысок готов, дальше стопа` : `↑ ${stitches} на закрытие`
 }
 
-/** Подпись под схемой (§7): «Начало мыска, 60 петель. …». */
-export function startCaption(calculation: Pick<ToeCalculation, 'initial'>): string {
-  return `Начало мыска, ${stitchesWord(calculation.initial)}. Ряды читаются снизу вверх, петли справа налево.`
+/** Подпись под схемой (§7): «Начало мыска, 60 петель. …», у toe-up — «Набор, 24 петли. …». */
+export function startCaption(calculation: Pick<ToeCalculation, 'initial' | 'direction'>): string {
+  const start = calculation.direction === 'toe-up' ? 'Набор' : 'Начало мыска'
+  return `${start}, ${stitchesWord(calculation.initial)}. Ряды читаются снизу вверх, петли справа налево.`
 }

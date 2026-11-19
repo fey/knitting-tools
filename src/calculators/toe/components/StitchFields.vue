@@ -60,7 +60,8 @@ import {
 
 const STEP = 4
 
-const { params, setParams } = useToeCalculator()
+const { params, setParams, calculation } = useToeCalculator()
+const direction = computed(() => calculation.value.direction)
 
 /** Черновики полей: то, что реально набрано, может не совпадать со сходящимся `params`. */
 const initialDraft = ref(String(params.initial))
@@ -86,7 +87,7 @@ const finalFix = ref<Fix | null>(null)
 
 function commitIfConverges(patch: Partial<{ initial: number; final: number }>): void {
   const next = { initial: params.initial, final: params.final, edge: params.edge, ...patch }
-  if (!converges(next)) return
+  if (!converges(next, direction.value)) return
   setParams(next)
 }
 
@@ -135,6 +136,7 @@ function repair(field: 'initial' | 'final'): void {
         edge: params.edge,
       },
       params,
+      direction.value,
     ),
   )
 }
@@ -202,7 +204,7 @@ const edgeOptions = [
  * когда кромка уже выбрана, а конечные набирают заново.
  */
 function whyOff(value: EdgeValue): string | null {
-  return edgeWhyOff(value, params.final)
+  return edgeWhyOff(value, params.final, direction.value)
 }
 
 function setEdge(value: EdgeValue): void {

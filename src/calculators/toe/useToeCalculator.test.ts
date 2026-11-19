@@ -8,7 +8,7 @@ describe('состояние калькулятора', () => {
     expect(params.final).toBe(20)
     expect(params.edge).toBe(1)
     expect(params.rhythm).toEqual({ kind: 'preset', name: 'even' })
-    expect(calculation.value.decRowsNeeded).toBe(10)
+    expect(calculation.value.workRowsNeeded).toBe(10)
     expect(calculation.value.totalRows).toBe(19)
   })
 
@@ -18,7 +18,7 @@ describe('состояние калькулятора', () => {
 
     first.setParams({ final: 16 })
     expect(second.calculation.value.totalRows).toBe(21)
-    expect(second.calculation.value.decRowsNeeded).toBe(11)
+    expect(second.calculation.value.workRowsNeeded).toBe(11)
 
     first.setParams({ final: 20 })
     expect(second.calculation.value.totalRows).toBe(19)

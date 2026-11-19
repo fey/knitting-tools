@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { closingCaption, paramsLine, shareText, startCaption, summaryLine } from './text'
-import { calculateToe, DEFAULT_PARAMS } from './calc'
+import { calculateToe, DEFAULT_PARAMS, DEFAULT_PARAMS_TOE_UP } from './calc'
 
 /** Конечные петли с правильным склонением: 20 петель, 21 петля, 22 и 24 петли (тикет #43). */
 const ENDS = [
@@ -12,7 +12,7 @@ const ENDS = [
 
 /** Расчёт, у которого мысок кончается ровно на `finalReal` петлях. */
 function endingOn(finalReal: number) {
-  return { ...calculateToe(DEFAULT_PARAMS), finalReal }
+  return { ...calculateToe(DEFAULT_PARAMS, 'cuff-down'), finalReal }
 }
 
 describe('строки расчёта склоняют конечные петли (§7, §10.5)', () => {
@@ -26,7 +26,7 @@ describe('строки расчёта склоняют конечные петл
   })
 
   it('62 → 22 на настоящем расчёте говорит «22 петли»', () => {
-    const calc = calculateToe({ ...DEFAULT_PARAMS, initial: 62, final: 22 })
+    const calc = calculateToe({ ...DEFAULT_PARAMS, initial: 62, final: 22 }, 'cuff-down')
     expect(summaryLine(calc)).toContain('62 → 22 петли,')
     expect(closingCaption(calc)).toBe('↑ 22 петли на закрытие')
     expect(startCaption(calc)).toMatch(/^Начало мыска, 62 петли\./)
@@ -35,14 +35,14 @@ describe('строки расчёта склоняют конечные петл
 
 describe('текст для системного шита «Поделиться»', () => {
   it('дефолт читается фразой целиком, без перехода по ссылке', () => {
-    expect(shareText(calculateToe(DEFAULT_PARAMS))).toBe('Мысок: 60 → 20 петель, убавки через ряд, 19 рядов')
+    expect(shareText(calculateToe(DEFAULT_PARAMS, 'cuff-down'))).toBe('Мысок: 60 → 20 петель, убавки через ряд, 19 рядов')
   })
 
   it('имя ритма — то же, что в итоге: свой ритм называется своим ритмом', () => {
     const calc = calculateToe({
       ...DEFAULT_PARAMS,
       rhythm: { kind: 'custom', segments: [{ interval: 1, repeats: 10 }] },
-    })
+    }, 'cuff-down')
     expect(shareText(calc)).toContain('убавки свой ритм')
     expect(summaryLine(calc)).toContain('убавки свой ритм')
   })
@@ -51,7 +51,7 @@ describe('текст для системного шита «Поделиться
     const calc = calculateToe({
       ...DEFAULT_PARAMS,
       rhythm: { kind: 'custom', segments: [{ interval: 1, repeats: 6 }] },
-    })
+    }, 'cuff-down')
     expect(calc.lack).toBe(4)
     expect(calc.finalReal).toBe(36)
     expect(shareText(calc)).toContain('60 → 36 петель')
@@ -61,9 +61,26 @@ describe('текст для системного шита «Поделиться
     const calc = calculateToe({
       ...DEFAULT_PARAMS,
       rhythm: { kind: 'custom', segments: [{ interval: 1, repeats: 14 }] },
-    })
+    }, 'cuff-down')
     expect(calc.lack).toBeLessThan(0)
     expect(calc.finalReal).toBe(calc.final)
     expect(shareText(calc)).toContain('60 → 20 петель')
+  })
+})
+
+describe('тексты расчёта от мыска (§7, §10.5 спеки toe-up)', () => {
+  const up = calculateToe(DEFAULT_PARAMS_TOE_UP, 'toe-up')
+
+  it('«Поделиться» называет мысок от мыска и прибавки', () => {
+    expect(shareText(up)).toBe('Мысок от мыска: 24 → 64 петли, прибавки через ряд, 20 рядов')
+  })
+
+  it('«Итог» говорит про прибавки, а не убавки', () => {
+    expect(summaryLine(up)).toBe('Мысок от мыска: 24 → 64 петли, кромка 1, прибавки через ряд')
+  })
+
+  it('подписи схемы: набор внизу, «мысок готов» вверху', () => {
+    expect(startCaption(up)).toBe('Набор, 24 петли. Ряды читаются снизу вверх, петли справа налево.')
+    expect(closingCaption(up)).toBe('64 петли — мысок готов, дальше стопа')
   })
 })
