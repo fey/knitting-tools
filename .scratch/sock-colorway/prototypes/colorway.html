@@ -243,11 +243,15 @@ function genPalette() {
     if (hexes.length < 2 || Math.max(...L) - Math.min(...L) > 0.3 || attempt === 59) { hexes.forEach((h, i) => st.palette[i].hex = h); return }
   }
 }
-function genSections() {
-  const n = st.palette.length, accent = rnd(0, n - 1)
+/** Нарезка полос из текущей палитры: всех незакреплённых участков или одного (only). */
+function genSections(only) {
+  const n = st.palette.length
+  // акцент — общий цвет резинки, пятки и мыска; для одного участка берём цвет уже стоящего края
+  const edgeNow = [0, 2, 4].filter(i => i !== only).map(i => st.sections[i].stripes[0].c)
+  const accent = only != null && edgeNow.length ? edgeNow[rnd(0, edgeNow.length - 1)] : rnd(0, n - 1)
   const pickNot = c => { if (n < 2) return 0; let x; do { x = rnd(0, n - 1) } while (x === c); return x }
   st.sections.forEach((s, i) => {
-    if (s.lock) return
+    if (s.lock || (only != null && i !== only)) return
     // резинка, пятка, мысок чаще однотон и общим акцентом; паголенок и стопа чаще в 2–4 полосы
     const edge = i === 0 || i === 2 || i === 4
     const k = Math.min(s.rows, edge ? (Math.random() < 0.75 ? 1 : 2) : [1, 2, 2, 3, 3, 4, 4][rnd(0, 6)])
@@ -257,11 +261,10 @@ function genSections() {
     s.stripes = cols.map((c, j) => ({ c, r: r[j] }))
   })
 }
-function generate() {
-  if (st.palette.length === 1) while (st.palette.length < 3) st.palette.push({ hex: '#ffffff', lock: false })
-  genPalette(); genSections()
-  ui.lastGen = new Date().toLocaleTimeString()
-}
+const stamp = what => ui.lastGen = what + ', ' + new Date().toLocaleTimeString()
+function rollPalette() { genPalette(); stamp('палитра') }
+function rollSock() { genSections(); stamp('носок') }
+function rollSection(i) { if (!st.sections[i].lock) { genSections(i); stamp(st.sections[i].name) } }
 
 /* сброс */
 let snapshot = null
@@ -273,7 +276,7 @@ function askReset() {
 }
 function undoReset() { if (snapshot) replaceState(snapshot); ui.toast = null }
 
-const store = { st, q, ui, rows, totals, rowsText, plural, isLight, usages, canDelete, deleteColor, addColor, generate, askReset, doReset, undoReset,
+const store = { st, q, ui, rows, totals, rowsText, plural, isLight, usages, canDelete, deleteColor, addColor, rollPalette, rollSock, rollSection, askReset, doReset, undoReset,
   addStripe, removeStripe, setStripeRows, moveBorder, moveStripe, setSectionRows }
 
 /* ---------- куски экрана ---------- */
@@ -441,6 +444,8 @@ const SectionNode = {
       <span class="name">{{ s.name }}</span>
       <div class="mini"><div v-for="(p, i) in s.stripes" :key="i" :style="{ flex: p.r, background: st.palette[p.c]?.hex }"></div></div>
       <span class="mute" style="width:64px;text-align:right">{{ rowsText(s.rows) }}</span>
+      <button class="ghost" style="min-height:28px;min-width:28px;padding:0" :disabled="s.lock"
+              :title="s.lock ? 'Участок закреплён' : 'Заново нарезать этот участок'" @click.stop="rollSection(k)">🎲</button>
       <Lock small :on="s.lock" @toggle="s.lock = !s.lock"/>
     </div>
     <div v-if="ui.open[k]" class="sec-body">
@@ -509,12 +514,14 @@ createApp({
     <h1>Расцветка носка</h1>
     <div class="grid" style="margin-top:10px">
       <div class="stage col">
-        <div class="row" style="justify-content:flex-end">
+        <div class="row" style="justify-content:space-between">
+          <button class="primary" @click="rollSock" title="Заново нарезать полосы всех незакреплённых участков">🎲 Полосы</button>
           <div class="seg" role="group" aria-label="Вид">
             <button :class="{ on: ui.view !== 'tube' }" @click="ui.view = 'sock'">Носок</button>
             <button :class="{ on: ui.view === 'tube' }" @click="ui.view = 'tube'">Развёртка</button>
           </div>
         </div>
+        <div v-if="st.palette.length < 2" class="mute">В палитре один цвет — полосы выйдут однотоном. Добавь цвета внизу.</div>
         <SockL v-if="ui.view !== 'tube'" :maxw="460"/>
         <SockTube v-else big/>
       </div>
@@ -528,7 +535,8 @@ createApp({
     <Questions/>
   </div>
   <div class="dock">
-    <button class="primary" @click="generate" title="Сгенерировать">🎲</button>
+    <span class="mute" style="white-space:nowrap">Палитра</span>
+    <button class="primary" @click="rollPalette" title="Перебрать незакреплённые цвета">🎲</button>
     <div v-for="(p, i) in st.palette" :key="i" class="chip" :class="{ locked: p.lock }">
       <input type="color" v-model="p.hex"><span style="font-size:12px">{{ i + 1 }}</span>
       <Lock small :on="p.lock" @toggle="p.lock = !p.lock"/>
